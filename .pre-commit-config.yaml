@@ -1,0 +1,44 @@
+# ══════════════════════════════════════════════════════════════════════════
+# pre-commit 钩子配置（M0-T03）
+#
+# 设计要点：
+# 1. 每个 repo 用 rev 锁定版本 —— 保证本地与 CI 执行同一套规则，结果可复现
+# 2. ruff-pre-commit 固定 v0.17.0，与 pyproject.toml 中 ruff 版本一致，
+#    避免「钩子通过、但 `uv run ruff` 报错」的版本漂移
+# 3. detect-secrets 走基线豁免机制：.secrets.baseline 记录存量已知项，
+#    新增疑似密钥会被拦截（存量不阻塞、增量严格）
+# ══════════════════════════════════════════════════════════════════════════
+
+default_stages: [pre-commit]
+fail_fast: false
+
+repos:
+  # ── 基础文件卫生 + 私有信息检查 ──
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]   # 单文件 >1MB 直接拦截
+      - id: check-merge-conflict # 禁止提交冲突标记
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: detect-private-key   # PEM 私钥文件
+
+  # ── Ruff：lint（自动修复）+ format ──
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.0                # 与项目 ruff 版本对齐
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  # ── 密钥扫描：基线豁免存量，拦截新增 ──
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        # uv.lock 含大量哈希、基线文件自身含扫描结果，均排除以免误报
+        exclude: ^(uv\.lock|\.secrets\.baseline)$
