@@ -76,7 +76,8 @@ select = [
     "RUF", # ruff 专有规则
 ]
 # 行宽由 formatter 统一控制，E501 冗余故关闭（ruff 官方推荐做法）
-ignore = ["E501"]
+# RUF001/002/003：放行中文全角标点（，：（）等）—— 中文 docstring/注释是本项目常态
+ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.isort]
 known-first-party = [
@@ -96,8 +97,8 @@ known-first-party = [
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-# 空包（仅 __init__.py）不报"缺少类型注解"
-exclude = ["^docs/", "^tests/"]
+# 文档与测试不纳入 strict 检查；(^|/) 确保对子目录路径也生效
+exclude = ["(^|/)docs/", "(^|/)tests/"]
 
 # ══════════════════════════════ Pytest ══════════════════════════════════════
 [tool.pytest.ini_options]
