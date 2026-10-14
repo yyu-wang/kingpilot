@@ -1,0 +1,106 @@
+# ══════════════════════════════════════════════════════════════════════════
+# KingPilot —— 企业级金蝶 ERP 智能 Agent
+#
+# 构建后端：hatchling（PEP 621 声明式元数据）
+# 目录布局：flat（顶层包，严格对齐《企业级Agent实现方案.md》§七 目录结构）
+# 依赖策略：pyproject 声明兼容区间 + uv.lock 锁定精确版本（uv 管理）
+# ══════════════════════════════════════════════════════════════════════════
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kingpilot"
+version = "0.1.0"
+description = "KingPilot —— 企业级金蝶 ERP 智能 Agent"
+requires-python = ">=3.11"
+# 运行期依赖：仅声明方案 §1.3 技术选型中的核心库
+dependencies = [
+    "httpx>=0.27,<1.0",           # 异步 HTTP 客户端（金蝶 API 调用）
+    "pydantic>=2.7,<3.0",         # 数据模型（v2 API）
+    "pydantic-settings>=2.3,<3.0", # 配置管理
+    "loguru>=0.7,<1.0",           # 日志
+]
+
+[project.optional-dependencies]
+# 开发期依赖：`uv sync --extra dev` 或 `pip install -e ".[dev]"`
+dev = [
+    "ruff>=0.6",          # lint + format
+    "mypy>=1.11",         # 静态类型检查
+    "pytest>=8.3",        # 测试框架
+    "pytest-asyncio>=0.24", # 异步测试
+    "respx>=0.21",        # httpx mock（单测零网络）
+    "pre-commit>=3.8",    # 提交钩子
+    "pip-audit>=2.7",     # 依赖漏洞扫描
+]
+
+[tool.uv]
+# 默认不引入额外的源/配置；精确版本由 uv.lock 锁定
+package = true
+
+# ── 打包范围：只收顶层包，排除 docs/ 与 tests/ ──
+[tool.hatch.build.targets.wheel]
+packages = [
+    "config",
+    "kingdee",
+    "agent",
+    "safety",
+    "ledger",
+    "observability",
+    "governance",
+    "models",
+    "infrastructure",
+]
+
+# ══════════════════════════════ Ruff（lint + format）══════════════════════════
+[tool.ruff]
+line-length = 100
+# target-version 与运行时实际解释器对齐（.python-version = 3.12）
+target-version = "py312"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle error
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "RUF", # ruff 专有规则
+]
+# 行宽由 formatter 统一控制，E501 冗余故关闭（ruff 官方推荐做法）
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "config",
+    "kingdee",
+    "agent",
+    "safety",
+    "ledger",
+    "observability",
+    "governance",
+    "models",
+    "infrastructure",
+]
+
+# ══════════════════════════════ Mypy（严格模式）═════════════════════════════
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+# 空包（仅 __init__.py）不报"缺少类型注解"
+exclude = ["^docs/", "^tests/"]
+
+# ══════════════════════════════ Pytest ══════════════════════════════════════
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "integration: 需真实金蝶沙箱/真实 LLM 的集成测试（默认不跑，需 -m integration 显式指定）",
+]
