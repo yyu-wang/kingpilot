@@ -63,7 +63,9 @@ class TestBoundary:
 
     def test_env_illegal_value_rejected(self) -> None:
         with pytest.raises(ValidationError):
-            _make(env="staging")  # type: ignore[arg-type]
+            _make(
+                env="staging"
+            )  # 运行时校验：Literal 约束由 pydantic 在 init 时检查，mypy 无法感知 kwargs 内容
 
 
 class TestUnknownField:
@@ -71,7 +73,9 @@ class TestUnknownField:
 
     def test_unknown_init_arg_rejected(self) -> None:
         with pytest.raises(ValidationError):
-            _make(unknown_field="x")  # type: ignore[call-arg]
+            _make(
+                unknown_field="x"
+            )  # 运行时校验：extra="forbid" 由 pydantic 检查，mypy 无法感知 kwargs 内容
 
     def test_unknown_env_var_silently_ignored(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # 固化 pydantic-settings 原生行为：未知环境变量不报错、被忽略

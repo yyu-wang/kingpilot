@@ -97,8 +97,9 @@ known-first-party = [
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-# 文档与测试不纳入 strict 检查；(^|/) 确保对子目录路径也生效
-exclude = ["(^|/)docs/", "(^|/)tests/"]
+# 文档不纳入 strict 检查；(^|/) 确保对子目录路径也生效
+# tests 已纳入：移除多余的 type: ignore 注释（M0-T05 补齐缺口）
+exclude = ["(^|/)docs/"]
 
 # ══════════════════════════════ Pytest ══════════════════════════════════════
 [tool.pytest.ini_options]
