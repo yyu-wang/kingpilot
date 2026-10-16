@@ -1,0 +1,22 @@
+[
+  [
+    {
+      "Result": {
+        "ResponseStatus": {
+          "ErrorCode": 4,
+          "IsSuccess": false,
+          "Errors": [
+            {
+              "FieldName": "",
+              "Message": "标识为“SAL_OutStockBill”的业务对象不存在，或者被删除。",
+              "DIndex": 0
+            }
+          ],
+          "SuccessEntitys": [],
+          "SuccessMessages": [],
+          "MsgCode": 4
+        }
+      }
+    }
+  ]
+]
