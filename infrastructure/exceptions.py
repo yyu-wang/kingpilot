@@ -57,3 +57,11 @@ class LLMResponseError(LLMError):
     确定性错误，重试同样请求大概率复现——不触发降级，由调用方决定
     纠错（如重发带修正提示的请求）或直接失败。
     """
+
+
+class ToolError(KingPilotError):
+    """工具层异常（M2-T03）：参数校验失败、组装被拒、未知工具、重复注册。
+
+    Why 挂在根下而非 Kingdee/LLM 分支：工具是编排层概念，一个工具的失败
+    可能源自任一下游（参数错/金蝶错），调用方按根类型接住后看 context 定位。
+    """

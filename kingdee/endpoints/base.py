@@ -15,9 +15,13 @@ Why @dataclass(frozen=True) 而非 Pydantic：规范 3.3 规定内部不可变�
 M4 Guard 2 的职责（避免双重防线互相稀释）。
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
+from pydantic import Field
+
+from models.base import KingPilotBaseModel
 from models.kingdee import BillQueryParams
 
 # 字段数据类型。直接决定 M2 提示词：date 的过滤值需带引号（'2026-01-01'），
@@ -92,3 +96,72 @@ class EndpointDescriptor:
             start_row=start_row,
             limit=limit,
         )
+
+
+# ── M2-T03：查询工具的参数基类与 FilterString 组装设施 ──
+# 设计主张：LLM 永远不接触 FilterString 原文——工具参数是结构化的
+# （枚举/数值/短文本），由端点层组装。这是方案 §3.2 三层解析法的落地：
+# LLM 只能选值，不能拼 SQL；单引号拒绝是纵深防御，M4 Guard 2 是主防线。
+
+
+class EndpointParams(KingPilotBaseModel):
+    """查询工具的结构化参数基类。
+
+    ``limit`` 为所有查询工具共有（1-100 上限与沙箱/生产默认页宽对齐）；
+    业务过滤参数由各端点子模型自行声明。``extra=forbid``（继承自
+    KingPilotBaseModel）使 LLM 的未知参数在 ``model_validate`` 时直接拒绝。
+    """
+
+    limit: int = Field(default=100, ge=1, le=100, description="返回条数上限（1-100）")
+
+
+# 单据状态值域（models.kingdee.DocumentStatus 的字符集，销售/采购订单共用）
+_DOCUMENT_STATUS_VALUES = frozenset({"Z", "A", "B", "C", "D"})
+
+
+def validate_document_status(value: str) -> str:
+    """单据状态枚举校验（各订单端点参数模型共用的 field_validator 函数体）。
+
+    空 = 不过滤；非空必须落在 Z/A/B/C/D 内（fail-closed，LLM 传 "X" 直接拒绝）。
+    """
+    if value and value not in _DOCUMENT_STATUS_VALUES:
+        raise ValueError(f"单据状态须为 {'/'.join(sorted(_DOCUMENT_STATUS_VALUES))} 之一或留空")
+    return value
+
+
+def quote_eq(value: str) -> str:
+    """等值条件的带引号字面量（``FDocumentStatus = 'C'``）。
+
+    Why 拒绝而非转义单引号：金蝶 FilterString 的转义规则各版本不一（''/\\'），
+    转义 = 把不确定的协议行为引入系统；拒绝把模糊性挡在边界外。
+    """
+    if "'" in value:
+        raise ValueError(f"过滤值不能包含单引号: {value!r}")
+    return f"'{value}'"
+
+
+def quote_like(value: str) -> str:
+    """模糊匹配条件的带引号字面量（``FName LIKE '%测试%'``）。单引号拒绝同上。"""
+    if "'" in value:
+        raise ValueError(f"过滤值不能包含单引号: {value!r}")
+    return f"'%{value}%'"
+
+
+def fmt_number(value: float) -> str:
+    """数值条件的字面量：整数值去掉 ``.0`` 尾巴（金蝶 FilterString 数值比较惯例）。"""
+    return str(int(value)) if value.is_integer() else repr(value)
+
+
+@dataclass(frozen=True)
+class QueryToolBinding:
+    """端点 → 查询工具的绑定三件套（agent/tools.py 据此组装 ToolDefinition）。
+
+    Why 放端点层而非 agent：字段知识（白名单/组装逻辑）属于端点自治，
+    agent 只是组装者——这样 kingdee 包不反向依赖 agent，无循环导入。
+    """
+
+    tool_name: str
+    tool_description: str
+    endpoint: EndpointDescriptor
+    params_model: type[EndpointParams]
+    build_filter: Callable[[KingPilotBaseModel], str]

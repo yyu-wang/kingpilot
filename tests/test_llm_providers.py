@@ -64,7 +64,11 @@ def _context() -> LLMContext:
 
 
 def _provider(**kwargs: Any) -> OpenAICompatibleProvider:
-    settings = Settings(llm_api_key=SecretStr(_API_KEY))
+    # _env_file=None：禁读本地 .env（pydantic-settings 构造级覆盖）。
+    # Why：env_file 机制独立于 os.environ，conftest 的环境变量隔离挡不住它——
+    # 本机 .env 若切了路由（如 ollama_qwen），不显式禁用就会把单测请求
+    # 打去别的 base_url。测试必须只测字段默认值，不吃宿主机配置。
+    settings = Settings(_env_file=None, llm_api_key=SecretStr(_API_KEY))
     return OpenAICompatibleProvider(settings, **kwargs)
 
 
@@ -243,7 +247,7 @@ async def test_malformed_body_raises_response_error() -> None:
 
 
 def test_get_provider_with_unknown_route_fails_fast() -> None:
-    settings = Settings(llm_route="no_such_route", llm_api_key=SecretStr(_API_KEY))
+    settings = Settings(_env_file=None, llm_route="no_such_route", llm_api_key=SecretStr(_API_KEY))
     with pytest.raises(LLMError, match="未知 LLM 路由"):
         get_provider(settings)
 
@@ -251,7 +255,8 @@ def test_get_provider_with_unknown_route_fails_fast() -> None:
 def test_provider_without_api_key_fails_at_construction() -> None:
     """密钥缺失在构造期报错（配置错误尽早暴露），不等第一次调用。"""
     with pytest.raises(LLMError, match="密钥未配置"):
-        OpenAICompatibleProvider(Settings())  # 默认 llm_api_key 为空 SecretStr
+        # _env_file=None：测的是字段默认值（空 SecretStr），不吃本机 .env 的 key
+        OpenAICompatibleProvider(Settings(_env_file=None))
 
 
 # ── 契约复用：真 Provider 跑 T01 契约套件 ──

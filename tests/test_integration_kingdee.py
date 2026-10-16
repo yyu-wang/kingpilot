@@ -17,6 +17,7 @@ from collections.abc import AsyncIterator
 import pytest
 import uvicorn
 
+from agent.tools import build_default_registry
 from infrastructure.exceptions import KingdeeAPIError
 from kingdee.client import KingdeeClient
 from models.kingdee import BillQueryParams
@@ -142,3 +143,17 @@ async def test_script_run_query_smoke(
     assert "SO000001" in captured.out
     assert "150000.0000000000" in captured.out
     assert "共 5 行" in captured.out
+
+
+async def test_tool_execute_sales_order_end_to_end(client: KingdeeClient) -> None:
+    """M2-T03：销售订单工具端到端——结构化参数 → FilterString 组装 → 沙箱 → dict 行。
+
+    验证工具层不是纸面设计：LLM 侧 JSON 参数真的能一路走到仿真金蝶并拿回锚点数据。
+    """
+    tool = build_default_registry().get("kingdee_query_sales_order")
+
+    result = await tool.execute(client, {"limit": 5, "document_status": "C"})
+
+    assert result.form_id == "SAL_Order"
+    assert result.row_count == 5
+    assert any(row["FBillNo"] == "SO000001" for row in result.rows)

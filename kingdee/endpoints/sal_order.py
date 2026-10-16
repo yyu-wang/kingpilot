@@ -8,7 +8,20 @@
 避免与 M4 Guard 2 的排序字段校验职责重叠。
 """
 
-from kingdee.endpoints.base import EndpointDescriptor, FieldDescriptor
+from typing import cast
+
+from pydantic import Field, field_validator
+
+from kingdee.endpoints.base import (
+    EndpointDescriptor,
+    EndpointParams,
+    FieldDescriptor,
+    QueryToolBinding,
+    fmt_number,
+    quote_eq,
+    validate_document_status,
+)
+from models.base import KingPilotBaseModel
 
 # 字段顺序 = 默认查询结果的列顺序（便于人工核对）
 _FIELDS: tuple[FieldDescriptor, ...] = (
@@ -111,4 +124,53 @@ SAL_ORDER = EndpointDescriptor(
         "FBillAllAmount",
     ),
     default_sort="FBillNo",
+)
+
+
+# ── 查询工具绑定（M2-T03）：结构化参数 + FilterString 组装 ──
+# 注意：客户过滤只提供 FCustomerID.FNumber（白名单语义「可查 ≠ 可过滤」）——
+# LLM 手上通常是客户名称，名称→编码的转换交给 kingdee_query_customer 工具
+# 多步完成，这是 Agent 编排职责，不在工具内偷偷用名称过滤。
+
+
+class SalesOrderParams(EndpointParams):
+    """查询销售订单的结构化参数（LLM 只能选值，不接触 FilterString 原文）。"""
+
+    customer_number: str = Field(
+        default="",
+        description="客户编码精确匹配（如 CUS001）；按名称查请先用客户查询工具换编码",
+    )
+    document_status: str = Field(
+        default="",
+        description="单据状态：Z 暂存 / A 创建 / B 审核中 / C 已审核 / D 重新审核",
+    )
+    min_amount: float | None = Field(default=None, gt=0, description="金额下限（表头合计）")
+
+    _check_status = field_validator("document_status")(validate_document_status)
+
+
+def build_sales_order_filter(params: KingPilotBaseModel) -> str:
+    """参数 → FilterString；全部条件字段均在 SAL_ORDER.filterable_fields 内。"""
+    p = cast(SalesOrderParams, params)
+    conditions: list[str] = []
+    if p.customer_number:
+        conditions.append(f"FCustomerID.FNumber = {quote_eq(p.customer_number)}")
+    if p.document_status:
+        conditions.append(f"FDocumentStatus = {quote_eq(p.document_status)}")
+    if p.min_amount is not None:
+        conditions.append(f"FBillAllAmount >= {fmt_number(p.min_amount)}")
+    return " AND ".join(conditions)
+
+
+SAL_ORDER_TOOL = QueryToolBinding(
+    tool_name="kingdee_query_sales_order",
+    tool_description=(
+        "按条件查询销售订单列表（金蝶 SAL_Order）。"
+        "何时用：用户询问销售订单、订单状态、某客户的订单时。"
+        "所有参数可选；客户仅支持按编码过滤，只有客户名称时请先用"
+        " kingdee_query_customer 查编码。返回单据编号/日期/客户/状态/金额。"
+    ),
+    endpoint=SAL_ORDER,
+    params_model=SalesOrderParams,
+    build_filter=build_sales_order_filter,
 )
