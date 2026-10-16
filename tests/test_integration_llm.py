@@ -36,8 +36,12 @@ def _real_provider() -> OpenAICompatibleProvider:
 
 
 @pytest.mark.integration
-async def test_real_deepseek_plan_selects_tool() -> None:
-    """真调用 plan：模型应从工具声明中选中查询工具并给出合法参数。"""
+async def test_real_llm_plan_selects_tool() -> None:
+    """真调用 plan：模型应从工具声明中选中查询工具并给出合法参数。
+
+    打哪个模型由 ``.env`` 的 ``KINGPILOT_LLM_ROUTE`` 决定
+    （deepseek-chat / 本地 Ollama 千问均可）。
+    """
     provider = _real_provider()
     context = LLMContext(messages=[LLMMessage(role="user", content="帮我查一下最近 5 笔销售订单")])
     try:
@@ -50,7 +54,7 @@ async def test_real_deepseek_plan_selects_tool() -> None:
 
 
 @pytest.mark.integration
-async def test_real_deepseek_plan_without_tool_intent_returns_empty() -> None:
+async def test_real_llm_plan_without_tool_intent_returns_empty() -> None:
     """纯聊天意图（无查询需求）→ 空工具调用（协议「空 = 纯聊天」语义）。"""
     provider = _real_provider()
     context = LLMContext(messages=[LLMMessage(role="user", content="你好，你是谁？")])
