@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     kingdee_max_concurrency: int = Field(default=5, ge=1)
     kingdee_max_retries: int = Field(default=3, ge=0)
 
+    # ── LLM（M2-T02：DeepSeek，OpenAI 兼容协议）──
+    # 路由表在 config/model_registry.py（规则与逻辑分离）；密钥只进 Settings
+    llm_route: str = Field(default="chat_default", description="MODEL_REGISTRY 的逻辑名")
+    llm_api_key: SecretStr = Field(default=SecretStr(""), description="LLM API 密钥（永不入日志）")
+
     @property
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""
