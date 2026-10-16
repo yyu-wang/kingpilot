@@ -63,6 +63,24 @@ class BillQueryParams(KingPilotBaseModel):
     limit: int = Field(default=100, alias="Limit", ge=0)  # 最多返回行数；0 = 不限（金蝶语义）
 
 
+class BillQueryResult(KingPilotBaseModel):
+    """``ExecuteBillQuery`` 成功结果（规范 2：client 不返回裸二维数组）。
+
+    协议给的是「无字段名的位置二维数组」，按列位置取值一旦 ``FieldKeys``
+    调整就会静默错位；本模型承载已按键转换的 ``rows``，把这类错误前移到
+    转换阶段（``rows_to_dicts`` 列数不符即抛错）。
+    """
+
+    form_id: str
+    field_keys: list[str]  # 请求时的列名（含 FCustomerID.FName 这类关联字段）
+    rows: list[dict[str, JsonScalar]]  # 已按键取值；数量保留原始字符串，精度处理归业务层
+
+    @property
+    def row_count(self) -> int:
+        """返回行数（分页按行计数，非单据数——明细字段会让一张单占多行）。"""
+        return len(self.rows)
+
+
 class LoginResult(KingPilotBaseModel):
     """``LoginBySign`` 响应（官方文档：成功 ``LoginResultType == 1``）。
 

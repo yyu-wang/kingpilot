@@ -71,6 +71,15 @@ class KingdeeAuth:
         """当前时刻会话是否在有效期内。"""
         return self._clock() < self._expires_at
 
+    def invalidate(self) -> None:
+        """主动作废会话（下次 ``ensure_session()`` 必然重登）。
+
+        供 client 在检测到「会话信息丢失」类被动失效时调用——
+        用公开方法而非跨模块改私有属性，保持封装边界。
+        """
+        self._expires_at = 0.0
+        logger.warning("金蝶会话已主动作废，下次调用将重新登录")
+
     def _build_sign(self, timestamp: int) -> str:
         """LoginBySign 签名。
 

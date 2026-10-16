@@ -7,7 +7,9 @@ from models.agent import AgentResponse, AgentTrace
 from models.base import BusinessKey, FormId, KingPilotBaseModel, Phase, RiskLevel, Role, SagaStatus
 from models.kingdee import (
     BillQueryParams,
+    BillQueryResult,
     DocumentStatus,
+    LoginResult,
     ResponseStatus,
     extract_response_status,
     rows_to_dicts,
@@ -19,13 +21,15 @@ __all__ = [
     "AgentResponse",
     # Agent
     "AgentTrace",
-    # 金蝶协议（M1-T02）
+    # 金蝶协议（M1-T02、M1-T03、M1-T04）
     "BillQueryParams",
+    "BillQueryResult",
     "BusinessKey",
     "DocumentStatus",
     "FormId",
     # 基础
     "KingPilotBaseModel",
+    "LoginResult",
     "Phase",
     "ResponseStatus",
     "RiskLevel",
