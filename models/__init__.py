@@ -14,6 +14,18 @@ from models.kingdee import (
     extract_response_status,
     rows_to_dicts,
 )
+from models.llm import (
+    ExecutionSummary,
+    LLMContext,
+    LLMMessage,
+    MemorySnapshot,
+    MessageRole,
+    PlanResult,
+    ReflectionResult,
+    TokenUsage,
+    ToolCallDecision,
+    ToolSpec,
+)
 from models.tool import ToolExecution
 from models.user import UserContext
 
@@ -26,17 +38,28 @@ __all__ = [
     "BillQueryResult",
     "BusinessKey",
     "DocumentStatus",
+    "ExecutionSummary",
     "FormId",
     # 基础
     "KingPilotBaseModel",
+    # LLM 边界（M2-T01）
+    "LLMContext",
+    "LLMMessage",
     "LoginResult",
+    "MemorySnapshot",
+    "MessageRole",
     "Phase",
+    "PlanResult",
+    "ReflectionResult",
     "ResponseStatus",
     "RiskLevel",
     "Role",
     "SagaStatus",
+    "TokenUsage",
     # 工具
+    "ToolCallDecision",
     "ToolExecution",
+    "ToolSpec",
     # 用户
     "UserContext",
     "extract_response_status",

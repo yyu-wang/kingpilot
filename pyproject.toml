@@ -98,6 +98,8 @@ known-first-party = [
     "infrastructure",
     # M1-T06b 补登记：sandbox 是本仓顶层包（测试设施），不声明会被 isort 归入第三方分组
     "sandbox",
+    # M2-T01 补登记：tests 包化后（tests/__init__.py），fakes 等测试内模块 import 需按本仓分组
+    "tests",
 ]
 
 # ══════════════════════════════ Mypy（严格模式）═════════════════════════════

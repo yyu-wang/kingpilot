@@ -32,3 +32,28 @@ class KingdeeRateLimitError(KingdeeError):
 
 class KingdeeAPIError(KingdeeError):
     """金蝶业务错误：HTTP 200 但 IsSuccess=false，或响应形状破坏协议。"""
+
+
+class LLMError(KingPilotError):
+    """LLM 层异常基类（方案 §3.4 层次表）。"""
+
+
+class LLMUnavailableError(LLMError):
+    """LLM 不可用：超时、网络失败、服务端 5xx。
+
+    主循环降级的唯一触发点（方案 §2.3 Phase 1 只 catch 本异常）——
+    其它 LLM 异常不触发降级，避免把确定性错误（如响应不合法）误判为
+    「服务暂时不可用」而进入规则引擎兜底。
+    """
+
+
+class LLMRateLimitError(LLMError):
+    """触发 LLM 供应商限流（429）——模型级 failover 链的触发条件之一（方案 §支柱十二）。"""
+
+
+class LLMResponseError(LLMError):
+    """LLM 响应不合法：JSON 解析失败、缺必需字段、tool call 参数不符 Schema。
+
+    确定性错误，重试同样请求大概率复现——不触发降级，由调用方决定
+    纠错（如重发带修正提示的请求）或直接失败。
+    """
