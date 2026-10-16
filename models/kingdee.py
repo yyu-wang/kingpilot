@@ -17,6 +17,7 @@
 """
 
 from enum import StrEnum
+from typing import Any
 
 from pydantic import ConfigDict, Field
 
@@ -60,6 +61,26 @@ class BillQueryParams(KingPilotBaseModel):
     top_row_count: int = Field(default=0, alias="TopRowCount", ge=0)  # 预留（总行数统计）
     start_row: int = Field(default=0, alias="StartRow", ge=0)  # 行偏移，从 0 开始
     limit: int = Field(default=100, alias="Limit", ge=0)  # 最多返回行数；0 = 不限（金蝶语义）
+
+
+class LoginResult(KingPilotBaseModel):
+    """``LoginBySign`` 响应（官方文档：成功 ``LoginResultType == 1``）。
+
+    会话本体是响应 Set-Cookie 写入 cookie jar 的 ``KDSVCSessionId``（Cookie 会话，
+    非 Bearer Token），本模型只承载判定字段；``context`` 原样保留备查。
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    login_result_type: int = Field(alias="LoginResultType")
+    message: str | None = Field(default=None, alias="Message")
+    message_code: str | None = Field(default=None, alias="MessageCode")
+    context: dict[str, Any] | None = Field(default=None, alias="Context")
+
+    @property
+    def is_success(self) -> bool:
+        """官方成功判定：LoginResultType == 1。"""
+        return self.login_result_type == 1
 
 
 class ErrorItem(KingPilotBaseModel):
