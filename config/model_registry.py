@@ -39,14 +39,15 @@ MODEL_REGISTRY: dict[str, ModelRoute] = {
         model_id="deepseek-chat",
     ),
     # 本地开发路由（M2-T02 追加）：Ollama 的 OpenAI 兼容端点，省 key/零网络依赖。
-    # INFERRED: model_id 以本机 `ollama list` 实际 tag 为准，且须为支持 tools 的
-    # 型号（qwen2.5/qwen3 系列）；小模型 function calling 可靠性有限，
-    # 日常调试用它，集成验收与评测（T05）仍用 chat_default。
+    # 2026-10-16 实测（curl 带 tools 请求）：qwen2.5:7b 正确返回 tool_calls
+    # （finish_reason=tool_calls，arguments 合法 JSON）。本机另装 qwen3.8-27b
+    # 亦支持 tools，但其 message 携带非标准 `reasoning` 字段（思考模型特征），
+    # 对接 reflect/generate 前需验证 content 与 reasoning 的分离行为，暂作备选。
     "ollama_qwen": ModelRoute(
         name="ollama_qwen",
         provider_kind="openai_compatible",
         base_url="http://127.0.0.1:11434/v1",
-        model_id="qwen3:8b",  # 占位：按本机 tag 修改
+        model_id="qwen2.5:7b",
         timeout_seconds=120.0,  # 本地推理慢，放宽超时
     ),
 }
