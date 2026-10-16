@@ -96,6 +96,8 @@ known-first-party = [
     "governance",
     "models",
     "infrastructure",
+    # M1-T06b 补登记：sandbox 是本仓顶层包（测试设施），不声明会被 isort 归入第三方分组
+    "sandbox",
 ]
 
 # ══════════════════════════════ Mypy（严格模式）═════════════════════════════

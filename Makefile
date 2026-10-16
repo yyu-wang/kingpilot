@@ -9,7 +9,7 @@ PYTEST := $(UV) run pytest
 RUFF   := $(UV) run ruff
 
 .DEFAULT_GOAL := help
-.PHONY: help lint typecheck test test-integration cov audit check
+.PHONY: help lint typecheck test test-integration cov audit check sandbox query-demo
 
 help:  ## 显示可用命令
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -39,3 +39,13 @@ audit:  ## 依赖漏洞扫描（联网查 OSV 漏洞库）
 	$(UV) run pip-audit
 
 check: lint typecheck test  ## 完成门禁：lint + typecheck + test 三绿
+
+# ── M1-T06b 开发辅助：仿真沙箱体验（不属于六门禁，仅本地手工验收用）──
+
+SANDBOX_PORT ?= 8000
+
+sandbox:  ## 前台启动本地 K3Cloud 仿真沙箱（Ctrl+C 停止；另开终端跑 query-demo）
+	$(UV) run python -m sandbox.kingdee_stub --port $(SANDBOX_PORT)
+
+query-demo:  ## 硬编码查询脚本：经 KingdeeClient 查仿真沙箱的销售订单（需先 make sandbox）
+	$(UV) run python scripts/query_sal_orders.py --url http://127.0.0.1:$(SANDBOX_PORT)

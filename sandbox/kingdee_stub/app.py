@@ -46,9 +46,12 @@ SANDBOX_USER = "demo"
 SANDBOX_APP_ID = "sandbox_app"
 SANDBOX_APP_SECRET = "sandbox_secret_not_a_real_credential"  # pragma: allowlist secret
 
+# 路径拼接必须是**点号**：金蝶 URL 的服务全名是 Kingdee.BOS.WebApi.ServicesStub.AuthService…
+# （T06b 真 HTTP 验收抓出过此错：斜杠拼接在 T06a 单测里全绿——测试与实现共用同一
+# 常量属同义反复，只有 KingdeeClient 按真协议发请求才能暴露。教训见 M1-T07 小结）
 SANDBOX_BASE_PATH = "/K3Cloud/Kingdee.BOS.WebApi.ServicesStub"
-LOGIN_PATH = f"{SANDBOX_BASE_PATH}/AuthService.LoginBySign.common.kdsvc"
-QUERY_PATH = f"{SANDBOX_BASE_PATH}/DynamicFormService.ExecuteBillQuery.common.kdsvc"
+LOGIN_PATH = f"{SANDBOX_BASE_PATH}.AuthService.LoginBySign.common.kdsvc"
+QUERY_PATH = f"{SANDBOX_BASE_PATH}.DynamicFormService.ExecuteBillQuery.common.kdsvc"
 
 SESSION_COOKIE_NAME = "KDSVCSessionId"  # 金蝶会话 Cookie 名（官方实测）
 
