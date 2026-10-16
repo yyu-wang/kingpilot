@@ -1,0 +1,46 @@
+# ══════════════════════════════════════════════════════════════════════════
+# KingPilot —— CI 质量门禁（开发计划 M0-T08 / §3.10）
+# 触发：main 分支推送 + 任意 PR
+# 门禁：复用 Makefile 的 `make check`（lint + typecheck + test 三绿）
+# 说明：CI 不需要任何 secrets —— Settings 有默认值，测试由 conftest 隔离环境变量
+# ══════════════════════════════════════════════════════════════════════════
+
+name: CI
+
+# push 仅监听 main：若与 pull_request 同时监听同一分支，
+# concurrency（按 github.ref 分组）会让 push 与 PR 两次运行互相取消，造成状态抖动
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同一 ref 的新运行自动取消旧运行，避免排队浪费
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 最小权限：CI 只需读代码，不需要写
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: lint / typecheck / test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v7
+
+      # 注意：setup-uv 未发布 v8+ 的滚动主版本 tag（v8/v9/v10 均不存在），
+      # 因此必须钉精确版本，不能写 @v10
+      - name: 安装 uv（读取 .python-version=3.12，缓存依赖与解释器）
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          enable-cache: true
+
+      - name: 按 uv.lock 精确安装依赖（锁文件与 pyproject 不一致则失败）
+        run: uv sync --frozen --extra dev
+
+      - name: 质量门禁（§3.10 三绿：lint + typecheck + test）
+        run: make check
