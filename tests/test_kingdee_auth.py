@@ -181,3 +181,25 @@ async def test_concurrent_ensure_session_logs_in_once() -> None:
     auth, _ = _make_auth()
     await asyncio.gather(*[auth.ensure_session() for _ in range(10)])
     assert route.call_count == 1  # double-checked locking：排队协程进锁后命中快路径
+
+
+@respx.mock
+async def test_queued_coroutines_hit_inlock_cached_path() -> None:
+    """锁内二次检查命中（auth.py L67）：真实并发窗口下排队协程直接复用会话。
+
+    Why 需要可挂起的登录：respx 即时返回会让首协程一口气完成登录，
+    其余协程全走锁外快路径（L64），排队路径从不执行——上面的防抖用例
+    因此漏掉 L67 分支（M1-T07 覆盖率自查发现）。``sleep(0)`` 精确让出一次
+    控制权：其余协程在登录完成前完成锁外检查、进锁排队，登录完成后
+    它们的锁内二次检查命中已缓存会话。
+    """
+    import asyncio
+
+    async def slow_login(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(0)  # 持锁挂起：制造「其余协程排队」的真实窗口
+        return httpx.Response(200, json={"LoginResultType": 1})
+
+    route = respx.post(_LOGIN_URL).mock(side_effect=slow_login)
+    auth, _ = _make_auth()
+    await asyncio.gather(*[auth.ensure_session() for _ in range(10)])
+    assert route.call_count == 1  # 排队的 9 个协程必须复用首协程建立的会话

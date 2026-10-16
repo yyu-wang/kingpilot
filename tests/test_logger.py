@@ -157,6 +157,16 @@ class TestStdlibInterception:
         assert "callHandlers" not in line
         assert "logger.py" not in line
 
+    def test_stdlib_unknown_level_falls_back_to_levelno(self, sink: _ListSink) -> None:
+        """回归 M1-T07：loguru 不认识的级别名（自定义值 35 → "Level 35"）走 levelno 兜底。
+
+        ``logger.level("Level 35")`` 抛 ValueError，拦截器须降级用 ``record.levelno``
+        继续转发——该分支此前无任何用例触达（覆盖率自查缺口）。
+        """
+        logging.log(35, "未知级别的兜底消息")
+        line = next(ln for ln in sink.lines if "未知级别的兜底消息" in ln)
+        assert "35" in line
+
 
 class TestSetupLogging:
     """装配行为。"""
