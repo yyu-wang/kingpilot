@@ -6,61 +6,23 @@ URL 拼接、报文序列化、Cookie 携带任何一环出错都会红。这正
 「进程内 mock 无法暴露传输层缺陷」的兑现处。
 
 运行方式：``make test-integration``（即 ``pytest -m integration``）。
-真凭证补验（T01 到位后）：把 client fixture 里的 ``sandbox_settings(...)`` 换成
-``Settings()``（读 .env 真凭证）即可，用例零改动。
+真凭证补验（T01 到位后）：把 conftest 的 ``client`` fixture 里的
+``sandbox_settings(...)`` 换成 ``Settings()``（读 .env 真凭证）即可，用例零改动。
+M2-T04：沙箱 fixture 上移 conftest（本文件与 test_integration_query.py 共用）。
 """
 
-import asyncio
-import time
-from collections.abc import AsyncIterator
-
 import pytest
-import uvicorn
 
 from agent.tools import build_default_registry
 from infrastructure.exceptions import KingdeeAPIError
 from kingdee.client import KingdeeClient
 from models.kingdee import BillQueryParams
 from sandbox import sandbox_settings
-from sandbox.kingdee_stub import app, reset_sessions
+from sandbox.kingdee_stub import reset_sessions
 from scripts.query_sal_orders import run_query
 
 # 本文件全部用例均为 integration：默认门禁（-m "not integration"）排除，显式指定才跑
 pytestmark = pytest.mark.integration
-
-# uvicorn 启动就绪的等待上限（本机毫秒级，5s 已是宽裕保护）
-_STARTUP_TIMEOUT = 5.0
-
-
-@pytest.fixture
-async def sandbox_server() -> AsyncIterator[str]:
-    """同进程托管真 uvicorn（设计 D1）：真 socket HTTP、动态端口、零轮询就绪同步。
-
-    Why 不用 subprocess：子进程要轮询端口、清理脆弱，且无法直接调
-    ``reset_sessions()`` 构造「踢会话」场景；同进程 uvicorn 本身就是真 HTTP 服务，
-    传输层（TCP/cookie/报文）与独立进程没有差别。
-    """
-    reset_sessions()
-    config = uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning")
-    server = uvicorn.Server(config)
-    task = asyncio.create_task(server.serve())
-    deadline = time.monotonic() + _STARTUP_TIMEOUT
-    while not server.started:
-        if task.done() or time.monotonic() > deadline:
-            raise RuntimeError("仿真沙箱启动失败（超时或异常退出）")
-        await asyncio.sleep(0.01)
-    port = server.servers[0].sockets[0].getsockname()[1]
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
-    await task
-    reset_sessions()
-
-
-@pytest.fixture
-async def client(sandbox_server: str) -> AsyncIterator[KingdeeClient]:
-    """指向仿真沙箱的 KingdeeClient（真凭证补验时替换 settings 构造即可）。"""
-    async with KingdeeClient(sandbox_settings(sandbox_server)) as kingdee_client:
-        yield kingdee_client
 
 
 async def test_query_round_trip_over_real_http(client: KingdeeClient) -> None:

@@ -1,4 +1,4 @@
-"""本地 K3Cloud 契约仿真沙箱（M1-T06a）。
+"""本地 K3Cloud 契约仿真沙箱（M1-T06a，M2-T04 拆分查询引擎）。
 
 定位：**契约测试替身**，不是「进程内 mock」。它遵守金蝶协议形状（URL 路径、
 Cookie 会话、二维数组载荷、错误信封），因此能暴露 mock 暴露不了的一类缺陷：
@@ -13,32 +13,27 @@ URL 拼接错、Cookie 未携带、字段列序错位、错误信封解析错。
 - 查询请求 ``{"data": {FormId, FieldKeys, FilterString, OrderString,
   TopRowCount, StartRow, Limit}}``（``FormId`` 在 ``data`` **里面**）
 - 失败响应 HTTP **也是 200**，错误包在二维数组里（必须解析返回体判定）
+
+查询语义（白名单/过滤/排序/行构造）见 ``query_engine.py``，本模块只管 HTTP。
 """
 
 import hashlib
 import hmac
 import json
-import operator
-import re
 import uuid
-from collections.abc import Callable
-from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from kingdee.endpoints.sal_order import SAL_ORDER
-from models.kingdee import JsonScalar
-from sandbox.kingdee_stub.dataset import (
-    ENTRY_FIELD_NAMES,
-    ORDERS,
-    SalesOrder,
-    entry_value,
-    has_entry_field,
-    header_value,
-)
 from sandbox.kingdee_stub.filter_parser import FilterSyntaxError, parse_filter
+from sandbox.kingdee_stub.query_engine import (
+    FORMS,
+    FormModel,
+    apply_filter,
+    apply_order,
+    parse_order_string,
+)
 
 # ── 仿真凭证（与真实密钥无关的占位值；.env 里切真环境时整块替换）──
 SANDBOX_ACCT_ID = "sandbox_acct"
@@ -114,155 +109,6 @@ async def _read_json(request: Request) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
-# ── 字段取值与过滤求值 ──
-
-_FIELD_TYPES: dict[str, str] = {field.name: field.data_type for field in SAL_ORDER.fields}
-_HEADER_FIELD_NAMES: frozenset[str] = SAL_ORDER.selectable_fields - ENTRY_FIELD_NAMES
-
-
-def _full_row(order: SalesOrder, entry_index: int | None) -> dict[str, JsonScalar]:
-    """构造「全字段」行（含未在 FieldKeys 里的字段，供过滤/排序取值用）。
-
-    Why 建全字段行而非只建请求列：真金蝶允许过滤字段不出现在 FieldKeys 里
-    （如按 ``FCustomerID.FNumber`` 过滤却只显示 ``FBillNo``）。若只为请求列建行，
-    这类过滤会静默失效——正是契约测试最该拦住的假绿。
-    """
-    row: dict[str, JsonScalar] = {name: header_value(order, name) for name in _HEADER_FIELD_NAMES}
-    for name in ENTRY_FIELD_NAMES:
-        row[name] = entry_value(order, entry_index, name) if entry_index is not None else None
-    return row
-
-
-def _build_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
-    """按 FieldKeys 是否含明细字段决定行粒度：含则一单多行，否则一单一行。"""
-    rows: list[dict[str, JsonScalar]] = []
-    expand_entries = has_entry_field(field_keys)
-    for order in ORDERS:
-        if expand_entries:
-            rows.extend(_full_row(order, index) for index in range(len(order.entries)))
-        else:
-            rows.append(_full_row(order, None))
-    return rows
-
-
-def _as_decimal(value: JsonScalar) -> Decimal | None:
-    """把单元格值转为 Decimal（数值比较用，避免 float 精度误差）。"""
-    if value is None:
-        return None
-    try:
-        return Decimal(str(value))
-    except InvalidOperation:
-        return None
-
-
-def _match_like(actual: str, pattern: str) -> bool:
-    """SQL 通配匹配：``%`` 任意串、``_`` 单字符（其余字符按字面量）。"""
-    regex = "".join(
-        ".*" if char == "%" else "." if char == "_" else re.escape(char) for char in pattern
-    )
-    return re.fullmatch(regex, actual) is not None
-
-
-# 比较符 → 运算函数（表驱动，避免 6 个 if 分支在数值/字符串两处重复）
-_COMPARATORS: dict[str, Callable[[Any, Any], bool]] = {
-    "=": operator.eq,
-    "<>": operator.ne,
-    ">": operator.gt,
-    ">=": operator.ge,
-    "<": operator.lt,
-    "<=": operator.le,
-}
-
-
-def _match(actual: JsonScalar, op: str, expected: str, data_type: str) -> bool:
-    """单个条件求值；``actual`` 为 ``None`` 时实例值缺失，一律不匹配。"""
-    if actual is None:
-        return False
-    if op == "LIKE":
-        return _match_like(str(actual), expected)
-    compare = _COMPARATORS[op]
-    if data_type == "number":
-        # 数值字段两侧都转 Decimal 再比（字符串直接比会得到 "9" > "10" 的错误结论）
-        left, right = _as_decimal(actual), _as_decimal(expected)
-        if left is None or right is None:
-            return False
-        return compare(left, right)
-    return compare(str(actual), expected)
-
-
-def _apply_filter(
-    rows: list[dict[str, JsonScalar]], conditions: tuple[Any, ...]
-) -> list[dict[str, JsonScalar]]:
-    """逐条件过滤（AND 语义；条件间相互收敛）。"""
-    for condition in conditions:
-        data_type = _FIELD_TYPES.get(condition.field, "string")
-        rows = [
-            row
-            for row in rows
-            if _match(row.get(condition.field), condition.op, condition.value, data_type)
-        ]
-    return rows
-
-
-# ── 排序 ──
-
-
-def _parse_order_string(order_string: str) -> tuple[tuple[str, bool], ...]:
-    """解析 ``OrderString``（如 ``"FBillNo"`` / ``"FDate DESC,FBillNo"``）。
-
-    Raises:
-        FilterSyntaxError: 排序字段含明细字段（一单多行无稳定语义）、字段不在白名单、
-            或方向不是 ASC/DESC。
-    """
-    parsed: list[tuple[str, bool]] = []
-    for raw in order_string.split(","):
-        tokens = raw.strip().split()
-        if not tokens:
-            continue
-        field = tokens[0]
-        if field in ENTRY_FIELD_NAMES:
-            raise FilterSyntaxError(f"仿真端不支持按明细字段排序: {field!r}")
-        if field not in SAL_ORDER.selectable_fields:
-            raise FilterSyntaxError(f"排序字段不在白名单: {field!r}")
-        direction = tokens[1].upper() if len(tokens) > 1 else "ASC"
-        if direction not in ("ASC", "DESC"):
-            raise FilterSyntaxError(f"排序方向非法: {raw!r}")
-        parsed.append((field, direction == "DESC"))
-    return tuple(parsed)
-
-
-def _sort_key(row: dict[str, JsonScalar], field: str) -> str | Decimal:
-    """排序键：数值字段用 Decimal，其余用字符串（ISO 日期字符串序即时间序）。"""
-    value = row.get(field)
-    if value is None:
-        return ""
-    if _FIELD_TYPES.get(field) == "number":
-        return _as_decimal(value) or Decimal(0)
-    return str(value)
-
-
-def _make_sort_key(field: str) -> Callable[[dict[str, JsonScalar]], str | Decimal]:
-    """生成「按指定字段取排序键」的函数（供 ``list.sort(key=...)`` 用）。
-
-    Why 不直接写 lambda：``lambda row, f=field: ...`` 带默认参数时 mypy 无法推断
-    参数类型（strict 模式报 ``Cannot infer type of lambda``）；工厂函数可显式标注。
-    """
-
-    def key(row: dict[str, JsonScalar]) -> str | Decimal:
-        return _sort_key(row, field)
-
-    return key
-
-
-def _apply_order(
-    rows: list[dict[str, JsonScalar]], keys: tuple[tuple[str, bool], ...]
-) -> list[dict[str, JsonScalar]]:
-    """多键排序：按「逆序稳定排序」逐个应用，天然支持混合升降序。"""
-    for field, descending in reversed(keys):
-        rows.sort(key=_make_sort_key(field), reverse=descending)
-    return rows
-
-
 # ── 端点 ──
 
 
@@ -307,16 +153,17 @@ async def login(request: Request) -> JSONResponse:
 
 
 def _validate_query(data: dict[str, Any]) -> dict[str, Any] | JSONResponse:
-    """校验查询请求；返回规范化后的参数 dict，或直接可返回的错误响应。"""
+    """校验查询请求；返回规范化后的参数 dict（含命中 form 模型），或错误响应。"""
     form_id = data.get("FormId")
-    if form_id != SAL_ORDER.form_id:
+    form = FORMS.get(str(form_id))
+    if form is None:
         return _business_error(f"业务对象标识为 {form_id} 的单据不存在", _MSG_FORM_NOT_FOUND)
 
     raw_keys = data.get("FieldKeys")
     if not isinstance(raw_keys, str) or not raw_keys.strip():
         return _business_error("FieldKeys 不能为空", _MSG_FIELD_NOT_FOUND)
     field_keys = [key.strip() for key in raw_keys.split(",")]
-    unknown = [key for key in field_keys if key not in SAL_ORDER.selectable_fields]
+    unknown = [key for key in field_keys if key not in form.descriptor.selectable_fields]
     if unknown:
         return _business_error(f"元数据中标识为{unknown[0]}的字段不存在", _MSG_FIELD_NOT_FOUND)
 
@@ -328,7 +175,7 @@ def _validate_query(data: dict[str, Any]) -> dict[str, Any] | JSONResponse:
     except FilterSyntaxError as exc:
         return _business_error(str(exc), _MSG_FILTER_SYNTAX)
     for condition in conditions:
-        if condition.field not in SAL_ORDER.filterable_fields:
+        if condition.field not in form.descriptor.filterable_fields:
             return _business_error(f"字段 {condition.field} 不可作为过滤条件", _MSG_FILTER_FIELD)
 
     if data.get("TopRowCount", 0) != 0:
@@ -338,7 +185,11 @@ def _validate_query(data: dict[str, Any]) -> dict[str, Any] | JSONResponse:
 
     order_string = data.get("OrderString") or ""
     try:
-        order_keys = _parse_order_string(order_string) if order_string else ()
+        order_keys = (
+            parse_order_string(order_string, form.descriptor.selectable_fields, form.non_sortable)
+            if order_string
+            else ()
+        )
     except FilterSyntaxError as exc:
         return _business_error(str(exc), _MSG_ORDER_STRING)
 
@@ -348,6 +199,7 @@ def _validate_query(data: dict[str, Any]) -> dict[str, Any] | JSONResponse:
         return _business_error("StartRow / Limit 必须为非负整数", _MSG_FIELD_NOT_FOUND)
 
     return {
+        "form": form,
         "field_keys": field_keys,
         "conditions": conditions,
         "order_keys": order_keys,
@@ -371,9 +223,10 @@ async def execute_bill_query(request: Request) -> JSONResponse:
     if isinstance(validated, JSONResponse):
         return validated
 
-    rows = _build_rows(validated["field_keys"])
-    rows = _apply_filter(rows, validated["conditions"])
-    rows = _apply_order(rows, validated["order_keys"])
+    form: FormModel = validated["form"]
+    rows = form.build_rows(validated["field_keys"])
+    rows = apply_filter(rows, validated["conditions"], form.field_types)
+    rows = apply_order(rows, validated["order_keys"], form.field_types)
     start, limit = validated["start_row"], validated["limit"]
     rows = rows[start:] if limit == 0 else rows[start : start + limit]
 

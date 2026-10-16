@@ -315,3 +315,45 @@ ORDERS: tuple[SalesOrder, ...] = tuple(sorted(_generate_orders(), key=lambda ord
 # 供测试断言的状态分布参考：数据集必须覆盖 DocumentStatus 全部取值
 STATUS_COVERAGE: frozenset[str] = frozenset(order.document_status for order in ORDERS)
 ALL_STATUS_VALUES: frozenset[str] = frozenset(_STATUSES)
+
+
+# ── 即时库存数据集（M2-T04）──
+# Why 只支持 STK_Inventory 而非全部 5 端点：M2-T04 验收第 3 类问题是库存查询；
+# 其余 3 个端点（customer/supplier/purchase_order）字段全部 INFERRED 未验证，
+# 造数据=基于错误字段名造数据，等 T01 真凭证补验后再扩。
+
+
+@dataclass(frozen=True)
+class InventoryRow:
+    """即时库存行（一物料一仓库一行，无明细展开概念）。"""
+
+    material_number: str
+    material_name: str
+    stock_name: str
+    base_qty: str  # 10 位小数字符串，与金蝶真实返回形态一致
+
+
+_INVENTORY_ACCESSORS: dict[str, Callable[[InventoryRow], JsonScalar]] = {
+    "FMaterialId.FNumber": lambda row: row.material_number,
+    "FMaterialId.FName": lambda row: row.material_name,
+    "FStockId.FName": lambda row: row.stock_name,
+    "FBaseQty": lambda row: row.base_qty,
+}
+
+
+def inventory_value(row: InventoryRow, field_name: str) -> JsonScalar:
+    """取库存行字段值；字段名不在映射中返回 ``None``（上层已先做白名单校验）。"""
+    accessor = _INVENTORY_ACCESSORS.get(field_name)
+    return accessor(row) if accessor else None
+
+
+# 锚点：MAT001 分布在两个仓库（成品仓 100 + 原料仓 50），
+# 集成用例「MAT001 这个物料的库存有多少」能验证多行聚合答复
+INVENTORY_ROWS: tuple[InventoryRow, ...] = (
+    InventoryRow("MAT001", "测试物料001", "成品仓", "100.0000000000"),
+    InventoryRow("MAT001", "测试物料001", "原料仓", "50.0000000000"),
+    InventoryRow("MAT002", "测试物料002", "成品仓", "30.0000000000"),
+    InventoryRow("MAT003", "测试物料003", "成品仓", "8.0000000000"),
+    InventoryRow("MAT004", "测试物料004", "半成品仓", "12.0000000000"),
+    InventoryRow("MAT005", "测试物料005", "成品仓", "9.0000000000"),
+)

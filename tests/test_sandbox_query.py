@@ -254,3 +254,36 @@ def test_query_top_row_count_is_rejected_as_unimplemented(authed: TestClient) ->
     status = _error_status(authed, TopRowCount=1)
 
     assert "TopRowCount" in status.error_message
+
+
+# ── STK_Inventory 端点（M2-T04：注册表化后新增的业务对象）──
+
+
+def test_inventory_query_filters_by_material(authed: TestClient) -> None:
+    rows = _query(
+        authed,
+        form_id="STK_Inventory",
+        field_keys="FMaterialId.FNumber,FMaterialId.FName,FStockId.FName,FBaseQty",
+        filter_string="FMaterialId.FNumber = 'MAT001'",
+    )
+
+    numbers = {row[0] for row in rows}
+    assert numbers == {"MAT001"}  # 锚点：分布在成品仓 + 原料仓两行
+    assert len(rows) == 2
+    assert rows[0][3] == "100.0000000000"  # 列序严格 = FieldKeys 序
+    assert rows[1][3] == "50.0000000000"
+
+
+def test_inventory_query_rejects_unknown_field(authed: TestClient) -> None:
+    """库存端点有自己的字段白名单——销售订单字段不可混用（fail-closed）。"""
+    status = _error_status(authed, FormId="STK_Inventory", FieldKeys="FBillNo")
+
+    assert "FBillNo" in status.error_message
+
+
+def test_inventory_query_rejects_non_filterable_field(authed: TestClient) -> None:
+    status = _error_status(
+        authed, FormId="STK_Inventory", FieldKeys="FBaseQty", FilterString="FBaseQty > '50'"
+    )
+
+    assert "FBaseQty" in status.error_message
