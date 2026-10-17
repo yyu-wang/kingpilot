@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # 默认 0.0（贪心解码）：查询场景要确定性输出；评测（M2-T05）依赖可复现
     llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0, description="采样温度")
 
+    # ── Agent 主循环（M3-T01）──
+    # 多步编排（reflect 续跑）的轮次上限：单轮=1，默认 5 轮；
+    # 防 reflect 死循环耗尽 LLM 调用预算（模块规范 4：循环必须有上限且进配置）
+    agent_max_steps: int = Field(default=5, ge=1, description="主循环最大多步编排轮次")
+
     @property
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""
