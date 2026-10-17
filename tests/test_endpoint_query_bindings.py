@@ -68,6 +68,32 @@ def test_sales_filter_decimal_amount_keeps_point() -> None:
     assert result == "FBillAllAmount >= 99.5"
 
 
+def test_sales_filter_bill_no_and_date() -> None:
+    """M2-T05 D6 新增字段：单号 / 单日日期精确匹配（评测集 SAL-05/06 的支撑）。"""
+    result = build_sales_order_filter(SalesOrderParams(bill_no="SO000008"))
+    assert result == "FBillNo = 'SO000008'"
+    assert build_sales_order_filter(SalesOrderParams(order_date="2026-03-05")) == (
+        "FDate = '2026-03-05'"
+    )
+
+
+def test_sales_filter_combined_five_conditions() -> None:
+    """全条件 AND 连接顺序 = 参数声明序（新增字段不破坏既有顺序锚定）。"""
+    result = build_sales_order_filter(
+        SalesOrderParams(
+            customer_number="CUS001",
+            document_status="C",
+            min_amount=150000.0,
+            bill_no="SO000008",
+            order_date="2026-03-05",
+        )
+    )
+    assert result == (
+        "FCustomerID.FNumber = 'CUS001' AND FDocumentStatus = 'C'"
+        " AND FBillAllAmount >= 150000 AND FBillNo = 'SO000008' AND FDate = '2026-03-05'"
+    )
+
+
 def test_sales_rejects_invalid_document_status() -> None:
     """非法枚举值 fail-closed（LLM 传 "X" 直接拒绝，不进组装层）。"""
     with pytest.raises(ValidationError, match="单据状态"):

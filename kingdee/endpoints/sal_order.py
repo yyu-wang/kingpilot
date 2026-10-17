@@ -145,6 +145,11 @@ class SalesOrderParams(EndpointParams):
         description="单据状态：Z 暂存 / A 创建 / B 审核中 / C 已审核 / D 重新审核",
     )
     min_amount: float | None = Field(default=None, gt=0, description="金额下限（表头合计）")
+    bill_no: str = Field(default="", description="单据编号精确匹配（如 SO000008）")
+    order_date: str = Field(
+        default="",
+        description="单据日期精确匹配，格式 YYYY-MM-DD（如 2026-03-05）；范围查询暂不支持",
+    )
 
     _check_status = field_validator("document_status")(validate_document_status)
 
@@ -159,6 +164,10 @@ def build_sales_order_filter(params: KingPilotBaseModel) -> str:
         conditions.append(f"FDocumentStatus = {quote_eq(p.document_status)}")
     if p.min_amount is not None:
         conditions.append(f"FBillAllAmount >= {fmt_number(p.min_amount)}")
+    if p.bill_no:
+        conditions.append(f"FBillNo = {quote_eq(p.bill_no)}")
+    if p.order_date:
+        conditions.append(f"FDate = {quote_eq(p.order_date)}")
     return " AND ".join(conditions)
 
 

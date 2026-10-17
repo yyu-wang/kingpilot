@@ -9,7 +9,7 @@ PYTEST := $(UV) run pytest
 RUFF   := $(UV) run ruff
 
 .DEFAULT_GOAL := help
-.PHONY: help lint typecheck test test-integration cov audit check sandbox query-demo
+.PHONY: help lint typecheck test test-integration cov audit check sandbox query-demo eval
 
 help:  ## 显示可用命令
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -49,3 +49,9 @@ sandbox:  ## 前台启动本地 K3Cloud 仿真沙箱（Ctrl+C 停止；另开终
 
 query-demo:  ## 硬编码查询脚本：经 KingdeeClient 查仿真沙箱的销售订单（需先 make sandbox）
 	$(UV) run python scripts/query_sal_orders.py --url http://127.0.0.1:$(SANDBOX_PORT)
+
+# ── M2-T05 开发辅助：Tool 选对率评测（真 LLM，不属于六门禁）──
+# ROUTE 未传时为空串 → 脚本回退读 .env 的 llm_route（make 未定义变量展开即空）
+
+eval:  ## Tool 选对率评测（31 题，读 .env 路由；评测务必 ROUTE=chat_default 用 DeepSeek）
+	$(UV) run python scripts/eval_tool_selection.py --route "$(ROUTE)"

@@ -70,6 +70,7 @@ class OpenAICompatibleProvider:
                 "LLM API 密钥未配置",
                 context={"route": self._route.name, "hint": "KINGPILOT_LLM_API_KEY"},
             )
+        self._temperature = settings.llm_temperature
         self._owns_http = http is None
         self._http = http or httpx.AsyncClient(timeout=httpx.Timeout(self._route.timeout_seconds))
 
@@ -156,6 +157,8 @@ class OpenAICompatibleProvider:
         payload: dict[str, Any] = {
             "model": self._route.model_id,
             "messages": self._serialize_messages(context),
+            # 温度随请求透传（默认 0.0 贪心解码）：查询与评测都要确定性输出
+            "temperature": self._temperature,
         }
         if tools:
             payload["tools"] = [

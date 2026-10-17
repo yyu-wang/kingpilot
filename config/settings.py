@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     # 路由表在 config/model_registry.py（规则与逻辑分离）；密钥只进 Settings
     llm_route: str = Field(default="chat_default", description="MODEL_REGISTRY 的逻辑名")
     llm_api_key: SecretStr = Field(default=SecretStr(""), description="LLM API 密钥（永不入日志）")
+    # 默认 0.0（贪心解码）：查询场景要确定性输出；评测（M2-T05）依赖可复现
+    llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0, description="采样温度")
 
     @property
     def is_prod(self) -> bool:
