@@ -1,13 +1,14 @@
 """LLMProvider 协议（M2-T01）。
 
-方案 §2.3 主循环对 LLM 的全部依赖收敛为三个方法（忠实伪代码签名）：
+方案 §2.3 主循环对 LLM 的全部依赖收敛为协议方法（忠实伪代码签名）：
 
 - ``plan``：Phase 1 规划——给定上下文与可见工具，产出待执行调用序列
 - ``reflect``：Phase 4 反思——判断结果是否足够、是否继续多步编排
 - ``generate_response``：Phase 4 出稿——基于执行结果生成自然语言答复
+- ``summarize``：记忆压缩（M3-T03）——把旧对话压缩为结构化摘要草稿
 
 Why ``typing.Protocol`` 而非 ABC：面向协议编程（模块规范 1）只要求
-「有这三个方法且签名一致」，不要求继承——具体厂商实现（T02）与测试
+「有这些方法且签名一致」，不要求继承——具体厂商实现（T02）与测试
 替身（tests/fakes.py）无需 ``class FakeProvider(LLMProvider)`` 即被
 mypy 校验为满足协议；继承关系反而把「厂商代码」耦合进「项目代码」。
 
@@ -22,9 +23,11 @@ from typing import Protocol, runtime_checkable
 from models.llm import (
     ExecutionSummary,
     LLMContext,
+    LLMMessage,
     MemorySnapshot,
     PlanResult,
     ReflectionResult,
+    SummaryDraft,
     TokenUsage,
     ToolSpec,
 )
@@ -35,7 +38,7 @@ TokenUsageSink = Callable[[TokenUsage], None]
 
 @runtime_checkable
 class LLMProvider(Protocol):
-    """LLM 供应商协议：plan / reflect / generate_response 三方法。"""
+    """LLM 供应商协议：plan / reflect / generate_response / summarize。"""
 
     async def plan(self, context: LLMContext, tools: Sequence[ToolSpec]) -> PlanResult:
         """Phase 1 规划：决定调用哪些工具、传什么参数。
@@ -75,5 +78,21 @@ class LLMProvider(Protocol):
         """Phase 4 出稿：基于执行结果生成面向用户的自然语言答复。
 
         产出直接进 Phase 5 幻觉校验——禁止编造执行摘要之外的数字/单据号。
+        """
+        ...
+
+    async def summarize(self, messages: Sequence[LLMMessage]) -> SummaryDraft:
+        """记忆压缩（M3-T03）：把旧对话消息压缩为结构化摘要草稿。
+
+        Args:
+            messages: 压缩窗口内的旧对话（已渲染为 LLMMessage，含工具结果）。
+
+        Returns:
+            摘要草稿（summary_text/key_entities/unresolved_questions/
+            tool_results_cache）；轮次范围与 token 记账由压缩器补全。
+
+        Raises:
+            LLMUnavailableError: 超时/网络/服务端 5xx。
+            LLMResponseError: 输出不是约定的严格 JSON 或字段校验失败。
         """
         ...

@@ -131,3 +131,36 @@ class TokenUsage(KingPilotBaseModel):
     def total_tokens(self) -> int:
         """总 token 数（trace.llm_token_usage 的 total 来源）。"""
         return self.prompt_tokens + self.completion_tokens
+
+
+class EntityDraft(KingPilotBaseModel):
+    """压缩 LLM 从旧对话中提取的实体草稿（M3-T03 summarize 输出元素）。
+
+    Why 是独立模型而非直接用 models.memory.EntityRef：EntityRef 携带
+    ``last_mentioned_in_round`` 等会话记账字段，LLM 不该也无法编造；
+    轮次由压缩器用压缩窗口边界填充，边界两侧的职责不混。
+    """
+
+    entity_type: str = Field(min_length=1, description="实体类型（customer/order/supplier…）")
+    display_name: str = Field(min_length=1, description="实体显示名（原文中的称呼）")
+    kingdee_id: str = Field(default="", description="金蝶内码（对话中出现过才填，未知留空）")
+
+
+class SummaryDraft(KingPilotBaseModel):
+    """压缩 LLM 的结构化产出（严格 JSON，方案 §5.3 压缩 Prompt 要点）。
+
+    压缩器据此 + 窗口轮次/token 记账构造 ConversationSummary；
+    坏 JSON / 字段不符在 Provider 层归一为 LLMResponseError。
+    """
+
+    summary_text: str = Field(min_length=1, description="任务脉络（1-3 句，保留指代对象）")
+    key_entities: list[EntityDraft] = Field(
+        default_factory=list, description="压缩窗口内提到的关键实体（含金蝶内码）"
+    )
+    unresolved_questions: list[str] = Field(
+        default_factory=list, description="尚未解决的问题（后续轮可能追问）"
+    )
+    tool_results_cache: dict[str, Any] = Field(
+        default_factory=dict,
+        description="有业务意义的结果快照（只留数字和名称，不放大段原始报文）",
+    )

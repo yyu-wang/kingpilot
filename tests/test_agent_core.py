@@ -1,14 +1,16 @@
-"""M3-T01：AgentCore 主循环骨架单测（FakeProvider + FakeTool，零网络）。
+"""AgentCore 主循环单测（M3-T01 骨架 + M3-T03 记忆接线，FakeProvider/FakeTool 零网络）。
 
 验收「FakeProvider + FakeTool 下主循环单测走通全 Phase」。
 FakeTool（``_EchoTool``）覆盖 ``execute`` 返回固定 BillQueryResult——
 不走真 ``ToolDefinition.execute``（那会经 build_filter 碰金蝶 client），
 骨架测试只需证明「Phase 3 真执行了工具且结果进了 trace」。
+M3-T03 追加：记忆写回口径与 Phase 0 长历史压缩组装。
 """
 
 from typing import Any
 
 from agent.core import AgentCore
+from agent.memory import MemoryStore
 from agent.tools import ToolDefinition, ToolRegistry
 from config.settings import Settings
 from kingdee.endpoints import SAL_ORDER
@@ -17,6 +19,7 @@ from models.kingdee import BillQueryResult
 from models.llm import (
     PlanResult,
     ReflectionResult,
+    SummaryDraft,
     TokenUsage,
     ToolCallDecision,
     ToolSpec,
@@ -194,3 +197,76 @@ async def test_token_usage_sink_channel() -> None:
     # plan + reflect + generate_response 各上报一次
     assert len(captured) == 3
     assert all(u.total_tokens > 0 for u in captured)
+
+
+# ── M3-T03：记忆接线 ──
+
+
+async def test_memory_written_back_and_reflect_gets_snapshot() -> None:
+    """有 memory：单轮写回 user/tool/assistant；reflect 收到真实（空）快照。"""
+    memory = MemoryStore(session_id="sess-1")
+    provider = FakeProvider(
+        plan_queue=[_plan(_ECHO_TOOL_NAME)],
+        reflection_queue=[_stop()],
+        response_queue=["最终答复"],
+    )
+    # echo tool 覆盖 execute，不碰 client（T01 既有模式）
+    core = AgentCore(
+        provider,
+        _make_echo_registry(),
+        client=None,  # type: ignore[arg-type]
+        settings=_settings(),
+        memory=memory,
+    )
+
+    response = await core.run("查一下")
+
+    assert memory.raw_rounds == 1
+    messages = memory.raw_messages()
+    assert [m.role for m in messages] == ["user", "tool", "assistant"]
+    assert messages[0].content == "查一下"
+    assert messages[1].structured_result["rows"] == [{"echo": "ok"}]
+    assert messages[2].content == "最终答复"
+    # Phase 0 取快照在本轮写回之前——reflect 看到的 L1 为空（历史态）
+    assert provider.last_reflect_memory is not None
+    assert provider.last_reflect_memory.layer1_recent == []
+    assert response.trace is not None
+    assert response.trace.session_id == "sess-1"
+
+
+async def test_phase0_compresses_long_history_before_planning() -> None:
+    """预置 8 轮：Phase 0 先压缩再组装——plan 看到 system 摘要+6 轮历史+当前输入。"""
+    memory = MemoryStore(session_id="sess-2")
+    for i in range(1, 9):
+        memory.add_raw("user", f"历史问题{i}")
+        memory.add_raw("assistant", f"历史回复{i}")
+    provider = FakeProvider(
+        plan_queue=[_plan()],
+        reflection_queue=[_stop()],
+        response_queue=["新答复"],
+        summarize_queue=[SummaryDraft(summary_text="前两轮历史压缩摘要", key_entities=[])],
+    )
+    # echo tool 覆盖 execute，不碰 client（T01 既有模式）
+    core = AgentCore(
+        provider,
+        _make_echo_registry(),
+        client=None,  # type: ignore[arg-type]
+        settings=_settings(),
+        memory=memory,
+    )
+
+    await core.run("新问题")
+
+    # Phase 0 压缩：8 轮压掉前 2 轮；Phase 6 写回本轮 → 7 轮
+    assert provider.summarize_calls == 1
+    assert memory.raw_rounds == 7
+    context = provider.last_plan_context
+    assert context is not None
+    assert context.messages[0].role == "system"
+    assert "前两轮历史压缩摘要" in context.messages[0].content
+    assert context.messages[-1].content == "新问题"
+    assembled = " ".join(m.content for m in context.messages)
+    assert "历史问题1" not in assembled  # 被压缩轮的原文不进上下文
+    assert "历史问题7" in assembled  # 保留段（相对第 6 轮）在
+    # 本轮写回后最后两条为 user/assistant
+    assert memory.raw_messages()[-1].content == "新答复"

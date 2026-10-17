@@ -16,6 +16,7 @@ from models.llm import (
     MemorySnapshot,
     PlanResult,
     ReflectionResult,
+    SummaryDraft,
     TokenUsage,
     ToolCallDecision,
     ToolSpec,
@@ -26,7 +27,7 @@ from tests.fakes import FakeProvider, unavailable_plan_provider
 
 
 async def run_provider_contract(provider: LLMProvider) -> None:
-    """正常路径契约：三方法签名与返回形状（对任意实现跑同一组断言）。"""
+    """正常路径契约：四个方法签名与返回形状（对任意实现跑同一组断言）。"""
     context = LLMContext(messages=[LLMMessage(role="user", content="查最近 5 笔销售订单")])
     tools = [ToolSpec(name="kingdee_query_sales_order", description="查询销售订单")]
 
@@ -42,6 +43,10 @@ async def run_provider_contract(provider: LLMProvider) -> None:
     response = await provider.generate_response(context, execution, memory)
     assert isinstance(response, str)
     assert response  # 非空——空答复对正常路径是契约违约
+
+    draft = await provider.summarize([LLMMessage(role="user", content="旧对话：查客户 CUS001")])
+    assert isinstance(draft, SummaryDraft)
+    assert draft.summary_text  # 摘要文本非空
 
 
 async def run_unavailable_contract(broken_provider: LLMProvider) -> None:

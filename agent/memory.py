@@ -12,10 +12,11 @@
 """
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from models.llm import MemorySnapshot
+from models.llm import LLMMessage, MemorySnapshot
 from models.memory import (
     ConversationSummary,
     EntityRef,
@@ -26,6 +27,23 @@ from models.memory import (
 
 # 快照文本里结构化结果的截断长度：视图层裁剪，原始结果仍完整留在 Layer 1
 _STRUCTURED_PREVIEW_LIMIT = 200
+
+
+def render_raw_for_llm(messages: Sequence[RawMessage]) -> list[LLMMessage]:
+    """Layer 1 原文 → LLM 消息（压缩器与主循环 Phase 0 共用同一映射）。
+
+    Why tool→user：role=tool 的消息必须带匹配的 tool_call_id，否则被
+    OpenAI 兼容 API 拒绝；记忆回放/压缩场景只是把「工具查到的事实」喂给
+    模型，user 角色承载事实文本最稳，加「工具结果:」前缀保持角色语义可读。
+    """
+    rendered: list[LLMMessage] = []
+    for message in messages:
+        if message.role == "tool":
+            payload = message.content or json.dumps(message.structured_result, ensure_ascii=False)
+            rendered.append(LLMMessage(role="user", content=f"工具结果: {payload}"))
+        else:
+            rendered.append(LLMMessage(role=message.role, content=message.content))
+    return rendered
 
 
 def estimate_tokens(text: str) -> int:
@@ -134,6 +152,16 @@ class MemoryStore:
     def raw_rounds(self) -> int:
         """当前对话轮数。"""
         return self._memory.raw_rounds
+
+    # ── 只读访问（M3-T03 压缩器取窗口/记账用）──
+
+    def raw_messages(self) -> tuple[RawMessage, ...]:
+        """Layer 1 原文只读视图（压缩窗口切分用，不暴露可变 list）。"""
+        return tuple(self._memory.raw_buffer)
+
+    def summaries(self) -> tuple[ConversationSummary, ...]:
+        """Layer 2 摘要只读视图（压缩器推算绝对轮次与 L2 占用用）。"""
+        return tuple(self._memory.summary_buffer)
 
     # ── Layer 1 读写 ──
 

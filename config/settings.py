@@ -64,6 +64,17 @@ class Settings(BaseSettings):
     # 防 reflect 死循环耗尽 LLM 调用预算（模块规范 4：循环必须有上限且进配置）
     agent_max_steps: int = Field(default=5, ge=1, description="主循环最大多步编排轮次")
 
+    # ── 记忆压缩（M3-T03，方案 §5.3 三触发条件原值）──
+    memory_token_budget: int = Field(
+        default=12000, gt=0, description="三层记忆送 LLM 的总 token 预算（紧急压缩线）"
+    )
+    memory_warning_ratio: float = Field(
+        default=0.7, gt=0.0, le=1.0, description="预算占用率超过此值触发积极压缩"
+    )
+    memory_raw_keep_rounds: int = Field(
+        default=6, ge=1, description="常规滚动压缩时 Layer 1 保留的最近对话轮数"
+    )
+
     @property
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""

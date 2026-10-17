@@ -4,10 +4,11 @@
 - **真实现**：Phase 1 规划 / Phase 3 执行 / Phase 4 反思与答复
   （plan/execute 复用 M2-T04 单轮内核的同款逻辑，归属本类内聚实现——
   不委托 QueryPipeline，避免「主循环调子管道再回调」的循环结构）
-- **空实现扩展点**：Phase 0 记忆（T02）/ Phase 2 护栏（M4）/ Phase 5 幻觉
-  校验（T06）/ Phase 6 记忆更新（T02）——空实现是「有签名的扩展点」，
-  docstring 标注归属任务，保证骨架可串联、可单测、可被后续任务点对点替换，
-  而非 ``pass`` 了事的死代码。
+- **空实现扩展点**：Phase 2 护栏（M4）/ Phase 5 幻觉校验（T06）
+  ——空实现是「有签名的扩展点」，docstring 标注归属任务，保证骨架可串联、
+  可单测、可被后续任务点对点替换，而非 ``pass`` 了事的死代码。
+- Phase 0/6 记忆随 M3-T03 落地：注入 ``MemoryStore`` 时启用压缩判定、
+  快照组装与轮次写回；不注入则退化为 T01 的无状态单轮模式（既有测试零改动）。
 
 与 M2-T04 ``QueryPipeline`` 的关系（D1 决策）：
 ``QueryPipeline`` 是**单轮便捷入口**（一次 run 固定一轮，无 reflect），
@@ -20,6 +21,8 @@ import time
 from typing import Any
 
 from agent.llm import LLMProvider, TokenUsageSink
+from agent.memory import MemoryStore, render_raw_for_llm
+from agent.memory_compressor import maybe_compress
 from agent.tools import ToolRegistry
 from config.settings import Settings
 from infrastructure.exceptions import KingPilotError
@@ -55,12 +58,15 @@ class AgentCore:
         client: KingdeeClient,
         settings: Settings,
         usage_sink: TokenUsageSink | None = None,
+        memory: MemoryStore | None = None,
     ) -> None:
         self._provider = provider
         self._tools = tools
         self._client = client
         self._settings = settings
         self._usage_sink = usage_sink
+        # None = T01 无状态模式（不压缩/不组装历史/不写回），既有单测零改动
+        self._memory = memory
 
     async def run(self, user_input: str, user_context: UserContext | None = None) -> AgentResponse:
         """执行主循环，返回带完整 trace 的响应。
@@ -78,16 +84,14 @@ class AgentCore:
             user_context=context_for_user,
             user_id=context_for_user.user_id,
         )
-        context = LLMContext(messages=[LLMMessage(role="user", content=user_input)])
-
-        await self._phase0_memory(context, trace)
+        context, snapshot = await self._phase0_memory(user_input, trace)
 
         # ── 多步编排循环：Phase 1 规划 → 2 护栏 → 3 执行 → 4a 反思 ──
         for _step in range(self._settings.agent_max_steps):
             plan = await self._phase1_plan(context, trace)
             await self._phase2_guard(plan, trace)
             await self._phase3_execute(plan, trace)
-            reflection = await self._phase4_reflect(context, trace)
+            reflection = await self._phase4_reflect(context, trace, snapshot)
             trace.reflections.append(reflection.model_dump())
             if not reflection.continue_execution:
                 break
@@ -98,20 +102,42 @@ class AgentCore:
             # D3：不抛错，用已累积的部分结果继续走答复——用户该拿到部分结果。
             trace.used_fallback = True
 
-        await self._phase4_generate(context, trace)
+        await self._phase4_generate(context, trace, snapshot)
         await self._phase5_hallucination(trace)
-        self._phase6_finalize(trace, started)
+        self._phase6_finalize(trace, started, user_input)
         return AgentResponse(content=trace.final_response, trace_id=trace.trace_id, trace=trace)
 
-    # ── Phase 0：记忆管理（空实现扩展点）──
+    # ── Phase 0：记忆管理（M3-T03 压缩/组装；数据域隔离归 M4）──
 
-    async def _phase0_memory(self, context: LLMContext, trace: AgentTrace) -> None:
-        """记忆管理层（方案支柱九）：压缩判断 + 数据域隔离 + 上下文组装。
+    async def _phase0_memory(
+        self, user_input: str, trace: AgentTrace
+    ) -> tuple[LLMContext, MemorySnapshot]:
+        """压缩判定 → 三层快照 → 组装本轮 LLM 上下文。
 
-        空实现（归 M3-T02/T03 记忆、M4 权限）：本任务仅保留扩展点签名。
-        落地时在此做 ``needs_compression`` 判断、按角色过滤可见工具、
-        把三层记忆摘要注入 ``context``。
+        无 MemoryStore（无状态模式）：只装当前一句，快照为空——T01 行为。
+        有 MemoryStore：先 ``maybe_compress``（内部处理三触发与失败放行），
+        再按「system(摘要+画像) → L1 历史 → 当前输入」拼装；实体图（L3）
+        经 anchors 注入归 M3-T04，本任务只铺三层中的摘要与原文。
         """
+        if self._memory is None:
+            context = LLMContext(messages=[LLMMessage(role="user", content=user_input)])
+            return context, MemorySnapshot()
+
+        await maybe_compress(self._provider, self._memory, self._settings)
+        snapshot = self._memory.to_snapshot()
+        messages: list[LLMMessage] = []
+        system_parts: list[str] = []
+        if snapshot.session_summary:
+            system_parts.append(f"【会话历史摘要】\n{snapshot.session_summary}")
+        if snapshot.user_profile:
+            system_parts.append(f"【用户画像】\n{snapshot.user_profile}")
+        if system_parts:
+            messages.append(LLMMessage(role="system", content="\n\n".join(system_parts)))
+        # 历史不含当前输入：当前轮在 Phase 6 才写回，时序不重不漏
+        messages.extend(render_raw_for_llm(self._memory.raw_messages()))
+        messages.append(LLMMessage(role="user", content=user_input))
+        trace.session_id = self._memory.session_id
+        return LLMContext(messages=messages), snapshot
 
     # ── Phase 1：规划（真实现，复用 M2-T04 内核逻辑）──
 
@@ -164,20 +190,22 @@ class AgentCore:
 
     # ── Phase 4：反思 + 答复（真实现；反思层完善归 T05）──
 
-    async def _phase4_reflect(self, context: LLMContext, trace: AgentTrace) -> ReflectionResult:
+    async def _phase4_reflect(
+        self, context: LLMContext, trace: AgentTrace, snapshot: MemorySnapshot
+    ) -> ReflectionResult:
         """反思层（骨架版）：把本轮执行摘要交给 LLM 判断是否续跑。
 
         完整反思层（结果是否足够/纠错）归 M3-T05；此处是最小多步编排语义。
         """
         summary = ExecutionSummary(tool_executions=trace.tool_executions, needs_more_steps=False)
-        return await self._provider.reflect(context, summary, MemorySnapshot())
+        return await self._provider.reflect(context, summary, snapshot)
 
-    async def _phase4_generate(self, context: LLMContext, trace: AgentTrace) -> None:
+    async def _phase4_generate(
+        self, context: LLMContext, trace: AgentTrace, snapshot: MemorySnapshot
+    ) -> None:
         """答复生成：用全部累积的工具执行记录生成自然语言答复。"""
         summary = ExecutionSummary(tool_executions=trace.tool_executions, needs_more_steps=False)
-        trace.final_response = await self._provider.generate_response(
-            context, summary, MemorySnapshot()
-        )
+        trace.final_response = await self._provider.generate_response(context, summary, snapshot)
 
     # ── Phase 5：幻觉校验（空实现扩展点）──
 
@@ -188,12 +216,25 @@ class AgentCore:
         落地时检出幻觉置 ``trace.hallucination_detected`` 并触发纠错循环。
         """
 
-    # ── Phase 6：记忆更新 + 可观测性（部分实现）──
+    # ── Phase 6：记忆写回 + 可观测性（M3-T03 落地写回；落库归 M6）──
 
-    def _phase6_finalize(self, trace: AgentTrace, started: float) -> None:
-        """收尾：写总耗时与 token 用量；记忆更新（add_raw）归 M3-T02，落库归 M6。
+    def _phase6_finalize(self, trace: AgentTrace, started: float, user_input: str) -> None:
+        """收尾：写总耗时；有记忆时把本轮一轮对话写回 Layer 1。
 
-        token 聚合（规范 4）：usage_sink 通道在 provider 层逐次调用上报，
-        此处把 trace 上累积的字段定格；真用量聚合成 total 随记忆层一并补全。
+        写回口径：原始 user 输入 + 每条工具执行（成功带结构化结果、失败带
+        失败文本）+ 最终 assistant 答复。reflect 续跑的 next_input 是 agent
+        自生成的中间指令而非用户发言，不写入（否则虚增轮数污染压缩窗口）。
+        token 聚合随 M6/M7 成本治理接入 trace.llm_token_usage。
         """
         trace.total_latency_ms = (time.perf_counter() - started) * 1000
+        if self._memory is None:
+            return
+        self._memory.add_raw("user", user_input)
+        for execution in trace.tool_executions:
+            if execution.error is None:
+                self._memory.add_raw("tool", "", structured_result=execution.result or {})
+            else:
+                self._memory.add_raw(
+                    "tool", f"工具 {execution.tool_name} 执行失败：{execution.error}"
+                )
+        self._memory.add_raw("assistant", trace.final_response)

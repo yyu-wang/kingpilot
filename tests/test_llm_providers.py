@@ -266,8 +266,18 @@ def test_provider_without_api_key_fails_at_construction() -> None:
 async def test_real_provider_passes_contract_suite() -> None:
     """T01 契约测试的直接回报：真实现与替身被同一套断言度量。"""
     route = respx.post(_URL)
+    summary_json = json.dumps(
+        {
+            "summary_text": "用户查询了客户 CUS001 的订单",
+            "key_entities": [
+                {"entity_type": "customer", "display_name": "客户 CUS001", "kingdee_id": "CUS001"}
+            ],
+            "unresolved_questions": [],
+            "tool_results_cache": {"order": "SO000008"},
+        }
+    )
     route.side_effect = [
-        # 1) plan → tool_calls；2) reflect → JSON；3) generate → 文本
+        # 1) plan → tool_calls；2) reflect → JSON；3) generate → 文本；4) summarize → JSON
         httpx.Response(
             200,
             json=_body(
@@ -278,9 +288,21 @@ async def test_real_provider_passes_contract_suite() -> None:
             200, json=_body(_message(content=json.dumps({"continue_execution": False})))
         ),
         httpx.Response(200, json=_body(_message(content="已为您查询到订单"))),
+        httpx.Response(200, json=_body(_message(content=summary_json))),
     ]
     async with _provider() as provider:
         await run_provider_contract(provider)
+
+
+@respx.mock
+async def test_summarize_with_non_json_output_raises_response_error() -> None:
+    """summarize 输出非约定 JSON → LLMResponseError（压缩器据此放行不阻断）。"""
+    respx.post(_URL).mock(
+        return_value=httpx.Response(200, json=_body(_message(content="我没法压缩成 JSON")))
+    )
+    async with _provider() as provider:
+        with pytest.raises(LLMResponseError, match="summarize"):
+            await provider.summarize([LLMMessage(role="user", content="旧对话")])
 
 
 # ── 测试辅助 ──

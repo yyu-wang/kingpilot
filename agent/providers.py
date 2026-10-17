@@ -38,12 +38,25 @@ from models.llm import (
     MemorySnapshot,
     PlanResult,
     ReflectionResult,
+    SummaryDraft,
     TokenUsage,
     ToolCallDecision,
     ToolSpec,
 )
 
 _CHAT_COMPLETIONS_PATH = "/chat/completions"
+
+# 记忆压缩指令（M3-T03，方案 §5.3 压缩 Prompt 要点：严格 JSON + 只留有业务意义的内容）
+_SUMMARIZE_INSTRUCTION = (
+    "你是对话压缩器。把给定的旧对话压缩为严格 JSON（不要输出 JSON 之外的任何内容）：\n"
+    '{"summary_text": "1-3 句任务脉络，必须保留客户/订单等指代对象的名称与编码", '
+    '"key_entities": [{"entity_type": "customer|order|supplier|material|other", '
+    '"display_name": "名称", "kingdee_id": "对话中出现的编码，没有则空串"}], '
+    '"unresolved_questions": ["尚未解决、后续可能追问的问题"], '
+    '"tool_results_cache": {"业务键": "有业务意义的数字或名称"}}\n'
+    "要求：不编造对话中不存在的实体与数字；tool_results_cache 只留有业务意义的"
+    "数字和名称，不要放大段原始报文。"
+)
 
 
 class OpenAICompatibleProvider:
@@ -149,6 +162,25 @@ class OpenAICompatibleProvider:
             ),
         ]
         return await self._chat_text(LLMContext(messages=messages, anchors=context.anchors))
+
+    async def summarize(self, messages: Sequence[LLMMessage]) -> SummaryDraft:
+        """记忆压缩：旧对话 + 压缩指令（system）→ 严格 JSON → SummaryDraft。
+
+        与 reflect 同款的 fail-closed 解析：坏 JSON / 字段不符归
+        LLMResponseError（压缩器据此放行不阻断主对话，见 D4）。
+        """
+        request_messages = [
+            LLMMessage(role="system", content=_SUMMARIZE_INSTRUCTION),
+            *messages,
+        ]
+        text = await self._chat_text(LLMContext(messages=request_messages))
+        try:
+            return SummaryDraft.model_validate(json.loads(text))
+        except ValueError as exc:
+            raise LLMResponseError(
+                "summarize 输出不符合约定 JSON",
+                context={"raw_head": text[:200]},
+            ) from exc
 
     # ── 内部：请求发送与响应解析 ──
 
