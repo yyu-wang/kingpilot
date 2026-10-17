@@ -117,7 +117,7 @@ def _stop() -> ReflectionResult:
 
 
 async def test_chat_single_turn_walks_all_phases() -> None:
-    """纯聊天单轮：plan 空 → reflect 停 → 走通全 Phase。"""
+    """纯聊天单轮：plan 空 → 无可观察结果不反思 → 走通全 Phase。"""
     provider = FakeProvider(
         plan_queue=[_plan()], reflection_queue=[_stop()], response_queue=["你好"]
     )
@@ -127,10 +127,12 @@ async def test_chat_single_turn_walks_all_phases() -> None:
 
     assert response.content == "你好"
     assert provider.plan_calls == 1
-    assert provider.reflect_calls == 1
+    # M3-T05：纯聊天无工具执行，不调反思（省一次 LLM 调用），reflections 不虚增
+    assert provider.reflect_calls == 0
     assert provider.generate_calls == 1
     trace = response.trace
     assert trace is not None
+    assert trace.reflections == []
     assert trace.used_fallback is False
     assert trace.final_response == "你好"
     assert trace.total_latency_ms >= 0.0
@@ -158,7 +160,7 @@ async def test_single_tool_turn_executes_and_records() -> None:
 
 
 async def test_two_step_orchestration_via_reflect() -> None:
-    """两步编排：reflect 续跑一次 → plan_calls==2，next_input 追加进 context。"""
+    """两步编排：reflect 续跑一次 → plan_calls==2，next_input 与观察回灌进 context。"""
     provider = FakeProvider(
         plan_queue=[_plan(_ECHO_TOOL_NAME), _plan()],
         reflection_queue=[_continue("再查它的订单"), _stop()],
@@ -169,20 +171,26 @@ async def test_two_step_orchestration_via_reflect() -> None:
     response = await core.run("先查客户")
 
     assert provider.plan_calls == 2
-    assert provider.reflect_calls == 2
+    # 第二步 plan 未调工具（模型决定直接答复）→ 无可观察结果，不再反思
+    assert provider.reflect_calls == 1
     trace = response.trace
     assert trace is not None
-    assert len(trace.reflections) == 2
+    assert len(trace.reflections) == 1
     assert trace.reflections[0]["continue_execution"] is True
     assert trace.reflections[0]["next_input"] == "再查它的订单"
     assert trace.used_fallback is False
+    # 第二步规划上下文：上一步工具结果（观察回灌）+ 续跑指令
+    context = provider.last_plan_context
+    assert context is not None
+    assert context.messages[-1].content == "再查它的订单"
+    assert any("工具结果" in m.content and '"echo": "ok"' in m.content for m in context.messages)
 
 
 async def test_max_steps_circuit_breaker_returns_partial() -> None:
     """熔断：reflect 永远续跑 → 循环在 max_steps 停，给部分结果不抛错。"""
     provider = FakeProvider(
-        plan_queue=[_plan(), _plan(), _plan()],  # max_steps=3 → 3 轮
-        reflection_queue=[_continue("继续"), _continue("继续"), _continue("继续")],
+        plan_queue=[_plan(_ECHO_TOOL_NAME)] * 3,  # max_steps=3 → 3 轮
+        reflection_queue=[_continue("继续1"), _continue("继续2"), _continue("继续3")],
         response_queue=["部分结果"],
     )
     core = AgentCore(provider, _make_echo_registry(), client=None, settings=_settings(max_steps=3))  # type: ignore[arg-type]
@@ -190,6 +198,7 @@ async def test_max_steps_circuit_breaker_returns_partial() -> None:
     response = await core.run("一直跑")
 
     assert provider.plan_calls == 3  # 恰好触顶
+    assert provider.reflect_calls == 3
     trace = response.trace
     assert trace is not None
     assert trace.used_fallback is True  # 触顶停步标记
@@ -217,10 +226,10 @@ async def test_trace_threading_and_fields() -> None:
 
 
 async def test_token_usage_sink_channel() -> None:
-    """规范 4：usage_sink 通道接通，每次 LLM 调用上报一次。"""
+    """规范 4：usage_sink 通道接通，每次 LLM 调用上报一次（plan/reflect/generate）。"""
     captured: list[TokenUsage] = []
     provider = FakeProvider(
-        plan_queue=[_plan()],
+        plan_queue=[_plan(_ECHO_TOOL_NAME)],
         reflection_queue=[_stop()],
         response_queue=["ok"],
         usage_sink=captured.append,
@@ -391,3 +400,47 @@ async def test_previous_customer_answerable_across_rounds() -> None:
     context2 = provider2.last_plan_context
     assert context2 is not None
     assert any("CUS001" in a for a in context2.anchors)
+
+
+# ── M3-T05：反思层续跑防御 ──
+
+
+async def test_blank_next_input_stops_multi_step_loop() -> None:
+    """reflect 说续跑但指令为空 → 归一为停止，不再多跑一轮。"""
+    provider = FakeProvider(
+        plan_queue=[_plan(_ECHO_TOOL_NAME), _plan(_ECHO_TOOL_NAME)],
+        reflection_queue=[ReflectionResult(continue_execution=True, next_input="   ")],
+        response_queue=["完成"],
+    )
+    core = AgentCore(provider, _make_echo_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("查")
+
+    assert provider.plan_calls == 1
+    assert provider.reflect_calls == 1
+    trace = response.trace
+    assert trace is not None
+    assert trace.reflections[0]["continue_execution"] is False
+    assert "续跑指令为空" in trace.reflections[0]["reasoning"]
+
+
+async def test_duplicate_next_input_stops_loop_and_reflects_only_step_executions() -> None:
+    """连续两轮相同续跑指令 → 第二轮归一为停止；反思只收本步执行（非累积）。"""
+    provider = FakeProvider(
+        plan_queue=[_plan(_ECHO_TOOL_NAME), _plan(_ECHO_TOOL_NAME), _plan(_ECHO_TOOL_NAME)],
+        reflection_queue=[_continue("再查订单"), _continue("再查订单")],
+        response_queue=["完成"],
+    )
+    core = AgentCore(provider, _make_echo_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("查")
+
+    assert provider.plan_calls == 2
+    trace = response.trace
+    assert trace is not None
+    assert len(trace.reflections) == 2
+    assert trace.reflections[1]["continue_execution"] is False
+    assert "重复" in trace.reflections[1]["reasoning"]
+    # 第二步反思只收到本步 1 条执行，而非累积的 2 条
+    assert provider.last_reflect_summary is not None
+    assert len(provider.last_reflect_summary.tool_executions) == 1

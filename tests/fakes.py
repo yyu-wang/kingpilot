@@ -80,10 +80,12 @@ class FakeProvider:
         self.reflect_calls = 0
         self.generate_calls = 0
         self.summarize_calls = 0
-        # 最后一次调用的入参留痕（压缩器/记忆注入断言用）
+        # 最后一次调用的入参留痕（压缩器/记忆/反思断言用）
         self.last_plan_context: LLMContext | None = None
         self.last_summarize_messages: list[LLMMessage] = []
         self.last_reflect_memory: MemorySnapshot | None = None
+        self.last_reflect_summary: ExecutionSummary | None = None
+        self.last_generate_context: LLMContext | None = None
 
     async def plan(self, context: LLMContext, tools: Sequence[ToolSpec]) -> PlanResult:
         self.plan_calls += 1
@@ -99,6 +101,7 @@ class FakeProvider:
     ) -> ReflectionResult:
         self.reflect_calls += 1
         self.last_reflect_memory = memory
+        self.last_reflect_summary = execution
         item = _next(self._reflection_queue, "reflection_queue")
         self._report_usage()
         if isinstance(item, Exception):
@@ -109,6 +112,7 @@ class FakeProvider:
         self, context: LLMContext, execution: ExecutionSummary, memory: MemorySnapshot
     ) -> str:
         self.generate_calls += 1
+        self.last_generate_context = context
         item = _next(self._response_queue, "response_queue")
         self._report_usage()
         if isinstance(item, Exception):

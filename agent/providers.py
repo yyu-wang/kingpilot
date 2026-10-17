@@ -126,9 +126,21 @@ class OpenAICompatibleProvider:
             "needs_more_steps": execution.needs_more_steps,
             "memory": memory.model_dump(),
         }
+        # M3-T05 实测强化：只给「回 JSON」时模型会输出名称片段当续跑指令并重复查询；
+        # 且易把「本步成功」误判为「任务完成」。判定口径必须是「用户全部请求」。
         instruction = (
-            "根据执行摘要判断是否足以回答用户。只回 JSON："
-            '{"continue_execution": true/false, "next_input": "...", "reasoning": "..."}'
+            "你是企业 ERP 查询 Agent 的反思层。判断用户**全部请求**是否已经完成"
+            "（不是判断当前这一步是否成功）。只回 JSON："
+            '{"continue_execution": true/false, "next_input": "...", "reasoning": "..."}\n'
+            "规则：\n"
+            "1) 用户请求已全部完成、或无需工具即可回答 → continue_execution=false；\n"
+            "2) 还有未完成动作 → continue_execution=true。例如用户要求「先查客户编码，"
+            "再查其订单」，目前只查到编码 → 必须 true，next_input 写「用客户编码 CUS001"
+            "查询销售订单」这类完整指令；\n"
+            "3) next_input 必须完整、可独立执行，禁止只给名称/编码等片段；\n"
+            "4) 结果为空且参数可能有误（例如把客户名称当成客户编码）→ next_input 指明"
+            "先用 kingdee_query_customer 按名称查询客户编码；\n"
+            "5) 不要重复刚执行过的相同调用与参数。"
         )
         messages = [
             *context.messages,

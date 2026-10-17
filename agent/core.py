@@ -18,6 +18,7 @@
 """
 
 import time
+from collections.abc import Sequence
 from typing import Any
 
 from loguru import logger
@@ -26,6 +27,7 @@ from agent.entity_extractor import extract_entities
 from agent.llm import LLMProvider, TokenUsageSink
 from agent.memory import MemoryStore, render_raw_for_llm
 from agent.memory_compressor import maybe_compress
+from agent.reflection import observation_messages, reflect_step, should_reflect
 from agent.tools import ToolRegistry
 from config.settings import Settings
 from infrastructure.exceptions import KingPilotError
@@ -88,17 +90,27 @@ class AgentCore:
             user_id=context_for_user.user_id,
         )
         context, snapshot = await self._phase0_memory(user_input, trace)
+        last_next_input = ""
 
         # ── 多步编排循环：Phase 1 规划 → 2 护栏 → 3 执行 → 4a 反思 ──
         for _step in range(self._settings.agent_max_steps):
             plan = await self._phase1_plan(context, trace)
             await self._phase2_guard(plan, trace)
+            step_start = len(trace.tool_executions)
             await self._phase3_execute(plan, trace)
-            reflection = await self._phase4_reflect(context, trace, snapshot)
+            step_executions = trace.tool_executions[step_start:]
+            # 观察回灌：本步工具结果进上下文，本轮反思与下一轮规划都看得见
+            context.messages.extend(observation_messages(step_executions))
+            if not should_reflect(step_executions):
+                break  # 纯聊天无可观察结果，不浪费一次反思调用
+            reflection = await self._phase4_reflect(
+                context, step_executions, snapshot, last_next_input
+            )
             trace.reflections.append(reflection.model_dump())
             if not reflection.continue_execution:
                 break
             # 续跑：反思产出的下一指令作为新用户输入追加，进入下一轮规划
+            last_next_input = reflection.next_input
             context.messages.append(LLMMessage(role="user", content=reflection.next_input))
         else:
             # for-else：循环自然耗尽（reflect 一直说继续）= 触顶停步。
@@ -194,17 +206,27 @@ class AgentCore:
         execution.latency_ms = (time.perf_counter() - started) * 1000
         return execution
 
-    # ── Phase 4：反思 + 答复（真实现；反思层完善归 T05）──
+    # ── Phase 4：反思 + 答复（M3-T05 反思层）──
 
     async def _phase4_reflect(
-        self, context: LLMContext, trace: AgentTrace, snapshot: MemorySnapshot
+        self,
+        context: LLMContext,
+        executions: Sequence[ToolExecution],
+        snapshot: MemorySnapshot,
+        previous_next_input: str,
     ) -> ReflectionResult:
-        """反思层（骨架版）：把本轮执行摘要交给 LLM 判断是否续跑。
+        """反思层：本步执行结果交 LLM 判断是否续跑，续跑指令经防御归一化。
 
-        完整反思层（结果是否足够/纠错）归 M3-T05；此处是最小多步编排语义。
+        只传本步执行记录（非全量 trace）——反思针对「刚才这批结果」，
+        历史步骤的结论已沉淀在上一轮反思与上下文中。
         """
-        summary = ExecutionSummary(tool_executions=trace.tool_executions, needs_more_steps=False)
-        return await self._provider.reflect(context, summary, snapshot)
+        return await reflect_step(
+            self._provider,
+            context,
+            executions,
+            snapshot,
+            previous_next_input=previous_next_input,
+        )
 
     async def _phase4_generate(
         self, context: LLMContext, trace: AgentTrace, snapshot: MemorySnapshot
