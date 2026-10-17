@@ -515,3 +515,38 @@ async def test_phase5_uses_entity_graph_for_status_claim() -> None:
     assert trace is not None
     assert trace.hallucination_detected is True
     assert response.hallucination_warning is True
+
+
+async def test_phase5_uses_session_history_for_cross_turn_reference() -> None:
+    """多轮指代：上一轮查到的 CUS001/订单金额在本轮引用不应误报。"""
+    memory = MemoryStore(session_id="sess-cross-turn")
+    memory.add_raw("user", "查客户 CUS001 的订单")
+    memory.add_raw(
+        "tool",
+        "",
+        structured_result={
+            "form_id": "SAL_Order",
+            "rows": [{"FBillNo": "SO000012", "FBillAllAmount": "181736.0000000000"}],
+        },
+    )
+    memory.add_raw("assistant", "查到一笔订单")
+    provider = FakeProvider(
+        plan_queue=[_plan()],
+        reflection_queue=[_stop()],
+        response_queue=["客户 CUS001 的订单 SO000012 金额为 181,736.00 元"],
+    )
+    # echo tool 覆盖 execute，不碰 client（T01 既有模式）
+    core = AgentCore(
+        provider,
+        _make_echo_registry(),
+        client=None,  # type: ignore[arg-type]
+        settings=_settings(),
+        memory=memory,
+    )
+
+    response = await core.run("它多少钱")
+
+    trace = response.trace
+    assert trace is not None
+    assert trace.hallucination_detected is False
+    assert response.hallucination_warning is False

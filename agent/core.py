@@ -252,11 +252,13 @@ class AgentCore:
         与降级回复归 M4。无 memory 时实体图为空，仍能做前两项校验。
         """
         entities = self._memory.entities() if self._memory is not None else ()
+        history = self._memory.raw_messages() if self._memory is not None else ()
         result = detect_hallucinations(
             trace.final_response,
             trace.tool_executions,
             entities,
             user_input=trace.user_input,
+            history=history,
         )
         trace.hallucination_detected = result.has_hallucination
         trace.hallucination_resolved = False

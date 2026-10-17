@@ -8,7 +8,7 @@
 """
 
 from agent.hallucination import HallucinationDetectionResult, detect_hallucinations
-from models.memory import EntityRef
+from models.memory import EntityRef, RawMessage
 from models.tool import ToolExecution
 
 _ORDER_ROWS: list[dict[str, object]] = [
@@ -105,6 +105,53 @@ def test_number_claim_without_tool_results_detected() -> None:
     result = detect_hallucinations("查到 3 笔订单", [])
     assert result.has_hallucination is True
     assert result.hallucinated_items[0].actual_value == []
+
+
+def test_thousands_separator_amount_passes() -> None:
+    """模型常用千分位金额（150,000.00），必须归一后与工具原值比对。"""
+    rows: list[dict[str, object]] = [{"FBillNo": "SO000001", "FBillAllAmount": "150000.0000000000"}]
+    result = detect_hallucinations("金额为 150,000.00 元", [_orders_execution(rows)])
+    assert result.has_hallucination is False
+
+
+def test_thousands_separator_mismatch_detected() -> None:
+    rows: list[dict[str, object]] = [{"FBillNo": "SO000001", "FBillAllAmount": "150000.0000000000"}]
+    result = detect_hallucinations("金额为 160,000.00 元", [_orders_execution(rows)])
+    assert result.has_hallucination is True
+    assert result.hallucinated_items[0].claimed_value == "160000"
+
+
+def test_numbered_list_markers_skipped() -> None:
+    """「1. 订单...」的行首编号不是业务数字。"""
+    response = "查询结果：\n1. 订单 SO000001\n2. 订单 SO000008"
+    assert detect_hallucinations(response, [_orders_execution()]).has_hallucination is False
+
+
+def test_markdown_table_index_column_skipped() -> None:
+    """表格首列的连续序号（| 1 | / | 2 |）不是业务数字。"""
+    response = "| 序号 | 订单 |\n|---|---|\n| 1 | SO000001 |\n| 2 | SO000008 |"
+    assert detect_hallucinations(response, [_orders_execution()]).has_hallucination is False
+
+
+def test_history_supports_cross_turn_references() -> None:
+    """多轮场景：上一轮的用户输入与工具结果都是合法事实来源。"""
+    history = [
+        RawMessage(role="user", content="查客户 CUS001 的订单"),
+        RawMessage(
+            role="tool",
+            content="",
+            structured_result={
+                "form_id": "SAL_Order",
+                "rows": [{"FBillNo": "SO000012", "FBillAllAmount": "181736.0000000000"}],
+            },
+        ),
+    ]
+    result = detect_hallucinations(
+        "客户 CUS001 的订单 SO000012 金额为 181,736.00 元",
+        [],
+        history=history,
+    )
+    assert result.has_hallucination is False
 
 
 # ── Check 2：Tool 结果来源 ──

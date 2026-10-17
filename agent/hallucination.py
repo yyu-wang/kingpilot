@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Literal
 
-from models.memory import EntityRef
+from models.memory import EntityRef, RawMessage
 from models.tool import ToolExecution
 
 DetectionType = Literal[
@@ -37,17 +37,19 @@ Severity = Literal["low", "medium", "high", "critical"]
 
 # 业务标识：字母前缀 + 数字（金蝶编码常见形态），前后不能粘字母数字
 _IDENTIFIER_PATTERN = re.compile(r"(?<![A-Za-z0-9])([A-Za-z]{2,}\d{3,})(?![A-Za-z0-9])")
-# 阿拉伯数字（排除紧邻字母数字的片段，避免把 SO000008 拆成数字）
-_ARABIC_PATTERN = re.compile(r"(?<![A-Za-z0-9.])(\d+(?:\.\d+)?)(?![A-Za-z0-9])")
+# 数字核心：支持千分位（150,000.00）——模型答复常用带逗号金额
+_NUMBER_CORE = r"(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
+# 阿拉伯数字（排除紧邻字母数字/小数点的片段，避免把 SO000008 拆成数字）
+_ARABIC_PATTERN = re.compile(rf"(?<![A-Za-z0-9.,]){_NUMBER_CORE}(?![A-Za-z0-9])")
 # 数量词：数字 + 计数单位（用于和工具返回行数比对）
 _COUNT_UNITS = frozenset({"张", "笔", "条", "家", "个", "位", "款", "项", "份"})
 # 不参与业务事实核对的单位：日期/时间/百分比（含全角）
 _SKIP_UNITS = frozenset({"年", "月", "日", "号", "时", "分", "秒", "%", "％"})
 # 数字后的量级（万/亿），元等货币单位不参与解析
 _MAGNITUDES: dict[str, Decimal] = {"万": Decimal(10000), "亿": Decimal(100000000)}
-# 捕获数字后的可选量级与可选单位
+# 捕获数字后的可选量级与可选单位（数字支持千分位）
 _ARABIC_CLAIM = re.compile(
-    r"(?<![A-Za-z0-9.])(\d+(?:\.\d+)?)\s*(万|亿)?\s*"
+    rf"(?<![A-Za-z0-9.,])({_NUMBER_CORE})(?![A-Za-z0-9])\s*(万|亿)?\s*"
     r"(%|％|年|月|日|号|时|分|秒|张|笔|条|家|个|位|款|项|份)?"
 )
 _CHINESE_COUNT = re.compile(r"([零一二两三四五六七八九十百千]+)\s*([张笔条家个位款项份])")
@@ -120,6 +122,7 @@ def detect_hallucinations(
     entities: Sequence[EntityRef] = (),
     *,
     user_input: str = "",
+    history: Sequence[RawMessage] = (),
 ) -> HallucinationDetectionResult:
     """三重校验入口：数字事实 / 结果来源 / 业务一致性。
 
@@ -127,12 +130,16 @@ def detect_hallucinations(
         response: LLM 最终答复。
         tool_executions: 全链路工具执行记录（只采信成功且 result 非空的）。
         entities: 实体图（Layer 3，业务一致性校验用）。
-        user_input: 用户原始输入（用户自己提到的标识不算幻觉）。
+        user_input: 当前轮用户输入（用户自己提到的标识不算幻觉）。
+        history: 会话历史（M3-T07 多轮）：跨轮引用的用户输入与工具结果
+            同样是合法事实来源，否则「它/该客户」类指代会大量误报。
 
     Returns:
         命中即 ``has_hallucination=True``；``detection_type`` 取最高危条目类型。
     """
-    numbers, count_values, identifiers = _collect_facts(tool_executions, entities, user_input)
+    numbers, count_values, identifiers = _collect_facts(
+        tool_executions, entities, user_input, history
+    )
     items: list[HallucinatedItem] = []
 
     items.extend(_check_numbers(response, numbers, count_values))
@@ -167,6 +174,7 @@ def _collect_facts(
     tool_executions: Sequence[ToolExecution],
     entities: Sequence[EntityRef],
     user_input: str,
+    history: Sequence[RawMessage],
 ) -> tuple[frozenset[Decimal], frozenset[int], frozenset[str]]:
     """汇总可信事实：数字、行数、业务标识（白名单）。"""
     numbers: set[Decimal] = set()
@@ -182,8 +190,16 @@ def _collect_facts(
         row_count = _row_count(execution.result)
         if row_count is not None:
             counts.add(row_count)
-    if counts:
-        counts.add(sum(counts))  # 多次执行的合计行数也是合法口径
+
+    # 会话历史（跨轮指代）：历史用户发言与历史工具结果都是合法事实来源
+    for message in history:
+        _absorb_values(message.content, numbers, identifiers)
+        if not message.structured_result:
+            continue
+        _absorb_values(message.structured_result, numbers, identifiers)
+        row_count = _row_count(message.structured_result)
+        if row_count is not None:
+            counts.add(row_count)
 
     for entity in entities:
         if entity.kingdee_id:
@@ -220,9 +236,9 @@ def _absorb_values(value: object, numbers: set[Decimal], identifiers: set[str]) 
 
 
 def _add_number(numbers: set[Decimal], value: object) -> None:
-    """数值归一化后入集合（Decimal 数值相等即去重，忽略尾零）。"""
+    """数值归一化后入集合（去千分位与尾零，Decimal 数值相等即去重）。"""
     try:
-        number = Decimal(str(value))
+        number = Decimal(str(value).replace(",", ""))
     except (InvalidOperation, ValueError):
         return
     if number.is_finite():
@@ -245,15 +261,18 @@ def _check_numbers(
     response: str, numbers: frozenset[Decimal], counts: frozenset[int]
 ) -> list[HallucinatedItem]:
     items: list[HallucinatedItem] = []
-    date_spans = [match.span() for match in _DATE_LIKE.finditer(response)]
-    for match in _ARABIC_CLAIM.finditer(response):
+    # 掩掉 Markdown 表格的连续序号列（| 1 | / | 2 | …）：展示编号不是业务数字。
+    # 掩码等长替换，日期/序号等区间判断仍与原串对齐。
+    masked = _mask_table_index_cells(response)
+    date_spans = [match.span() for match in _DATE_LIKE.finditer(masked)]
+    for match in _ARABIC_CLAIM.finditer(masked):
         raw, magnitude, unit = match.group(1), match.group(2), match.group(3)
         if unit in _SKIP_UNITS:
             continue  # 日期/时间/百分比不属业务事实
-        if _is_ordinal(response, match.start()) or _in_spans(
-            match.start(), match.end(), date_spans
-        ):
+        if _is_ordinal(masked, match.start()) or _in_spans(match.start(), match.end(), date_spans):
             continue
+        if _is_list_marker(masked, match.start(), match.end()):
+            continue  # 编号列表的「1. / 2、」不是事实数字
         claimed = _to_decimal(raw)
         if claimed is None:
             continue
@@ -313,9 +332,40 @@ def _in_spans(start: int, end: int, spans: Sequence[tuple[int, int]]) -> bool:
     return any(start < span_end and end > span_start for span_start, span_end in spans)
 
 
+def _is_list_marker(text: str, start: int, end: int) -> bool:
+    """行首的「1. / 2、/ 3)」编号列表标记不是事实数字。"""
+    line_start = text.rfind("\n", 0, start) + 1
+    if text[line_start:start].strip():
+        return False
+    return text[end : end + 1] in {".", "、", ")", "）"}
+
+
+_TABLE_FIRST_CELL = re.compile(r"^(\s*\|\s*)(\d{1,3})(\s*\|)")
+
+
+def _mask_table_index_cells(text: str) -> str:
+    """掩掉 Markdown 表格首列的连续序号（1,2,3…），等长替换保持偏移不变。
+
+    只掩「首列纯整数且从 1 连续递增」的列——这是模型输出明细表的常见序号列；
+    金额/数量列（带小数或非连续）不受影响，避免放走真正的数字编造。
+    """
+    lines = text.split("\n")
+    masked: list[str] = []
+    expected = 1
+    for line in lines:
+        match = _TABLE_FIRST_CELL.match(line)
+        if match and int(match.group(2)) == expected:
+            line = f"{match.group(1)}{' ' * len(match.group(2))}{line[match.end(2) :]}"
+            expected += 1
+        elif not line.strip().startswith("|"):
+            expected = 1
+        masked.append(line)
+    return "\n".join(masked)
+
+
 def _to_decimal(raw: str) -> Decimal | None:
     try:
-        return Decimal(raw)
+        return Decimal(raw.replace(",", ""))
     except InvalidOperation:
         return None
 
