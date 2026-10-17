@@ -444,3 +444,74 @@ async def test_duplicate_next_input_stops_loop_and_reflects_only_step_executions
     # 第二步反思只收到本步 1 条执行，而非累积的 2 条
     assert provider.last_reflect_summary is not None
     assert len(provider.last_reflect_summary.tool_executions) == 1
+
+
+# ── M3-T06：幻觉检测接线 ──
+
+
+async def test_phase5_flags_numeric_hallucination() -> None:
+    """回复声称 5 张订单，工具实际只返回 1 行 → 检出并告警。"""
+    provider = FakeProvider(
+        plan_queue=[_plan(_ECHO_TOOL_NAME)],
+        reflection_queue=[_stop()],
+        response_queue=["查到 5 张订单"],
+    )
+    core = AgentCore(provider, _make_echo_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("查")
+
+    trace = response.trace
+    assert trace is not None
+    assert trace.hallucination_detected is True
+    assert trace.hallucination_resolved is False  # 纠错闭环归 M4
+    assert response.hallucination_warning is True
+
+
+async def test_phase5_clean_response_not_flagged() -> None:
+    provider = FakeProvider(
+        plan_queue=[_plan(_ECHO_TOOL_NAME)],
+        reflection_queue=[_stop()],
+        response_queue=["已查到数据"],
+    )
+    core = AgentCore(provider, _make_echo_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("查")
+
+    trace = response.trace
+    assert trace is not None
+    assert trace.hallucination_detected is False
+    assert response.hallucination_warning is False
+
+
+async def test_phase5_uses_entity_graph_for_status_claim() -> None:
+    """实体图记录 SO000008 已审核，回复声称暂存 → 业务一致性命中。"""
+    memory = MemoryStore(session_id="sess-hallucination")
+    memory.upsert_entity(
+        EntityRef(
+            entity_type="order",
+            display_name="SO000008",
+            kingdee_id="SO000008",
+            last_mentioned_in_round=1,
+            attributes={"FDocumentStatus": "C"},
+        )
+    )
+    provider = FakeProvider(
+        plan_queue=[_plan()],
+        reflection_queue=[_stop()],
+        response_queue=["订单 SO000008 是暂存状态"],
+    )
+    # echo tool 覆盖 execute，不碰 client（T01 既有模式）
+    core = AgentCore(
+        provider,
+        _make_echo_registry(),
+        client=None,  # type: ignore[arg-type]
+        settings=_settings(),
+        memory=memory,
+    )
+
+    response = await core.run("订单 SO000008 什么状态")
+
+    trace = response.trace
+    assert trace is not None
+    assert trace.hallucination_detected is True
+    assert response.hallucination_warning is True

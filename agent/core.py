@@ -1,12 +1,13 @@
 """Agent 主循环骨架（M3-T01）：Phase 0~6 串联 + AgentTrace 贯穿 + max_steps 熔断。
 
-方案 §2.3 的骨架落地。本任务只立「阶段函数 + 串联 + 熔断」三根桩：
+方案 §2.3 的骨架落地。本类按阶段函数串联：
 - **真实现**：Phase 1 规划 / Phase 3 执行 / Phase 4 反思与答复
   （plan/execute 复用 M2-T04 单轮内核的同款逻辑，归属本类内聚实现——
   不委托 QueryPipeline，避免「主循环调子管道再回调」的循环结构）
-- **空实现扩展点**：Phase 2 护栏（M4）/ Phase 5 幻觉校验（T06）
-  ——空实现是「有签名的扩展点」，docstring 标注归属任务，保证骨架可串联、
-  可单测、可被后续任务点对点替换，而非 ``pass`` 了事的死代码。
+- **Phase 5 幻觉检测随 M3-T06 落地**：规则化三重校验，只置标志不纠错
+  （自动纠错循环与降级回复归 M4）
+- **空实现扩展点**：Phase 2 护栏（M4）——有签名的扩展点，docstring 标注
+  归属任务，保证骨架可串联、可单测、可被后续任务点对点替换。
 - Phase 0/6 记忆随 M3-T03 落地：注入 ``MemoryStore`` 时启用压缩判定、
   快照组装与轮次写回；不注入则退化为 T01 的无状态单轮模式（既有测试零改动）。
 
@@ -24,6 +25,7 @@ from typing import Any
 from loguru import logger
 
 from agent.entity_extractor import extract_entities
+from agent.hallucination import detect_hallucinations
 from agent.llm import LLMProvider, TokenUsageSink
 from agent.memory import MemoryStore, render_raw_for_llm
 from agent.memory_compressor import maybe_compress
@@ -118,9 +120,14 @@ class AgentCore:
             trace.used_fallback = True
 
         await self._phase4_generate(context, trace, snapshot)
-        await self._phase5_hallucination(trace)
+        self._phase5_hallucination(trace)
         self._phase6_finalize(trace, started, user_input)
-        return AgentResponse(content=trace.final_response, trace_id=trace.trace_id, trace=trace)
+        return AgentResponse(
+            content=trace.final_response,
+            trace_id=trace.trace_id,
+            hallucination_warning=trace.hallucination_detected and not trace.hallucination_resolved,
+            trace=trace,
+        )
 
     # ── Phase 0：记忆管理（M3-T03 压缩/组装；数据域隔离归 M4）──
 
@@ -235,14 +242,32 @@ class AgentCore:
         summary = ExecutionSummary(tool_executions=trace.tool_executions, needs_more_steps=False)
         trace.final_response = await self._provider.generate_response(context, summary, snapshot)
 
-    # ── Phase 5：幻觉校验（空实现扩展点）──
+    # ── Phase 5：幻觉检测（M3-T06；纠错闭环归 M4）──
 
-    async def _phase5_hallucination(self, trace: AgentTrace) -> None:
-        """幻觉三重校验（方案支柱十）：响应 vs 工具结果 / 实体图 / 执行日志。
+    def _phase5_hallucination(self, trace: AgentTrace) -> None:
+        """幻觉三重校验（方案支柱十）：数字事实 / 结果来源 / 业务一致性。
 
-        空实现（归 M3-T06；纠错闭环 M4 就绪后补全）：本任务响应直通。
-        落地时检出幻觉置 ``trace.hallucination_detected`` 并触发纠错循环。
+        只做检测（规则化、零 LLM）：命中置 ``trace.hallucination_detected``，
+        详情进 warning 日志；``hallucination_resolved`` 保持 False，纠错循环
+        与降级回复归 M4。无 memory 时实体图为空，仍能做前两项校验。
         """
+        entities = self._memory.entities() if self._memory is not None else ()
+        result = detect_hallucinations(
+            trace.final_response,
+            trace.tool_executions,
+            entities,
+            user_input=trace.user_input,
+        )
+        trace.hallucination_detected = result.has_hallucination
+        trace.hallucination_resolved = False
+        if result.has_hallucination:
+            logger.warning(
+                "检测到幻觉: type={} confidence={} items={} hint={}",
+                result.detection_type,
+                result.confidence,
+                len(result.hallucinated_items),
+                result.correction_hint,
+            )
 
     # ── Phase 6：记忆写回 + 可观测性（M3-T03 落地写回；落库归 M6）──
 
