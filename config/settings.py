@@ -13,6 +13,7 @@
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr
@@ -73,6 +74,12 @@ class Settings(BaseSettings):
     )
     memory_raw_keep_rounds: int = Field(
         default=6, ge=1, description="常规滚动压缩时 Layer 1 保留的最近对话轮数"
+    )
+
+    # ── 交互入口（M3-T07）──
+    session_store_dir: Path = Field(
+        default=Path.home() / ".kingpilot" / "sessions",
+        description="本地会话持久化目录（每个会话一个 JSON 文件）",
     )
 
     @property

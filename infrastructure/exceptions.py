@@ -65,3 +65,10 @@ class ToolError(KingPilotError):
     Why 挂在根下而非 Kingdee/LLM 分支：工具是编排层概念，一个工具的失败
     可能源自任一下游（参数错/金蝶错），调用方按根类型接住后看 context 定位。
     """
+
+
+class SessionStoreError(KingPilotError):
+    """会话持久化异常（M3-T07）：文件损坏 / schema 版本不符 / 路径非法。
+
+    fail-closed：宁可显式报错让用户介入，也不静默丢弃历史或覆盖存档。
+    """

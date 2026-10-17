@@ -23,6 +23,10 @@ dependencies = [
     "loguru>=0.7,<1.0",           # 日志
 ]
 
+[project.scripts]
+# M3-T07：CLI 交互入口（多轮对话 + 本地会话持久化）
+kingpilot-chat = "agent.cli:main"
+
 [project.optional-dependencies]
 # 开发期依赖：`uv sync --extra dev` 或 `pip install -e ".[dev]"`
 dev = [
