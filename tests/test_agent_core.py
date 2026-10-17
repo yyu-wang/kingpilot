@@ -24,9 +24,44 @@ from models.llm import (
     ToolCallDecision,
     ToolSpec,
 )
+from models.memory import EntityRef
 from tests.fakes import FakeProvider
 
 _ECHO_TOOL_NAME = "echo_test_tool"
+_CUSTOMER_TOOL_NAME = "customer_query_tool"
+
+
+class _CustomerParams(EndpointParams):
+    """客户查询假参数。"""
+
+
+class _CustomerTool(ToolDefinition):
+    """FakeTool：返回 BD_Customer 结果（含 CUS001），验证实体抽取入图。"""
+
+    async def execute(self, client: Any, arguments: dict[str, Any]) -> BillQueryResult:
+        return BillQueryResult(
+            form_id="BD_Customer",
+            field_keys=["FNumber", "FName"],
+            rows=[{"FNumber": "CUS001", "FName": "测试客户"}],
+        )
+
+
+def _make_customer_registry() -> ToolRegistry:
+    spec = ToolSpec(
+        name=_CUSTOMER_TOOL_NAME,
+        description="测试客户查询工具：固定返回 CUS001",
+        parameters=_CustomerParams.model_json_schema(),
+    )
+    registry = ToolRegistry()
+    registry.register(
+        _CustomerTool(
+            spec=spec,
+            params_model=_CustomerParams,
+            build_filter=lambda _p: "",
+            endpoint=SAL_ORDER,
+        )
+    )
+    return registry
 
 
 class _EchoParams(EndpointParams):
@@ -270,3 +305,89 @@ async def test_phase0_compresses_long_history_before_planning() -> None:
     assert "历史问题7" in assembled  # 保留段（相对第 6 轮）在
     # 本轮写回后最后两条为 user/assistant
     assert memory.raw_messages()[-1].content == "新答复"
+
+
+# ── M3-T04：实体图抽取与锚点注入 ──
+
+
+async def test_tool_result_entities_extracted_into_graph() -> None:
+    """客户查询工具结果 → CUS001 入实体图（Phase 6 抽取接线）。"""
+    memory = MemoryStore(session_id="sess-entity")
+    provider = FakeProvider(
+        plan_queue=[_plan(_CUSTOMER_TOOL_NAME)],
+        reflection_queue=[_stop()],
+        response_queue=["查到了客户"],
+    )
+    core = AgentCore(
+        provider,
+        _make_customer_registry(),
+        client=None,  # type: ignore[arg-type]
+        settings=_settings(),
+        memory=memory,
+    )
+
+    await core.run("查测试客户")
+
+    customers = memory.entities("customer")
+    assert len(customers) == 1
+    assert customers[0].kingdee_id == "CUS001"
+    assert customers[0].display_name == "测试客户"
+    # last_mentioned = 本轮号（user 写入后 = 1）
+    assert customers[0].last_mentioned_in_round == 1
+
+
+async def test_entity_anchors_injected_into_plan_context() -> None:
+    """Phase 0 把实体图渲染为 anchors 注入 plan 上下文（LLM 可见）。"""
+    memory = MemoryStore(session_id="sess-anchors")
+    # 预置一个客户实体
+    memory.upsert_entity(
+        EntityRef(
+            entity_type="customer",
+            display_name="预置客户",
+            kingdee_id="CUS_PRE",
+            last_mentioned_in_round=1,
+        )
+    )
+    provider = FakeProvider(plan_queue=[_plan()], reflection_queue=[_stop()], response_queue=["ok"])
+    # echo tool 覆盖 execute，不碰 client（T01 既有模式）
+    core = AgentCore(
+        provider,
+        _make_echo_registry(),
+        client=None,  # type: ignore[arg-type]
+        settings=_settings(),
+        memory=memory,
+    )
+
+    await core.run("你好")
+
+    context = provider.last_plan_context
+    assert context is not None
+    assert "customer:预置客户(CUS_PRE)" in context.anchors
+
+
+async def test_previous_customer_answerable_across_rounds() -> None:
+    """验收核心：第 1 轮查客户 → 实体入图；第 2 轮 plan 上下文含该客户锚点。"""
+    memory = MemoryStore(session_id="sess-multi")
+    registry = _make_customer_registry()
+
+    # 第 1 轮：查客户
+    provider1 = FakeProvider(
+        plan_queue=[_plan(_CUSTOMER_TOOL_NAME)],
+        reflection_queue=[_stop()],
+        response_queue=["查到 CUS001"],
+    )
+    core1 = AgentCore(provider1, registry, client=None, settings=_settings(), memory=memory)  # type: ignore[arg-type]
+    await core1.run("查测试客户")
+
+    assert memory.find_entity("customer", kingdee_id="CUS001") is not None
+
+    # 第 2 轮：plan 上下文必须含上一轮的客户锚点（可回答「之前提到的客户」）
+    provider2 = FakeProvider(
+        plan_queue=[_plan()], reflection_queue=[_stop()], response_queue=["好的"]
+    )
+    core2 = AgentCore(provider2, registry, client=None, settings=_settings(), memory=memory)  # type: ignore[arg-type]
+    await core2.run("之前那个客户的订单呢")
+
+    context2 = provider2.last_plan_context
+    assert context2 is not None
+    assert any("CUS001" in a for a in context2.anchors)

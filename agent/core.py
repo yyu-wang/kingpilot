@@ -20,6 +20,9 @@
 import time
 from typing import Any
 
+from loguru import logger
+
+from agent.entity_extractor import extract_entities
 from agent.llm import LLMProvider, TokenUsageSink
 from agent.memory import MemoryStore, render_raw_for_llm
 from agent.memory_compressor import maybe_compress
@@ -137,7 +140,10 @@ class AgentCore:
         messages.extend(render_raw_for_llm(self._memory.raw_messages()))
         messages.append(LLMMessage(role="user", content=user_input))
         trace.session_id = self._memory.session_id
-        return LLMContext(messages=messages), snapshot
+        # Layer 3 实体图经 anchors 注入 LLM——「之前提到的客户」可回答性来源
+        context = LLMContext(messages=messages)
+        context.anchors.extend(self._memory.entity_anchors())
+        return context, snapshot
 
     # ── Phase 1：规划（真实现，复用 M2-T04 内核逻辑）──
 
@@ -230,9 +236,19 @@ class AgentCore:
         if self._memory is None:
             return
         self._memory.add_raw("user", user_input)
+        current_round = self._memory.raw_rounds  # user 写入后即为当前轮号
         for execution in trace.tool_executions:
             if execution.error is None:
-                self._memory.add_raw("tool", "", structured_result=execution.result or {})
+                result = execution.result or {}
+                self._memory.add_raw("tool", "", structured_result=result)
+                # 工具结构化结果 → Layer 3 实体图；抽取异常不阻断主对话
+                try:
+                    for entity in extract_entities(result, current_round):
+                        self._memory.upsert_entity(entity)
+                except Exception as exc:
+                    logger.warning(
+                        "实体抽取失败，跳过本轮入图: tool={} error={}", execution.tool_name, exc
+                    )
             else:
                 self._memory.add_raw(
                     "tool", f"工具 {execution.tool_name} 执行失败：{execution.error}"

@@ -198,10 +198,50 @@ class MemoryStore:
         self._memory.upsert_entity(ref)
 
     def entities(self, entity_type: str | None = None) -> tuple[EntityRef, ...]:
-        """查询实体；``entity_type`` 给定时按类型过滤（富查询归 T04）。"""
+        """查询实体；``entity_type`` 给定时按类型过滤。"""
         if entity_type is None:
             return tuple(self._memory.entity_graph)
         return tuple(ref for ref in self._memory.entity_graph if ref.entity_type == entity_type)
+
+    def find_entity(
+        self,
+        entity_type: str,
+        *,
+        kingdee_id: str | None = None,
+        display_name: str | None = None,
+    ) -> EntityRef | None:
+        """按类型 + 内码或名称精确查找单个实体（回答「之前提到的客户」用）。
+
+        ``kingdee_id`` 优先于 ``display_name``；都不给时返回 None。
+        """
+        for ref in self._memory.entity_graph:
+            if ref.entity_type != entity_type:
+                continue
+            if kingdee_id is not None and ref.kingdee_id == kingdee_id:
+                return ref
+            if kingdee_id is None and display_name is not None and ref.display_name == display_name:
+                return ref
+        return None
+
+    def entities_mentioned_after(self, round_no: int) -> tuple[EntityRef, ...]:
+        """``last_mentioned_in_round > round_no`` 的实体（支持「最近提到的」语义）。"""
+        return tuple(
+            ref for ref in self._memory.entity_graph if ref.last_mentioned_in_round > round_no
+        )
+
+    def entity_anchors(self) -> list[str]:
+        """实体图渲染为防幻觉锚点文本（Phase 0 注入 LLMContext.anchors）。
+
+        格式 ``{type}:{name}({id})``；无内码则 ``{type}:{name}``。
+        「之前提到的客户」可回答性的来源：LLM 通过 anchors 看到会话全部实体。
+        """
+        anchors: list[str] = []
+        for ref in self._memory.entity_graph:
+            if ref.kingdee_id:
+                anchors.append(f"{ref.entity_type}:{ref.display_name}({ref.kingdee_id})")
+            else:
+                anchors.append(f"{ref.entity_type}:{ref.display_name}")
+        return anchors
 
     # ── 长期画像读写 ──
 
