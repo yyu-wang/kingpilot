@@ -72,3 +72,10 @@ class SessionStoreError(KingPilotError):
 
     fail-closed：宁可显式报错让用户介入，也不静默丢弃历史或覆盖存档。
     """
+
+
+class IdempotencyError(KingPilotError):
+    """幂等层异常（M5-T01）：同一 Key 正在处理、存储状态非法等。
+
+    fail-closed：幂等状态不确定时宁可拒绝也不重复执行写操作。
+    """

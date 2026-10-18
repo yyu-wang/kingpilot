@@ -82,6 +82,17 @@ class Settings(BaseSettings):
         description="本地会话持久化目录（每个会话一个 JSON 文件）",
     )
 
+    # ── 幂等层（M5-T01）──
+    idempotency_ttl_seconds: int = Field(
+        default=86_400, gt=0, description="幂等 Key 去重窗口（秒，默认 24 小时）"
+    )
+
+    # ── 写操作账本（M5-T03）──
+    ledger_db_path: Path = Field(
+        default=Path.home() / ".kingpilot" / "ledger.sqlite3",
+        description="写操作溯源账本 SQLite 文件路径（append-only）",
+    )
+
     @property
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""
