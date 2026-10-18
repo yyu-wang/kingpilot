@@ -11,7 +11,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import ValidationError
 
@@ -29,18 +29,41 @@ from models.llm import ToolSpec
 
 
 @dataclass(frozen=True)
+class EntityReference:
+    """写操作参数 → 业务实体的引用声明（M4-T04 Guard 3 依据）。
+
+    ``parameter`` 是工具参数名（如 ``customer_number``），``entity_type`` 是
+    待预检的实体类型（customer/supplier/order）。Guard 3 只看声明、不猜参数名——
+    新增写工具必须显式声明，否则 fail-closed 拦截。
+    """
+
+    parameter: str
+    entity_type: str
+    allow_name: bool = True  # 是否允许传名称（预检负责换成系统编码）
+
+
+# 工具类型：服务端事实，不信任 LLM 自述（提示注入可把写操作标成查询）
+ToolType = Literal["query", "write", "action"]
+
+
+@dataclass(frozen=True)
 class ToolDefinition:
     """一个可执行工具：LLM 侧声明（ToolSpec）+ 参数模型 + 组装器 + 端点绑定。
 
     ``execute`` 是唯一执行入口：Pydantic 校验 LLM 给的 arguments（fail-closed，
     未知参数/越界/非法枚举全拒）→ 端点组装 FilterString → KingdeeClient 查询。
     返回 ``BillQueryResult``（rows 已按 FieldKeys 转成 dict，可直接序列化进对话）。
+
+    ``tool_type`` / ``entity_references`` 是 M4 护栏的元数据：查询工具保持默认值，
+    写/动作工具显式声明并由 Guard 3 做实体存在性预检。
     """
 
     spec: ToolSpec
     params_model: type[EndpointParams]
     build_filter: Callable[[KingPilotBaseModel], str]
     endpoint: EndpointDescriptor
+    tool_type: ToolType = "query"
+    entity_references: tuple[EntityReference, ...] = ()
 
     @property
     def name(self) -> str:
