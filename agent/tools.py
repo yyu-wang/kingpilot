@@ -54,8 +54,8 @@ class ToolDefinition:
     未知参数/越界/非法枚举全拒）→ 端点组装 FilterString → KingdeeClient 查询。
     返回 ``BillQueryResult``（rows 已按 FieldKeys 转成 dict，可直接序列化进对话）。
 
-    ``tool_type`` / ``entity_references`` 是 M4 护栏的元数据：查询工具保持默认值，
-    写/动作工具显式声明并由 Guard 3 做实体存在性预检。
+    ``tool_type`` / ``entity_references`` / ``required_parameters`` 是 M4 护栏的
+    元数据：查询工具保持默认值，写/动作工具显式声明并由 Guard 3/5 校验。
     """
 
     spec: ToolSpec
@@ -64,6 +64,10 @@ class ToolDefinition:
     endpoint: EndpointDescriptor
     tool_type: ToolType = "query"
     entity_references: tuple[EntityReference, ...] = ()
+    # 业务必填项：可多于 Schema 的 required（如 Schema 允许空串、业务不允许）
+    required_parameters: tuple[str, ...] = ()
+    # 写操作动作（save/submit/audit/unaudit/delete），风险规则按它匹配
+    action: str = ""
 
     @property
     def name(self) -> str:

@@ -51,6 +51,7 @@ _WRITE_TOOL = ToolDefinition(
         EntityReference(parameter="customer_number", entity_type="customer"),
         EntityReference(parameter="supplier_number", entity_type="supplier"),
     ),
+    required_parameters=("customer_number", "supplier_number"),
 )
 
 _NO_RULES_WRITE_TOOL = ToolDefinition(
@@ -78,6 +79,7 @@ _STRICT_ACTION_TOOL = ToolDefinition(
     entity_references=(
         EntityReference(parameter="order_no", entity_type="order", allow_name=False),
     ),
+    required_parameters=("order_no",),
 )
 
 
@@ -159,10 +161,10 @@ async def test_all_entities_exist_pass_with_updates() -> None:
     lookup = FakeLookup(
         {
             ("customer", "深圳XX公司"): EntityLookupResult(
-                found=True, canonical_id="CUS001", display_name="深圳XX公司"
+                found=True, canonical_id="100001", display_name="深圳XX公司"
             ),
             ("supplier", "SUP001"): EntityLookupResult(
-                found=True, canonical_id="SUP001", display_name="深圳供应商"
+                found=True, canonical_id="200001", display_name="深圳供应商"
             ),
         }
     )
@@ -177,8 +179,8 @@ async def test_all_entities_exist_pass_with_updates() -> None:
     assert result.passed is True
     assert result.detail["branch"] == "all_valid"
     assert result.detail["parameter_updates"] == {
-        "customer_number": "CUS001",
-        "supplier_number": "SUP001",
+        "customer_number": "100001",
+        "supplier_number": "200001",
     }
     assert len(lookup.calls) == 2
 
@@ -187,7 +189,7 @@ async def test_partial_hallucination_blocked_with_correction_prompt() -> None:
     lookup = FakeLookup(
         {
             ("customer", "深圳XX公司"): EntityLookupResult(
-                found=True, canonical_id="CUS001", display_name="深圳XX公司"
+                found=True, canonical_id="100001", display_name="深圳XX公司"
             ),
             # supplier 未配置 → 未命中
         }
@@ -202,13 +204,13 @@ async def test_partial_hallucination_blocked_with_correction_prompt() -> None:
 
     assert result.passed is False
     assert result.detail["branch"] == "partial"
-    assert result.detail["resolved"] == {"customer_number": "CUS001"}
+    assert result.detail["resolved"] == {"customer_number": "100001"}
     assert result.detail["hallucinated"][0]["parameter"] == "supplier_number"
     prompt = result.detail["correction_prompt"]
     assert "supplier_number" in prompt
     assert "系统中不存在" in prompt
     assert "已核实" in prompt
-    assert "CUS001" in prompt
+    assert "100001" in prompt
 
 
 async def test_all_hallucination_blocked_with_user_message() -> None:
@@ -283,7 +285,7 @@ async def test_allow_name_is_passed_to_lookup() -> None:
     lookup = FakeLookup(
         {
             ("order", "SO000008"): EntityLookupResult(
-                found=True, canonical_id="SO000008", display_name="SO000008"
+                found=True, canonical_id="300008", display_name="SO000008"
             )
         }
     )

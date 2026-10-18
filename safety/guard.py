@@ -12,7 +12,7 @@
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Protocol
 
 from loguru import logger
@@ -101,12 +101,18 @@ class GuardCheckRecord:
 
 @dataclass(frozen=True)
 class GuardPipelineResult:
-    """管道整体结论 + 已执行 Guard 的逐条记录。"""
+    """管道整体结论 + 已执行 Guard 的逐条记录。
+
+    ``effective_arguments`` 是应用 Guard 产出的 ``parameter_updates`` 之后的
+    最终参数（如 Guard 3 把实体名称换成内码 Id）——T10 执行时必须用它，
+    而不是 LLM 的原始参数。
+    """
 
     blocked: bool
     reason: str = ""
     blocked_by: str = ""
     records: tuple[GuardCheckRecord, ...] = ()
+    effective_arguments: Mapping[str, Any] = field(default_factory=dict)
 
     def to_records(self) -> list[dict[str, Any]]:
         """逐条记录转字典（Phase 2 直接 extend 进 trace.guard_checks）。"""
@@ -137,18 +143,23 @@ class GuardPipeline:
 
         Guard 抛出的任何异常都转成拦截结论（fail-closed），并记录异常类型；
         不向上抛是为了避免单个 Guard 的缺陷打断整条主循环。
+
+        某个 Guard 放行且 detail 含 ``parameter_updates`` 时，更新会合并进
+        后续 Guard 的上下文（如 Guard 3 换码后，Guard 5 才能看到内码 Id）。
         """
         records: list[GuardCheckRecord] = []
+        current_arguments: dict[str, Any] = dict(context.arguments)
+        current_context = context
         for guard in self._guards:
             try:
-                result = await guard.check(context)
+                result = await guard.check(current_context)
             except Exception as exc:  # fail-closed：任何异常都视为校验失败
                 logger.warning(
                     "护栏执行异常，按拦截处理 | guard={} tool={} user={} trace_id={} error={}: {}",
                     guard.name,
-                    context.tool_name,
-                    context.user_context.user_id,
-                    context.trace_id,
+                    current_context.tool_name,
+                    current_context.user_context.user_id,
+                    current_context.trace_id,
                     type(exc).__name__,
                     exc,
                 )
@@ -177,9 +188,9 @@ class GuardPipeline:
                     "安全护栏拦截 | event={} guard={} tool={} user={} trace_id={} reason={}",
                     _EVENT_GUARD_BLOCKED,
                     guard.name,
-                    context.tool_name,
-                    context.user_context.user_id,
-                    context.trace_id,
+                    current_context.tool_name,
+                    current_context.user_context.user_id,
+                    current_context.trace_id,
                     result.reason,
                 )
                 return GuardPipelineResult(
@@ -187,6 +198,19 @@ class GuardPipeline:
                     reason=result.reason,
                     blocked_by=guard.name,
                     records=tuple(records),
+                    effective_arguments=current_arguments,
                 )
 
-        return GuardPipelineResult(blocked=False, records=tuple(records))
+            updates = result.detail.get("parameter_updates")
+            if isinstance(updates, Mapping) and updates:
+                current_arguments = {
+                    **current_arguments,
+                    **{str(key): value for key, value in updates.items()},
+                }
+                current_context = replace(current_context, arguments=current_arguments)
+
+        return GuardPipelineResult(
+            blocked=False,
+            records=tuple(records),
+            effective_arguments=current_arguments,
+        )

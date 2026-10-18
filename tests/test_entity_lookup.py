@@ -1,7 +1,7 @@
-"""M4-T04：KingdeeEntityLookup 单测（fake client，零网络）。
+"""M4-T04/T06：KingdeeEntityLookup 单测（fake client，零网络）。
 
-覆盖解析顺序：编码精确 → 名称精确 → 模糊候选；以及歧义、非法标识、
-不支持的实体类型、allow_name=False 等边界。
+覆盖解析顺序：内码 FID → 业务编号 → 名称精确 → 模糊候选；以及歧义、
+非法标识、不支持的实体类型、allow_name=False 等边界。
 """
 
 from typing import cast
@@ -35,33 +35,46 @@ def _lookup(client: _FakeClient) -> KingdeeEntityLookup:
     return KingdeeEntityLookup(cast(KingdeeClient, client))
 
 
+async def test_exact_fid_hit() -> None:
+    client = _FakeClient([[{"FID": "100001", "FNumber": "CUS001", "FName": "深圳XX公司"}]])
+
+    result = await _lookup(client).lookup("customer", "100001")
+
+    assert result.found is True
+    assert result.canonical_id == "100001"
+    assert result.number == "CUS001"
+    assert len(client.queries) == 1
+    assert client.queries[0].filter_string == "FID = 100001"
+
+
 async def test_exact_code_hit() -> None:
-    client = _FakeClient([[{"FNumber": "CUS001", "FName": "深圳XX公司"}]])
+    client = _FakeClient([[{"FID": "100001", "FNumber": "CUS001", "FName": "深圳XX公司"}]])
 
     result = await _lookup(client).lookup("customer", "CUS001")
 
     assert result.found is True
-    assert result.canonical_id == "CUS001"
+    assert result.canonical_id == "100001"
     assert result.display_name == "深圳XX公司"
+    assert result.number == "CUS001"
     assert len(client.queries) == 1
     query = client.queries[0]
     assert query.filter_string == "FNumber = 'CUS001'"
-    assert query.field_keys == "FNumber,FName"
+    assert query.field_keys == "FID,FNumber,FName"
     assert query.limit == 1
 
 
-async def test_exact_name_hit_when_code_misses() -> None:
+async def test_exact_name_hit_when_number_misses() -> None:
     client = _FakeClient(
         [
             [],
-            [{"FNumber": "CUS001", "FName": "深圳XX公司"}],
+            [{"FID": "100001", "FNumber": "CUS001", "FName": "深圳XX公司"}],
         ]
     )
 
     result = await _lookup(client).lookup("customer", "深圳XX公司")
 
     assert result.found is True
-    assert result.canonical_id == "CUS001"
+    assert result.canonical_id == "100001"
     assert len(client.queries) == 2
     assert client.queries[1].filter_string == "FName = '深圳XX公司'"
     assert client.queries[1].limit == 2
@@ -72,8 +85,8 @@ async def test_ambiguous_name_returns_candidates_without_fuzzy_query() -> None:
         [
             [],
             [
-                {"FNumber": "CUS001", "FName": "深圳XX公司"},
-                {"FNumber": "CUS002", "FName": "深圳XX公司"},
+                {"FID": "100001", "FNumber": "CUS001", "FName": "深圳XX公司"},
+                {"FID": "100002", "FNumber": "CUS002", "FName": "深圳XX公司"},
             ],
         ]
     )
@@ -90,7 +103,7 @@ async def test_fuzzy_candidates_on_miss() -> None:
         [
             [],
             [],
-            [{"FNumber": "CUS009", "FName": "深圳XX科技"}],
+            [{"FID": "100009", "FNumber": "CUS009", "FName": "深圳XX科技"}],
         ]
     )
 
@@ -104,13 +117,14 @@ async def test_fuzzy_candidates_on_miss() -> None:
 
 
 async def test_order_uses_bill_number_only() -> None:
-    client = _FakeClient([[{"FBillNo": "SO000008"}]])
+    client = _FakeClient([[{"FID": 100008, "FBillNo": "SO000008"}]])
 
     result = await _lookup(client).lookup("order", "SO000008")
 
     assert result.found is True
-    assert result.canonical_id == "SO000008"
-    assert client.queries[0].field_keys == "FBillNo"
+    assert result.canonical_id == "100008"
+    assert result.number == "SO000008"
+    assert client.queries[0].field_keys == "FID,FBillNo"
 
 
 async def test_allow_name_false_skips_name_lookup() -> None:

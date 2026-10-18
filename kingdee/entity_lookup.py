@@ -1,12 +1,16 @@
 """实体存在性解析（M4-T04）：写操作引用的客户/供应商/订单先查再放行。
 
-职责边界：本模块只回答「这个实体在系统里是否存在、规范编码是什么」，
+职责边界：本模块只回答「这个实体在系统里是否存在、内码是什么」，
 不做拦截决策（归 ``safety/guard_entity.py``），也不调用 LLM。
 
 解析顺序（客户/供应商）：
-1. 编码精确匹配（``FNumber = ...``）
-2. 名称精确匹配（``FName = ...``）；命中多条视为**无法确认**，返回候选
-3. 名称模糊候选（``FName LIKE ...``，最多 3 条）——供「全部幻觉」分支提示用户
+1. 内码精确匹配（``FID = ...``，标识为纯数字时）
+2. 业务编号精确匹配（``FNumber = ...``）
+3. 名称精确匹配（``FName = ...``）；命中多条视为**无法确认**，返回候选
+4. 名称模糊候选（``FName LIKE ...``，最多 3 条）——供「全部幻觉」分支提示用户
+
+``canonical_id`` 统一为金蝶内码 ``FID``（Guard 5 要求引用字段必须是内码 Id），
+业务编号与名称分别放在 ``number`` / ``display_name`` 里供展示与候选提示。
 
 已知限制：
 - ``material`` 暂不支持：缺少 ``BD_Material`` 端点，``STK_Inventory`` 只覆盖
@@ -36,14 +40,15 @@ _AMBIGUITY_LIMIT = 2
 class EntityLookupResult:
     """单次实体解析结果。
 
-    ``candidates`` 是名称/编码的人类可读描述（含编码便于消歧），仅在未命中
-    或名称有歧义时填充。
+    ``canonical_id`` 为金蝶内码（FID），``number`` 为业务编号（FNumber/FBillNo）。
+    ``candidates`` 是名称/编号的人类可读描述，仅在未命中或有歧义时填充。
     """
 
     found: bool
     canonical_id: str = ""
     display_name: str = ""
     candidates: tuple[str, ...] = ()
+    number: str = ""
 
 
 class EntityLookup(Protocol):
@@ -61,15 +66,22 @@ class _EntitySpec:
     """实体类型 → 查询契约。"""
 
     endpoint: EndpointDescriptor
-    id_field: str
-    name_field: str
+    id_field: str  # 金蝶内码（FID）
+    number_field: str  # 业务编号（FNumber / FBillNo）
+    name_field: str  # 显示名称（FName / FBillNo）
 
 
 _ENTITY_SPECS: dict[str, _EntitySpec] = {
-    "customer": _EntitySpec(endpoint=CUSTOMER, id_field="FNumber", name_field="FName"),
-    "supplier": _EntitySpec(endpoint=SUPPLIER, id_field="FNumber", name_field="FName"),
+    "customer": _EntitySpec(
+        endpoint=CUSTOMER, id_field="FID", number_field="FNumber", name_field="FName"
+    ),
+    "supplier": _EntitySpec(
+        endpoint=SUPPLIER, id_field="FID", number_field="FNumber", name_field="FName"
+    ),
     # 销售订单无独立名称字段，单据编号即标识
-    "order": _EntitySpec(endpoint=SAL_ORDER, id_field="FBillNo", name_field="FBillNo"),
+    "order": _EntitySpec(
+        endpoint=SAL_ORDER, id_field="FID", number_field="FBillNo", name_field="FBillNo"
+    ),
 }
 
 
@@ -82,7 +94,7 @@ class KingdeeEntityLookup:
     async def lookup(
         self, entity_type: str, identifier: str, *, allow_name: bool = True
     ) -> EntityLookupResult:
-        """按「编码 → 名称 → 模糊候选」解析；查询异常归一为 KingdeeError。
+        """按「内码 → 编号 → 名称 → 模糊候选」解析；异常归一为 KingdeeError。
 
         Raises:
             KingdeeError: 不支持的实体类型、标识含非法字符、下游查询失败。
@@ -97,13 +109,21 @@ class KingdeeEntityLookup:
         if not text:
             return EntityLookupResult(found=False)
 
-        by_id = await self._query(spec, f"{spec.id_field} = {_quote_exact(text)}", limit=1)
-        if by_id:
-            return _found(spec, by_id[0], fallback=text)
+        # 1) 内码精确：纯数字标识视为 FID（LLM 可能直接给内码）
+        if text.isdigit():
+            by_id = await self._query(spec, f"{spec.id_field} = {text}", limit=1)
+            if by_id:
+                return _found(spec, by_id[0], fallback=text)
 
-        if not allow_name or spec.name_field == spec.id_field:
+        # 2) 业务编号精确
+        by_number = await self._query(spec, f"{spec.number_field} = {_quote_exact(text)}", limit=1)
+        if by_number:
+            return _found(spec, by_number[0], fallback=text)
+
+        if not allow_name or spec.name_field == spec.number_field:
             return EntityLookupResult(found=False)
 
+        # 3) 名称精确；命中多条 = 有歧义，交给用户消歧
         by_name = await self._query(
             spec, f"{spec.name_field} = {_quote_exact(text)}", limit=_AMBIGUITY_LIMIT
         )
@@ -115,6 +135,7 @@ class KingdeeEntityLookup:
                 candidates=tuple(_describe(spec, row) for row in by_name),
             )
 
+        # 4) 名称模糊候选
         fuzzy = await self._query(
             spec,
             f"{spec.name_field} LIKE {_quote_fuzzy(text)}",
@@ -128,14 +149,12 @@ class KingdeeEntityLookup:
     async def _query(
         self, spec: _EntitySpec, filter_string: str, *, limit: int
     ) -> list[dict[str, JsonScalar]]:
-        """执行一次受限查询；字段集固定为 id + name。"""
-        field_keys = (
-            spec.id_field
-            if spec.name_field == spec.id_field
-            else f"{spec.id_field},{spec.name_field}"
-        )
+        """执行一次受限查询；字段集固定为 内码 + 编号 + 名称（去重）、保序。"""
+        fields = [spec.id_field, spec.number_field]
+        if spec.name_field not in fields:
+            fields.append(spec.name_field)
         query = spec.endpoint.to_query_params(
-            field_keys=field_keys, filter_string=filter_string, limit=limit
+            field_keys=",".join(fields), filter_string=filter_string, limit=limit
         )
         result = await self._client.execute_bill_query(query)
         return result.rows
@@ -158,23 +177,25 @@ def _quote_fuzzy(value: str) -> str:
 
 
 def _found(spec: _EntitySpec, row: dict[str, JsonScalar], *, fallback: str) -> EntityLookupResult:
-    """命中行 → 结果；编码缺失时视为未命中（fail-closed）。"""
+    """命中行 → 结果；内码缺失时视为未命中（fail-closed）。"""
     canonical_id = _cell(row, spec.id_field)
-    display_name = _cell(row, spec.name_field) or canonical_id or fallback
+    number = _cell(row, spec.number_field)
+    display_name = _cell(row, spec.name_field) or number or canonical_id or fallback
     return EntityLookupResult(
         found=bool(canonical_id),
         canonical_id=canonical_id,
         display_name=display_name,
+        number=number,
     )
 
 
 def _describe(spec: _EntitySpec, row: dict[str, JsonScalar]) -> str:
-    """候选描述：名称（编码），名称与编码相同时只留一个。"""
+    """候选描述：名称（编号），名称与编号相同时只留一个。"""
     name = _cell(row, spec.name_field)
-    identifier = _cell(row, spec.id_field)
-    if name and identifier and name != identifier:
-        return f"{name}（{identifier}）"
-    return name or identifier
+    number = _cell(row, spec.number_field)
+    if name and number and name != number:
+        return f"{name}（{number}）"
+    return name or number or _cell(row, spec.id_field)
 
 
 def _cell(row: dict[str, JsonScalar], field: str) -> str:

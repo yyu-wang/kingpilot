@@ -20,6 +20,12 @@ from models.base import KingPilotBaseModel
 _FIELDS: tuple[FieldDescriptor, ...] = (
     FieldDescriptor(name="FNumber", data_type="string", filterable=True, description="供应商编码"),
     FieldDescriptor(
+        name="FID",
+        data_type="number",
+        filterable=False,
+        description="内部主键（M4 写操作实体引用预检用，不可过滤）",
+    ),
+    FieldDescriptor(
         name="FName", data_type="string", filterable=True, description="供应商名称（支持模糊查询）"
     ),
     FieldDescriptor(
