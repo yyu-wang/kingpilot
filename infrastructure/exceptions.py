@@ -79,3 +79,24 @@ class IdempotencyError(KingPilotError):
 
     fail-closed：幂等状态不确定时宁可拒绝也不重复执行写操作。
     """
+
+
+class SnapshotError(KingPilotError):
+    """写前快照不可用（M5-T06）：编辑/反审核/删除必须查到原状态才能写。
+
+    fail-closed：查不到原状态 = 盲改，直接中止写入并由 Saga 补偿。
+    """
+
+
+class TraceStoreError(KingPilotError):
+    """Trace 落盘异常（M6-T03）：文件损坏 / schema 版本不符 / ID 不一致。
+
+    读取 fail-closed；写入失败由主循环降级为告警，不阻塞用户响应。
+    """
+
+
+class DeadLetterError(KingPilotError):
+    """死信队列异常（M6-T06）：记录不存在/损坏/路径非法、重复重放。
+
+    fail-closed：死信状态不确定时宁可报错，也不静默丢掉待人工处理的事务。
+    """
