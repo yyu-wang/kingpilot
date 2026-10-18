@@ -19,6 +19,9 @@ class UserContext(KingPilotBaseModel):
 
     user_id: str = Field(description="用户唯一标识")
     role: Role = Field(description="角色（admin/operator/viewer）")
+    risk_score: float = Field(
+        default=0.0, ge=0.0, le=100.0, description="历史风险画像分（0-100，M4 风险评分用）"
+    )
     data_scope: dict[str, Any] = Field(
         default_factory=dict,
         description="数据可见范围（如 {'org_ids': ['ORG001'], 'form_ids': ['SAL_Order']}）",
