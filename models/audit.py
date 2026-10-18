@@ -18,6 +18,7 @@ AuditEventType = Literal[
     "ledger.write",
     "saga.failed",
     "alert.fired",
+    "dlp.blocked",
 ]
 
 AuditStatus = Literal["success", "failed", "blocked", "rejected", "rolled_back"]

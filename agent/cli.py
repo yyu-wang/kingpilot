@@ -128,6 +128,7 @@ async def _run_session(settings: Settings, store: SessionStore, memory: MemorySt
                 memory=memory,
                 safety=safety,
                 trace_store=trace_store,
+                audit=audit,
             )
             await run_chat_loop(core, memory, store, read_input=input, write_output=print)
     finally:

@@ -26,6 +26,15 @@ _ID_CARD_RE = re.compile(r"(?<!\d)(\d{17}[\dXx])(?!\d)")
 _BANK_CARD_RE = re.compile(r"(?<!\d)(\d{16,19})(?!\d)")
 _EMAIL_RE = re.compile(r"([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
 
+# DLP 出域扫描（M7-T02）复用同一组正则，避免两套规则漂移。
+# 顺序有意义：身份证（18 位数字）先于银行卡（16~19 位）扫描并做跨度去重。
+PII_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("id_card", _ID_CARD_RE),
+    ("phone", _PHONE_RE),
+    ("bank_card", _BANK_CARD_RE),
+    ("email", _EMAIL_RE),
+)
+
 
 def classify_field(field_name: str) -> DataLevel:
     """字段分级：先精确匹配，再按关联字段末段匹配，默认 internal。"""

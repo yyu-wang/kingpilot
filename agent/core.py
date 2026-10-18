@@ -36,6 +36,7 @@ from config.settings import Settings
 from infrastructure.exceptions import KingPilotError, LLMUnavailableError, TraceStoreError
 from kingdee.client import KingdeeClient
 from models.agent import AgentResponse, AgentTrace
+from models.audit import AuditEvent
 from models.llm import (
     ExecutionSummary,
     LLMContext,
@@ -47,8 +48,10 @@ from models.llm import (
 )
 from models.tool import ToolExecution
 from models.user import UserContext
+from observability.audit import AuditLogger
 from observability.tracing import TraceStore
 from safety.datasecurity import redact_rows
+from safety.dlp import DlpScanner, DlpScanResult
 from safety.engine import GuardedCall, SafetyLayer, SafetyVerdict
 from safety.permission_engine import apply_column_filter
 
@@ -58,6 +61,7 @@ _UNAVAILABLE_MESSAGE = (
     "请提供客户编码、单据编号或物料编码等明确条件；写操作请稍后重试。"
 )
 _FALLBACK_MAX_ROWS = 10
+_DLP_BLOCK_CONTENT = "响应包含敏感个人信息，已按数据安全策略阻断发送。请调整查询条件后重试。"
 
 
 def _default_user_context() -> UserContext:
@@ -82,6 +86,7 @@ class AgentCore:
         safety: SafetyLayer | None = None,
         rule_engine: RuleEngine | None = None,
         trace_store: TraceStore | None = None,
+        audit: AuditLogger | None = None,
     ) -> None:
         self._provider = provider
         self._tools = tools
@@ -96,16 +101,70 @@ class AgentCore:
         self._rule_engine = rule_engine or RuleEngine()
         # None = 不落盘 trace；生产入口注入后所有出口都会保存（M6-T03）
         self._trace_store = trace_store
+        # None = DLP 命中时只写告警日志；生产入口注入后进统一审计流（M7-T02）
+        self._audit = audit
+        # 出域扫描默认开启（fail-closed）：所有响应在返回前统一过 DLP
+        self._dlp = DlpScanner()
 
     async def run(self, user_input: str, user_context: UserContext | None = None) -> AgentResponse:
-        """执行主循环并落盘 trace；落盘失败只告警，不影响用户响应。"""
+        """执行主循环、出域扫描并落盘 trace；落盘失败只告警，不影响用户响应。"""
         response = await self._run(user_input, user_context)
+        # 出域扫描在 Trace 落盘之前：磁盘上只保留净化后的答复（M7-T02）
+        response = self._enforce_dlp(response)
         if self._trace_store is not None and response.trace is not None:
             try:
                 self._trace_store.save(response.trace)
             except TraceStoreError as exc:
                 logger.warning("Trace 落盘失败（不影响响应）: {}", exc)
         return response
+
+    def _enforce_dlp(self, response: AgentResponse) -> AgentResponse:
+        """响应发送前的 DLP 出域扫描：命中即整条阻断并审计。
+
+        不做「局部打码后返回」——部分保留可能被拼接绕过；命中时 Trace
+        的 ``final_response`` 同步替换，保证原文不落盘。
+        """
+        result = self._dlp.scan(response.content)
+        if not result.blocked:
+            return response
+
+        if response.trace is not None:
+            response.trace.final_response = _DLP_BLOCK_CONTENT
+        self._emit_dlp_audit(response, result)
+        logger.warning(
+            "DLP 出域拦截 | trace_id={} categories={} total={}",
+            response.trace_id,
+            result.categories,
+            result.total,
+        )
+        return response.model_copy(
+            update={
+                "content": _DLP_BLOCK_CONTENT,
+                "blocked": True,
+                "reason": _DLP_BLOCK_CONTENT,
+                "hallucination_warning": False,
+            }
+        )
+
+    def _emit_dlp_audit(self, response: AgentResponse, result: DlpScanResult) -> None:
+        """写 ``dlp.blocked`` 审计事件；detail 只记类别与数量，不记原值。"""
+        if self._audit is None:
+            return
+        trace = response.trace
+        self._audit.emit(
+            AuditEvent(
+                event_type="dlp.blocked",
+                trace_id=str(response.trace_id),
+                user_id=trace.user_id if trace is not None else "",
+                user_role=trace.user_context.role if trace is not None else "",
+                ip_address=trace.user_context.ip_address if trace is not None else "",
+                status="blocked",
+                detail={
+                    "categories": list(result.categories),
+                    "total": result.total,
+                },
+            )
+        )
 
     async def _run(self, user_input: str, user_context: UserContext | None = None) -> AgentResponse:
         """执行主循环，返回带完整 trace 的响应。
