@@ -26,6 +26,7 @@ from ledger.hash_chain import (
     compute_record_hash,
     verify_chain,
 )
+from models.audit import AuditEvent
 from models.ledger import (
     FieldDiff,
     ProvenanceChain,
@@ -33,6 +34,7 @@ from models.ledger import (
     WriteRecord,
     WriteStatus,
 )
+from observability.audit import AuditLogger
 
 
 class WriteLedgerStore(Protocol):
@@ -166,8 +168,9 @@ class SqliteWriteLedgerStore:
 class WriteLedger:
     """账本门面：三段式落账 + 查询 + hash 链校验。"""
 
-    def __init__(self, store: WriteLedgerStore) -> None:
+    def __init__(self, store: WriteLedgerStore, *, audit: AuditLogger | None = None) -> None:
         self._store = store
+        self._audit = audit
 
     def record_write(
         self,
@@ -210,6 +213,28 @@ class WriteLedger:
         digest = compute_record_hash(draft.to_hash_payload(), previous_hash)
         record = draft.model_copy(update={"record_hash": digest})
         self._store.append(record)
+
+        if self._audit is not None:
+            self._audit.emit(
+                AuditEvent(
+                    event_type="ledger.write",
+                    trace_id=trace_id,
+                    user_id=provenance.user_id,
+                    action=action,
+                    form_id=form_id,
+                    business_key=business_key,
+                    risk_score=provenance.risk_score,
+                    risk_level=provenance.risk_level,
+                    approval_chain=list(provenance.approval_chain),
+                    status="success" if status == "success" else "failed",
+                    saga_id=saga_id,
+                    detail={
+                        "record_id": record.record_id,
+                        "record_hash": record.record_hash,
+                        "kingdee_doc_id": kingdee_doc_id,
+                    },
+                )
+            )
         return record
 
     def verify(self) -> ChainVerification:

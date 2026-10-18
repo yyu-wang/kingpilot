@@ -30,9 +30,10 @@ from agent.llm import LLMProvider, TokenUsageSink
 from agent.memory import MemoryStore, render_raw_for_llm
 from agent.memory_compressor import maybe_compress
 from agent.reflection import observation_messages, reflect_step, should_reflect
+from agent.rule_engine import RuleEngine
 from agent.tools import ToolRegistry
 from config.settings import Settings
-from infrastructure.exceptions import KingPilotError
+from infrastructure.exceptions import KingPilotError, LLMUnavailableError, TraceStoreError
 from kingdee.client import KingdeeClient
 from models.agent import AgentResponse, AgentTrace
 from models.llm import (
@@ -42,11 +43,21 @@ from models.llm import (
     MemorySnapshot,
     PlanResult,
     ReflectionResult,
+    ToolSpec,
 )
 from models.tool import ToolExecution
 from models.user import UserContext
+from observability.tracing import TraceStore
+from safety.datasecurity import redact_rows
 from safety.engine import GuardedCall, SafetyLayer, SafetyVerdict
 from safety.permission_engine import apply_column_filter
+
+_FALLBACK_NOTICE = "（LLM 暂不可用，已切换到基础查询模式）"
+_UNAVAILABLE_MESSAGE = (
+    "LLM 暂不可用，基础查询模式暂未理解该请求。"
+    "请提供客户编码、单据编号或物料编码等明确条件；写操作请稍后重试。"
+)
+_FALLBACK_MAX_ROWS = 10
 
 
 def _default_user_context() -> UserContext:
@@ -69,6 +80,8 @@ class AgentCore:
         usage_sink: TokenUsageSink | None = None,
         memory: MemoryStore | None = None,
         safety: SafetyLayer | None = None,
+        rule_engine: RuleEngine | None = None,
+        trace_store: TraceStore | None = None,
     ) -> None:
         self._provider = provider
         self._tools = tools
@@ -79,15 +92,29 @@ class AgentCore:
         self._memory = memory
         # None = 不带安全层（单测/骨架模式）；生产入口必须注入（T10）
         self._safety = safety
+        # LLM 不可用时的只读兜底（M6-T02），默认启用
+        self._rule_engine = rule_engine or RuleEngine()
+        # None = 不落盘 trace；生产入口注入后所有出口都会保存（M6-T03）
+        self._trace_store = trace_store
 
     async def run(self, user_input: str, user_context: UserContext | None = None) -> AgentResponse:
+        """执行主循环并落盘 trace；落盘失败只告警，不影响用户响应。"""
+        response = await self._run(user_input, user_context)
+        if self._trace_store is not None and response.trace is not None:
+            try:
+                self._trace_store.save(response.trace)
+            except TraceStoreError as exc:
+                logger.warning("Trace 落盘失败（不影响响应）: {}", exc)
+        return response
+
+    async def _run(self, user_input: str, user_context: UserContext | None = None) -> AgentResponse:
         """执行主循环，返回带完整 trace 的响应。
 
         Phase 1→3→4a 构成多步编排循环（reflect 说续跑就把 next_input 当新
         指令再跑一轮），``agent_max_steps`` 熔断；触顶给部分结果不抛错（D3）。
 
-        Raises:
-            LLMUnavailableError: LLM 不可用（降级策略归后续任务，本层传播）。
+        LLM 不可用（``LLMUnavailableError``）时走只读规则引擎兜底（M6-T02），
+        不再向上抛异常。
         """
         started = time.perf_counter()
         context_for_user = user_context or _default_user_context()
@@ -101,7 +128,20 @@ class AgentCore:
 
         # ── 多步编排循环：Phase 1 规划 → 2 护栏 → 3 执行 → 4a 反思 ──
         for _step in range(self._settings.agent_max_steps):
-            plan = await self._phase1_plan(context, trace, context_for_user)
+            try:
+                plan = await self._phase1_plan(context, trace, context_for_user)
+            except LLMUnavailableError as exc:
+                if trace.tool_executions:
+                    # 后续步骤规划失败：已有结果足够，直接确定性回答，避免重复查询
+                    return self._finish_fallback(
+                        trace,
+                        started,
+                        user_input,
+                        message="LLM 暂不可用，已根据已完成的查询结果回答。",
+                    )
+                return await self._fallback_from_plan(
+                    user_input, trace, context_for_user, started, reason=str(exc)
+                )
             verdict = await self._phase2_guard(plan, trace, context_for_user)
             if not verdict.proceed:
                 # 拦截/取消/只读建议：不执行、不反思、不生成答复，直接收尾
@@ -123,9 +163,12 @@ class AgentCore:
             context.messages.extend(observation_messages(step_executions))
             if not should_reflect(step_executions):
                 break  # 纯聊天无可观察结果，不浪费一次反思调用
-            reflection = await self._phase4_reflect(
-                context, step_executions, snapshot, last_next_input
-            )
+            try:
+                reflection = await self._phase4_reflect(
+                    context, step_executions, snapshot, last_next_input
+                )
+            except LLMUnavailableError:
+                return self._finish_fallback(trace, started, user_input)
             trace.reflections.append(reflection.model_dump())
             if not reflection.continue_execution:
                 break
@@ -137,7 +180,10 @@ class AgentCore:
             # D3：不抛错，用已累积的部分结果继续走答复——用户该拿到部分结果。
             trace.used_fallback = True
 
-        await self._phase4_generate(context, trace, snapshot)
+        try:
+            await self._phase4_generate(context, trace, snapshot)
+        except LLMUnavailableError:
+            return self._finish_fallback(trace, started, user_input)
         self._phase5_hallucination(trace)
         self._phase6_finalize(trace, started, user_input)
         return AgentResponse(
@@ -192,17 +238,87 @@ class AgentCore:
         有安全层时只下发角色可见工具（M4-T08 拦截点 1）；
         无安全层时保持 T01 行为（全部工具）。
         """
-        specs = (
-            self._safety.visible_tools(user_context)
-            if self._safety is not None
-            else self._tools.all_specs()
-        )
-        plan = await self._provider.plan(context, tools=specs)
+        plan = await self._provider.plan(context, tools=self._visible_specs(user_context))
         trace.llm_planning = {
             "reasoning": plan.reasoning,
             "tool_calls": [decision.model_dump() for decision in plan.tool_calls],
         }
         return plan
+
+    def _visible_specs(self, user_context: UserContext) -> list[ToolSpec]:
+        """当前用户可见的工具声明（安全层过滤 / 全部）。"""
+        if self._safety is not None:
+            return self._safety.visible_tools(user_context)
+        return self._tools.all_specs()
+
+    # ── LLM 不可用：只读降级（M6-T02）──
+
+    async def _fallback_from_plan(
+        self,
+        user_input: str,
+        trace: AgentTrace,
+        user_context: UserContext,
+        started: float,
+        *,
+        reason: str,
+    ) -> AgentResponse:
+        """规则引擎兜底：只读计划 → 同一套安全审查 → 执行 → 确定性答复。"""
+        specs = self._visible_specs(user_context)
+        matched = self._rule_engine.match(user_input, available_tools={spec.name for spec in specs})
+        trace.used_fallback = True
+        trace.llm_planning = {
+            "fallback": True,
+            "reason": reason,
+            "intent": matched.intent if matched is not None else "",
+        }
+        if matched is None:
+            return self._finish_fallback(trace, started, user_input)
+
+        verdict = await self._phase2_guard(matched.plan, trace, user_context)
+        if not verdict.proceed:
+            return self._finish_fallback(
+                trace,
+                started,
+                user_input,
+                message=verdict.message,
+                blocked=verdict.blocked,
+                cancelled=verdict.cancelled,
+            )
+        await self._phase3_execute(verdict.calls, trace)
+        return self._finish_fallback(trace, started, user_input)
+
+    def _finish_fallback(
+        self,
+        trace: AgentTrace,
+        started: float,
+        user_input: str,
+        *,
+        message: str = "",
+        blocked: bool = False,
+        cancelled: bool = False,
+    ) -> AgentResponse:
+        """确定性收尾：不调 LLM、不做反思/幻觉检测，直接渲染已执行结果。"""
+        trace.used_fallback = True
+        if message:
+            detail = message
+            if trace.tool_executions:
+                detail = f"{message}\n{render_fallback_response(trace.tool_executions)}"
+        elif trace.tool_executions:
+            detail = render_fallback_response(trace.tool_executions)
+        else:
+            detail = _UNAVAILABLE_MESSAGE
+        content = f"{_FALLBACK_NOTICE}\n{detail}"
+        trace.final_response = content
+        self._phase6_finalize(trace, started, user_input)
+        return AgentResponse(
+            content=content,
+            trace_id=trace.trace_id,
+            blocked=blocked,
+            reason=content,
+            cancelled=cancelled,
+            hallucination_warning=False,
+            trace=trace,
+        )
 
     # ── Phase 2：安全护栏（M4-T10：Guard + 权限 + 风险 + HITL）──
 
@@ -264,9 +380,12 @@ class AgentCore:
             else:
                 result = await tool.execute(self._client, arguments)
             payload = result.model_dump()
+            rows = result.rows
             if call.denied_fields:
                 # 列级权限：结果出口统一剔除禁用字段（M4-T08）
-                payload["rows"] = apply_column_filter(result.rows, call.denied_fields)
+                rows = apply_column_filter(rows, call.denied_fields)
+            # 数据安全：敏感字段在进入 Trace / LLM / 记忆前统一脱敏（M7-T01）
+            payload["rows"] = redact_rows(rows)
             execution.result = payload
         except KingPilotError as exc:
             execution.error = str(exc)
@@ -363,3 +482,37 @@ class AgentCore:
                     "tool", f"工具 {execution.tool_name} 执行失败：{execution.error}"
                 )
         self._memory.add_raw("assistant", trace.final_response)
+
+
+def render_fallback_response(executions: Sequence[ToolExecution]) -> str:
+    """把已执行工具结果渲染成确定性文本（零 LLM，降级路径使用）。"""
+    if not executions:
+        return "未执行任何查询。"
+
+    parts: list[str] = []
+    for execution in executions:
+        if execution.error is not None:
+            parts.append(f"工具 {execution.tool_name} 执行失败：{execution.error}")
+            continue
+
+        result = execution.result if isinstance(execution.result, dict) else {}
+        rows = result.get("rows")
+        rows = rows if isinstance(rows, list) else []
+        field_keys = result.get("field_keys")
+        keys = [str(key) for key in field_keys] if isinstance(field_keys, list) else []
+
+        parts.append(f"查询 {execution.tool_name}：共 {len(rows)} 条")
+        for row in rows[:_FALLBACK_MAX_ROWS]:
+            if not isinstance(row, dict):
+                continue
+            columns = keys or list(row.keys())
+            cells = [
+                f"{key}={row.get(key)}"
+                for key in columns
+                if key in row and row.get(key) is not None
+            ]
+            parts.append(f"- {' | '.join(cells)}")
+        if len(rows) > _FALLBACK_MAX_ROWS:
+            parts.append(f"...（仅显示前 {_FALLBACK_MAX_ROWS} 条）")
+
+    return "\n".join(parts)

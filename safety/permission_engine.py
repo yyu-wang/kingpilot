@@ -34,8 +34,10 @@ from config.permission_rules import (
 )
 from infrastructure.exceptions import ToolError
 from kingdee.endpoints.base import quote_eq
+from models.audit import AuditEvent
 from models.llm import ToolSpec
 from models.user import UserContext
+from observability.audit import AuditLogger
 from safety.guard import GuardContext, GuardResult
 
 GUARD_NAME = "guard_permission"
@@ -91,6 +93,7 @@ class PermissionEngine:
         row_scope_fields: Mapping[str, str] = ROW_SCOPE_FIELD_MAP,
         row_owner_fields: Mapping[str, str] = ROW_OWNER_FIELD_MAP,
         column_deny: Mapping[DataDomain, frozenset[str]] = COLUMN_DENY_MAP,
+        audit: AuditLogger | None = None,
     ) -> None:
         """装配引擎；空矩阵/空域映射属于配置缺失，构造期拒绝（fail-closed）。"""
         if not matrix:
@@ -103,6 +106,7 @@ class PermissionEngine:
         self._row_scope_fields = dict(row_scope_fields)
         self._row_owner_fields = dict(row_owner_fields)
         self._column_deny = dict(column_deny)
+        self._audit = audit
 
     # ── 拦截点 1：工具列表过滤 ──
 
@@ -133,6 +137,8 @@ class PermissionEngine:
         user: UserContext,
         tool: ToolDefinition,
         arguments: Mapping[str, Any],
+        *,
+        trace_id: str = "",
     ) -> PermissionDecision:
         """按工具层 → 数据域 → 行级 → 写规则 → 列级顺序判定。"""
         access: AccessType = "read" if tool.tool_type == "query" else "write"
@@ -140,18 +146,25 @@ class PermissionEngine:
 
         # 1) 工具层
         if tool.name in user.deny_tools:
-            return self._deny(user, tool, None, access, "该工具被显式禁用")
+            return self._deny(user, tool, None, access, "该工具被显式禁用", trace_id=trace_id)
         if user.allow_tools and tool.name not in user.allow_tools:
-            return self._deny(user, tool, None, access, "该工具不在允许列表内")
+            return self._deny(user, tool, None, access, "该工具不在允许列表内", trace_id=trace_id)
 
         # 2) 角色 + 数据域
         role_access = self._matrix.get(user.role)
         if role_access is None:
-            return self._deny(user, tool, None, access, f"未知角色: {user.role}")
+            return self._deny(user, tool, None, access, f"未知角色: {user.role}", trace_id=trace_id)
 
         domain = self._form_domains.get(form_id)
         if domain is None:
-            return self._deny(user, tool, None, access, f"未知表单 {form_id}，无法确定数据域")
+            return self._deny(
+                user,
+                tool,
+                None,
+                access,
+                f"未知表单 {form_id}，无法确定数据域",
+                trace_id=trace_id,
+            )
 
         allowed_domains = role_access.visible if access == "read" else role_access.writable
         if domain not in allowed_domains:
@@ -159,17 +172,24 @@ class PermissionEngine:
                 f"您当前角色暂无{_domain_label(domain)}数据的访问权限。"
                 "如需查看，请联系管理员开通对应数据域权限。"
             )
-            return self._deny(user, tool, domain, access, reason)
+            return self._deny(user, tool, domain, access, reason, trace_id=trace_id)
 
         # 数据范围（表单白名单）
         scope_form_ids = _str_list(user.data_scope.get("form_ids"))
         if scope_form_ids and form_id not in scope_form_ids:
-            return self._deny(user, tool, domain, access, f"单据 {form_id} 不在您的数据范围内")
+            return self._deny(
+                user,
+                tool,
+                domain,
+                access,
+                f"单据 {form_id} 不在您的数据范围内",
+                trace_id=trace_id,
+            )
 
         # 3) 行级
         row_filter, row_denial = self._build_row_filter(user, form_id)
         if row_denial is not None:
-            return self._deny(user, tool, domain, access, row_denial)
+            return self._deny(user, tool, domain, access, row_denial, trace_id=trace_id)
 
         # 4) 写规则（仅写/动作）
         approvers: tuple[str, ...] = ()
@@ -185,6 +205,7 @@ class PermissionEngine:
                     access,
                     f"写操作被权限规则拒绝: {denial_rule.label}",
                     rule_id=denial_rule.rule_id,
+                    trace_id=trace_id,
                 )
             if approvers:
                 reason = f"写操作需升级审批: {'、'.join(approvers)}"
@@ -272,19 +293,41 @@ class PermissionEngine:
         reason: str,
         *,
         rule_id: str = "",
+        trace_id: str = "",
     ) -> PermissionDecision:
-        """构造拒绝结果并落结构化安全事件（M6 换成审计出口）。"""
-        logger.warning(
-            "越权尝试 | event=security.denied tool={} form={} domain={} access={} "
-            "user={} role={} reason={}",
-            tool.name,
-            tool.endpoint.form_id,
-            domain.value if domain is not None else "-",
-            access,
-            user.user_id,
-            user.role,
-            reason,
-        )
+        """构造拒绝结果并落审计事件（未注入审计时退回结构化日志）。"""
+        if self._audit is not None:
+            self._audit.emit(
+                AuditEvent(
+                    event_type="permission.denied",
+                    trace_id=trace_id,
+                    user_id=user.user_id,
+                    user_role=user.role,
+                    ip_address=user.ip_address,
+                    action=tool.action,
+                    form_id=tool.endpoint.form_id,
+                    tool_name=tool.name,
+                    status="rejected",
+                    detail={
+                        "domain": domain.value if domain is not None else "",
+                        "access_type": access,
+                        "reason": reason,
+                        "rule_id": rule_id,
+                    },
+                )
+            )
+        else:
+            logger.warning(
+                "越权尝试 | event=security.denied tool={} form={} domain={} access={} "
+                "user={} role={} reason={}",
+                tool.name,
+                tool.endpoint.form_id,
+                domain.value if domain is not None else "-",
+                access,
+                user.user_id,
+                user.role,
+                reason,
+            )
         return PermissionDecision(
             allowed=False,
             reason=reason,
@@ -313,7 +356,12 @@ class PermissionGuard:
                 detail={"tool": context.tool_name},
             )
 
-        decision = self._engine.check(context.user_context, tool, context.arguments)
+        decision = self._engine.check(
+            context.user_context,
+            tool,
+            context.arguments,
+            trace_id=context.trace_id,
+        )
         if not decision.allowed:
             return GuardResult.block(decision.reason, detail=decision.to_dict())
         return GuardResult.allow(detail=decision.to_dict())

@@ -27,6 +27,7 @@ from kingdee.client import KingdeeClient
 from kingdee.entity_lookup import KingdeeEntityLookup
 from models.llm import ToolCallDecision, ToolSpec
 from models.user import UserContext
+from observability.audit import AuditLogger
 from safety.guard import GuardContext, GuardPipeline, GuardPipelineResult
 from safety.guard_entity import EntityPreflightGuard
 from safety.guard_limit import LimitGuard
@@ -84,9 +85,10 @@ class SafetyLayer:
         hitl_io: ConfirmationIO,
         *,
         clock: Callable[[], datetime] | None = None,
+        audit: AuditLogger | None = None,
     ) -> None:
         self._tools = tools
-        self._permission = PermissionEngine()
+        self._permission = PermissionEngine(audit=audit)
         self._risk = RiskEngine()
         self._hitl = HumanInTheLoop(hitl_io)
         # 可注入时钟：测试固定工作时间，避免「非工作时间 +3 分」造成结果漂移
@@ -100,7 +102,8 @@ class SafetyLayer:
                 EntityPreflightGuard(tools, KingdeeEntityLookup(client)),
                 LimitGuard(tools),
                 ParamGuard(tools),
-            ]
+            ],
+            audit=audit,
         )
 
     def visible_tools(self, user: UserContext) -> list[ToolSpec]:
@@ -140,7 +143,7 @@ class SafetyLayer:
 
             tool = self._tools.get(call.tool_name)
             arguments = dict(result.effective_arguments)
-            decision = self._permission.check(user, tool, arguments)
+            decision = self._permission.check(user, tool, arguments, trace_id=trace_id)
             if not decision.allowed:
                 return SafetyVerdict(
                     proceed=False,

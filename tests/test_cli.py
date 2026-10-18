@@ -116,7 +116,7 @@ async def test_restart_resumes_history_for_next_plan(tmp_path: Path) -> None:
 
 
 async def test_single_turn_failure_keeps_session_alive(tmp_path: Path) -> None:
-    """首轮 LLM 不可用 → 打印失败但会话继续，下一轮正常并落盘。"""
+    """首轮 LLM 不可用 → 走只读降级提示但会话继续，下一轮正常并落盘。"""
     settings = _settings(tmp_path)
     store = SessionStore(tmp_path)
     memory = store.load("cli-error")
@@ -134,11 +134,11 @@ async def test_single_turn_failure_keeps_session_alive(tmp_path: Path) -> None:
         write_output=outputs.append,
     )
 
-    assert any("处理失败" in line for line in outputs)
+    assert any("LLM 暂不可用" in line for line in outputs)
     assert any("助手> 恢复正常" in line for line in outputs)
-    # 失败轮未进 Phase 6，不写记忆；成功轮写入 1 轮
-    assert memory.raw_rounds == 1
-    assert store.load("cli-error").raw_rounds == 1
+    # 降级轮也会写回记忆（不再静默丢轮次）
+    assert memory.raw_rounds == 2
+    assert store.load("cli-error").raw_rounds == 2
 
 
 async def test_hallucination_warning_surfaced(tmp_path: Path) -> None:

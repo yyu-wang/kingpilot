@@ -25,6 +25,9 @@ from config.settings import Settings, get_settings
 from infrastructure.exceptions import KingPilotError, SessionStoreError
 from infrastructure.logger import setup_logging
 from kingdee.client import KingdeeClient
+from observability.alerts import AlertEngine
+from observability.audit import AuditLogger, JsonlAuditSink
+from observability.tracing import TraceStore
 from safety.engine import SafetyLayer
 from safety.human_in_loop import CliConfirmationIO
 
@@ -113,7 +116,10 @@ async def _run_session(settings: Settings, store: SessionStore, memory: MemorySt
     try:
         async with KingdeeClient(settings) as client:
             registry = build_default_registry()
-            safety = SafetyLayer(registry, client, CliConfirmationIO())
+            audit = AuditLogger(JsonlAuditSink(settings.audit_log_path))
+            audit.subscribe(AlertEngine().observe)
+            safety = SafetyLayer(registry, client, CliConfirmationIO(), audit=audit)
+            trace_store = TraceStore(settings.trace_store_dir)
             core = AgentCore(
                 provider,
                 registry,
@@ -121,6 +127,7 @@ async def _run_session(settings: Settings, store: SessionStore, memory: MemorySt
                 settings,
                 memory=memory,
                 safety=safety,
+                trace_store=trace_store,
             )
             await run_chat_loop(core, memory, store, read_input=input, write_output=print)
     finally:

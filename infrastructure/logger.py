@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 from config.settings import get_settings
+from safety.datasecurity import redact_text
 
 if TYPE_CHECKING:
     # loguru 的 __init__.pyi 仅在类型检查期可见（运行期只有 logger）
@@ -86,11 +87,12 @@ def with_trace(trace_id: str | None = None) -> Iterator[str]:
 
 
 def _inject_trace_id(record: Record) -> None:
-    """patcher：每条日志渲染前，把当前 trace_id 写进 ``extra``。
+    """patcher：注入 trace_id，并对日志消息做 PII 掩码（M7-T01 日志出口）。
 
     ``record["extra"]`` 是 copy，故逐条覆盖不会串味（M0-T05 已用并发用例验证）。
     """
     record["extra"]["trace_id"] = _trace_id.get()
+    record["message"] = redact_text(record["message"])
 
 
 class InterceptHandler(logging.Handler):

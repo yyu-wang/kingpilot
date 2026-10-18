@@ -93,6 +93,24 @@ class Settings(BaseSettings):
         description="写操作溯源账本 SQLite 文件路径（append-only）",
     )
 
+    # ── 全链路 Trace（M6-T03）──
+    trace_store_dir: Path = Field(
+        default=Path.home() / ".kingpilot" / "traces",
+        description="Trace 落盘目录（每个 trace 一个 JSON 文件）",
+    )
+
+    # ── 审计事件（M6-T04）──
+    audit_log_path: Path = Field(
+        default=Path.home() / ".kingpilot" / "audit.jsonl",
+        description="审计事件 JSONL 文件（append-only）",
+    )
+
+    # ── 死信队列（M6-T06）──
+    dead_letter_dir: Path = Field(
+        default=Path.home() / ".kingpilot" / "dead_letters",
+        description="死信目录（每条失败事务一个 JSON 文件）",
+    )
+
     @property
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""

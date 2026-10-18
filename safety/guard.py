@@ -17,7 +17,9 @@ from typing import Any, Protocol
 
 from loguru import logger
 
+from models.audit import AuditEvent
 from models.user import UserContext
+from observability.audit import AuditLogger
 
 # 审计事件名（M6 落地前先写结构化日志，字段与审计事件对齐）
 _EVENT_GUARD_BLOCKED = "guard.blocked"
@@ -122,8 +124,12 @@ class GuardPipelineResult:
 class GuardPipeline:
     """顺序执行、首个拦截即短路的护栏管道。"""
 
-    def __init__(self, guards: Sequence[Guard]) -> None:
+    def __init__(self, guards: Sequence[Guard], *, audit: AuditLogger | None = None) -> None:
         """装配管道。
+
+        Args:
+            guards: 按顺序执行的护栏。
+            audit: 审计出口；注入后拦截事件进审计流，未注入保留 loguru 日志。
 
         Raises:
             ValueError: Guard 列表为空——无校验即放行违反 fail-closed，
@@ -132,6 +138,7 @@ class GuardPipeline:
         if not guards:
             raise ValueError("Guard 管道不能为空（fail-closed：无校验不放行）")
         self._guards = tuple(guards)
+        self._audit = audit
 
     @property
     def guard_names(self) -> tuple[str, ...]:
@@ -184,15 +191,32 @@ class GuardPipeline:
                 )
             )
             if not result.passed:
-                logger.warning(
-                    "安全护栏拦截 | event={} guard={} tool={} user={} trace_id={} reason={}",
-                    _EVENT_GUARD_BLOCKED,
-                    guard.name,
-                    current_context.tool_name,
-                    current_context.user_context.user_id,
-                    current_context.trace_id,
-                    result.reason,
-                )
+                if self._audit is not None:
+                    self._audit.emit(
+                        AuditEvent(
+                            event_type="guard.blocked",
+                            trace_id=current_context.trace_id,
+                            user_id=current_context.user_context.user_id,
+                            user_role=current_context.user_context.role,
+                            ip_address=current_context.user_context.ip_address,
+                            tool_name=current_context.tool_name,
+                            status="blocked",
+                            detail={
+                                "guard": guard.name,
+                                "reason": result.reason,
+                            },
+                        )
+                    )
+                else:
+                    logger.warning(
+                        "安全护栏拦截 | event={} guard={} tool={} user={} trace_id={} reason={}",
+                        _EVENT_GUARD_BLOCKED,
+                        guard.name,
+                        current_context.tool_name,
+                        current_context.user_context.user_id,
+                        current_context.trace_id,
+                        result.reason,
+                    )
                 return GuardPipelineResult(
                     blocked=True,
                     reason=result.reason,
