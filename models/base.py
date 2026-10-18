@@ -46,7 +46,17 @@ class SagaStatus(StrEnum):
 
 # ── 类型别名（提高可读性）──
 
-Role = Literal["admin", "operator", "viewer"]  # 用户角色
+# 用户角色（M4-T08 扩展为数据域矩阵需要的细粒度角色；保留既有三值兼容）
+Role = Literal[
+    "admin",
+    "manager",
+    "operator",
+    "viewer",
+    "salesperson",
+    "purchaser",
+    "warehouse",
+    "finance_staff",
+]
 FormId = str  # 金蝶业务对象标识（如 "SAL_Order"）
 BusinessKey = str  # 业务单据号（如 "SO20241015001"）
 

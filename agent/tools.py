@@ -134,6 +134,10 @@ class ToolRegistry:
         """全部工具的 LLM 侧声明（Phase 1 组装 ``tools`` 参数用，顺序 = 注册序）。"""
         return [tool.spec for tool in self._tools.values()]
 
+    def all_tools(self) -> list[ToolDefinition]:
+        """全部工具定义（M4 权限过滤等需要 form_id/tool_type 的场景用）。"""
+        return list(self._tools.values())
+
 
 def _from_binding(binding: QueryToolBinding) -> ToolDefinition:
     """端点绑定三件套 → ToolDefinition（schema 由参数模型自动生成）。"""
