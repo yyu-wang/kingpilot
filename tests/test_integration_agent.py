@@ -55,7 +55,9 @@ class _OrderParams(EndpointParams):
 class _CustomerLookupTool(ToolDefinition):
     """桩：按名称返回测试客户001 → CUS001。"""
 
-    async def execute(self, client: Any, arguments: dict[str, Any]) -> BillQueryResult:
+    async def execute(
+        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+    ) -> BillQueryResult:
         return BillQueryResult(
             form_id="BD_Customer",
             field_keys=["FNumber", "FName"],
@@ -66,7 +68,9 @@ class _CustomerLookupTool(ToolDefinition):
 class _OrderLookupTool(ToolDefinition):
     """桩：仅当客户编码为 CUS001 时返回两笔订单（验证换码是否真的用上）。"""
 
-    async def execute(self, client: Any, arguments: dict[str, Any]) -> BillQueryResult:
+    async def execute(
+        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+    ) -> BillQueryResult:
         number = str(arguments.get("customer_number") or "")
         rows: list[dict[str, Any]] = (
             [

@@ -1,0 +1,264 @@
+"""安全层编排（M4-T10）：把六层 Guard、权限、风险与 HITL 串成一次审查。
+
+调用链：
+    Phase 1 工具列表过滤（visible_tools）
+    Phase 2 review：
+        每条 tool_call → Guard 管道（权限兜底 + Guard 1~5）
+        → effective_arguments（实体换码）
+        → 权限判定（行过滤/列禁用）
+        → 风险评分（多条取最高）
+        → HITL 路由 + 一次确认覆盖整批
+    Phase 3 由主循环按 GuardedCall 执行
+
+设计原则：
+- 任一调用被拦截 = 整批不执行（避免业务半成品）
+- 安全层不调用 LLM；确认交互通过 ``ConfirmationIO`` 注入
+- 本模块不依赖 ``agent.core``，由 core 反向依赖，避免循环导入
+"""
+
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
+
+from agent.tools import ToolRegistry
+from config.permission_rules import DataDomain
+from kingdee.client import KingdeeClient
+from kingdee.entity_lookup import KingdeeEntityLookup
+from models.llm import ToolCallDecision, ToolSpec
+from models.user import UserContext
+from safety.guard import GuardContext, GuardPipeline, GuardPipelineResult
+from safety.guard_entity import EntityPreflightGuard
+from safety.guard_limit import LimitGuard
+from safety.guard_params import ParamGuard
+from safety.guard_schema import SchemaGuard
+from safety.guard_sql import FilterGuard
+from safety.human_in_loop import (
+    ConfirmationIO,
+    HitlOutcome,
+    HumanInTheLoop,
+    build_action_summary,
+)
+from safety.permission_engine import (
+    AccessType,
+    PermissionDecision,
+    PermissionEngine,
+    PermissionGuard,
+)
+from safety.risk_engine import RiskDecision, RiskEngine, build_risk_context
+
+
+@dataclass(frozen=True)
+class GuardedCall:
+    """安全审查通过的一次调用（含换码后参数与行/列限制）。"""
+
+    tool_name: str
+    arguments: Mapping[str, Any]
+    row_filter: str = ""
+    denied_fields: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class SafetyVerdict:
+    """一次规划的安全审查结论。"""
+
+    proceed: bool
+    calls: tuple[GuardedCall, ...] = ()
+    message: str = ""
+    blocked: bool = False
+    cancelled: bool = False
+    read_only: bool = False
+    guard_records: tuple[dict[str, Any], ...] = ()
+    risk: RiskDecision | None = None
+    permission: PermissionDecision | None = None
+    hitl: HitlOutcome | None = None
+
+
+class SafetyLayer:
+    """安全审查门面：工具过滤 + Guard 管道 + 风险/权限/HITL。"""
+
+    def __init__(
+        self,
+        tools: ToolRegistry,
+        client: KingdeeClient,
+        hitl_io: ConfirmationIO,
+        *,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._tools = tools
+        self._permission = PermissionEngine()
+        self._risk = RiskEngine()
+        self._hitl = HumanInTheLoop(hitl_io)
+        # 可注入时钟：测试固定工作时间，避免「非工作时间 +3 分」造成结果漂移
+        self._clock = clock
+        self._pipeline = GuardPipeline(
+            [
+                # 拦截点 2：执行前权限兜底（先失败快）
+                PermissionGuard(tools, self._permission),
+                SchemaGuard(tools),
+                FilterGuard(tools),
+                EntityPreflightGuard(tools, KingdeeEntityLookup(client)),
+                LimitGuard(tools),
+                ParamGuard(tools),
+            ]
+        )
+
+    def visible_tools(self, user: UserContext) -> list[ToolSpec]:
+        """拦截点 1：按角色过滤 LLM 可见工具列表。"""
+        return self._permission.domain_filter(user, self._tools.all_tools())
+
+    async def review(
+        self,
+        user: UserContext,
+        calls: Sequence[ToolCallDecision],
+        trace_id: str,
+    ) -> SafetyVerdict:
+        """逐条审查规划；任一条拦截则整批不执行。"""
+        records: list[dict[str, Any]] = []
+        guarded: list[GuardedCall] = []
+        permissions: list[PermissionDecision] = []
+        risks: list[RiskDecision] = []
+        now = self._clock() if self._clock is not None else None
+
+        for call in calls:
+            context = GuardContext(
+                tool_name=call.tool_name,
+                arguments=call.arguments,
+                user_context=user,
+                trace_id=trace_id,
+            )
+            result = await self._pipeline.check(context)
+            records.extend(result.to_records())
+            if result.blocked:
+                return SafetyVerdict(
+                    proceed=False,
+                    message=_block_message(result),
+                    blocked=True,
+                    guard_records=tuple(records),
+                    permission=_permission_from_record(result),
+                )
+
+            tool = self._tools.get(call.tool_name)
+            arguments = dict(result.effective_arguments)
+            decision = self._permission.check(user, tool, arguments)
+            if not decision.allowed:
+                return SafetyVerdict(
+                    proceed=False,
+                    message=decision.reason,
+                    blocked=True,
+                    guard_records=tuple(records),
+                    permission=decision,
+                )
+
+            permissions.append(decision)
+            risks.append(self._risk.assess(build_risk_context(tool, arguments, user, now=now)))
+            guarded.append(
+                GuardedCall(
+                    tool_name=call.tool_name,
+                    arguments=arguments,
+                    row_filter=decision.row_filter,
+                    denied_fields=decision.denied_fields,
+                )
+            )
+
+        if not guarded:
+            return SafetyVerdict(proceed=True, guard_records=tuple(records))
+
+        risk = max(risks, key=lambda item: item.score)
+        permission = _merge_permissions(permissions)
+        hitl_decision = self._hitl.route(risk, permission)
+        summary = build_action_summary(calls, risk)
+        outcome = await self._hitl.confirm(hitl_decision, summary)
+
+        if not outcome.approved:
+            return SafetyVerdict(
+                proceed=False,
+                message=outcome.message,
+                blocked=outcome.blocked,
+                cancelled=outcome.cancelled,
+                read_only=outcome.read_only,
+                guard_records=tuple(records),
+                risk=risk,
+                permission=permission,
+                hitl=outcome,
+            )
+
+        return SafetyVerdict(
+            proceed=True,
+            calls=tuple(guarded),
+            guard_records=tuple(records),
+            risk=risk,
+            permission=permission,
+            hitl=outcome,
+        )
+
+
+def _block_message(result: GuardPipelineResult) -> str:
+    """拦截文案：实体全部幻觉时优先用面向用户的提示。"""
+    if result.records:
+        detail = result.records[-1].detail
+        user_message = detail.get("user_message")
+        if isinstance(user_message, str) and user_message:
+            return user_message
+    return result.reason
+
+
+def _permission_from_record(
+    result: GuardPipelineResult,
+) -> PermissionDecision | None:
+    """从 Guard 记录还原权限判定（拦截时也把权限结果写进 trace）。"""
+    for record in result.records:
+        if record.guard_name != "guard_permission":
+            continue
+        detail = record.detail
+        domain_value = detail.get("domain")
+        domain = (
+            DataDomain(domain_value) if isinstance(domain_value, str) and domain_value else None
+        )
+        access: AccessType = "write" if detail.get("access_type") == "write" else "read"
+        return PermissionDecision(
+            allowed=bool(detail.get("allowed", False)),
+            reason=str(detail.get("reason", "")),
+            domain=domain,
+            access_type=access,
+            row_filter=str(detail.get("row_filter", "")),
+            denied_fields=_as_str_tuple(detail.get("denied_fields")),
+            required_approvers=_as_str_tuple(detail.get("required_approvers")),
+            rule_id=str(detail.get("rule_id", "")),
+        )
+    return None
+
+
+def _as_str_tuple(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        return ()
+    return tuple(str(item) for item in value)
+
+
+def _merge_permissions(
+    decisions: Sequence[PermissionDecision],
+) -> PermissionDecision:
+    """把逐条权限判定合并成一份审计/路由用的聚合结果。"""
+    if not decisions:
+        return PermissionDecision(allowed=True)
+
+    approvers = tuple(
+        dict.fromkeys(
+            approver for decision in decisions for approver in decision.required_approvers
+        )
+    )
+    reasons = [decision.reason for decision in decisions if decision.reason]
+    denied_fields = tuple(
+        sorted({field for decision in decisions for field in decision.denied_fields})
+    )
+    row_filters = [decision.row_filter for decision in decisions if decision.row_filter]
+    return PermissionDecision(
+        allowed=all(decision.allowed for decision in decisions),
+        reason="；".join(reasons),
+        domain=decisions[0].domain,
+        access_type=decisions[0].access_type,
+        row_filter=" AND ".join(row_filters),
+        denied_fields=denied_fields,
+        required_approvers=approvers,
+        rule_id=decisions[0].rule_id,
+    )

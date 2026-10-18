@@ -82,6 +82,7 @@ class FakeProvider:
         self.summarize_calls = 0
         # 最后一次调用的入参留痕（压缩器/记忆/反思断言用）
         self.last_plan_context: LLMContext | None = None
+        self.last_plan_tools: list[ToolSpec] = []
         self.last_summarize_messages: list[LLMMessage] = []
         self.last_reflect_memory: MemorySnapshot | None = None
         self.last_reflect_summary: ExecutionSummary | None = None
@@ -90,6 +91,7 @@ class FakeProvider:
     async def plan(self, context: LLMContext, tools: Sequence[ToolSpec]) -> PlanResult:
         self.plan_calls += 1
         self.last_plan_context = context
+        self.last_plan_tools = list(tools)
         item = _next(self._plan_queue, "plan_queue")
         self._report_usage()
         if isinstance(item, Exception):

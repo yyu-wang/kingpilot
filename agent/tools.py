@@ -74,8 +74,18 @@ class ToolDefinition:
         """工具名（LLM tool_calls 里的对齐键）。"""
         return self.spec.name
 
-    async def execute(self, client: KingdeeClient, arguments: dict[str, Any]) -> BillQueryResult:
+    async def execute(
+        self,
+        client: KingdeeClient,
+        arguments: dict[str, Any],
+        *,
+        row_filter: str = "",
+    ) -> BillQueryResult:
         """校验参数 → 组装过滤条件 → 查询。
+
+        Args:
+            row_filter: 可信行级过滤（M4 权限引擎产出）。在 Guard 校验之后追加，
+                因此不参与 Guard 2 的文法校验；为空表示不注入。
 
         Raises:
             ToolError: 参数校验失败（含未知参数）、过滤值被组装层拒绝；
@@ -101,6 +111,9 @@ class ToolDefinition:
                 f"过滤条件被拒绝: {exc}",
                 context={"tool": self.spec.name},
             ) from exc
+
+        if row_filter:
+            filter_string = f"{filter_string} AND {row_filter}" if filter_string else row_filter
 
         # EndpointParams 保证 limit 存在；isinstance 收窄供 mypy 取属性
         if not isinstance(params, EndpointParams):

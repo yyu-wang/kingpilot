@@ -5,9 +5,10 @@
   （plan/execute 复用 M2-T04 单轮内核的同款逻辑，归属本类内聚实现——
   不委托 QueryPipeline，避免「主循环调子管道再回调」的循环结构）
 - **Phase 5 幻觉检测随 M3-T06 落地**：规则化三重校验，只置标志不纠错
-  （自动纠错循环与降级回复归 M4）
-- **空实现扩展点**：Phase 2 护栏（M4）——有签名的扩展点，docstring 标注
-  归属任务，保证骨架可串联、可单测、可被后续任务点对点替换。
+  （自动纠错循环暂未启用，见 M4-T10 决策）
+- **Phase 2 安全审查随 M4-T10 落地**：注入 ``SafetyLayer`` 后启用
+  工具过滤 + Guard 1~5 + 权限 + 风险 + HITL；不注入则退化为直通，
+  保证既有单测零改动。
 - Phase 0/6 记忆随 M3-T03 落地：注入 ``MemoryStore`` 时启用压缩判定、
   快照组装与轮次写回；不注入则退化为 T01 的无状态单轮模式（既有测试零改动）。
 
@@ -20,7 +21,6 @@
 
 import time
 from collections.abc import Sequence
-from typing import Any
 
 from loguru import logger
 
@@ -45,6 +45,8 @@ from models.llm import (
 )
 from models.tool import ToolExecution
 from models.user import UserContext
+from safety.engine import GuardedCall, SafetyLayer, SafetyVerdict
+from safety.permission_engine import apply_column_filter
 
 
 def _default_user_context() -> UserContext:
@@ -66,6 +68,7 @@ class AgentCore:
         settings: Settings,
         usage_sink: TokenUsageSink | None = None,
         memory: MemoryStore | None = None,
+        safety: SafetyLayer | None = None,
     ) -> None:
         self._provider = provider
         self._tools = tools
@@ -74,6 +77,8 @@ class AgentCore:
         self._usage_sink = usage_sink
         # None = T01 无状态模式（不压缩/不组装历史/不写回），既有单测零改动
         self._memory = memory
+        # None = 不带安全层（单测/骨架模式）；生产入口必须注入（T10）
+        self._safety = safety
 
     async def run(self, user_input: str, user_context: UserContext | None = None) -> AgentResponse:
         """执行主循环，返回带完整 trace 的响应。
@@ -96,10 +101,23 @@ class AgentCore:
 
         # ── 多步编排循环：Phase 1 规划 → 2 护栏 → 3 执行 → 4a 反思 ──
         for _step in range(self._settings.agent_max_steps):
-            plan = await self._phase1_plan(context, trace)
-            await self._phase2_guard(plan, trace)
+            plan = await self._phase1_plan(context, trace, context_for_user)
+            verdict = await self._phase2_guard(plan, trace, context_for_user)
+            if not verdict.proceed:
+                # 拦截/取消/只读建议：不执行、不反思、不生成答复，直接收尾
+                trace.final_response = verdict.message
+                self._phase6_finalize(trace, started, user_input)
+                return AgentResponse(
+                    content=verdict.message,
+                    trace_id=trace.trace_id,
+                    blocked=verdict.blocked,
+                    reason=verdict.message,
+                    cancelled=verdict.cancelled,
+                    hallucination_warning=False,
+                    trace=trace,
+                )
             step_start = len(trace.tool_executions)
-            await self._phase3_execute(plan, trace)
+            await self._phase3_execute(verdict.calls, trace)
             step_executions = trace.tool_executions[step_start:]
             # 观察回灌：本步工具结果进上下文，本轮反思与下一轮规划都看得见
             context.messages.extend(observation_messages(step_executions))
@@ -166,48 +184,90 @@ class AgentCore:
 
     # ── Phase 1：规划（真实现，复用 M2-T04 内核逻辑）──
 
-    async def _phase1_plan(self, context: LLMContext, trace: AgentTrace) -> PlanResult:
-        """规划层：全部工具声明给 LLM，产出本轮 tool_calls（防幻觉锚点注入归 T04/T06）。"""
-        plan = await self._provider.plan(context, tools=self._tools.all_specs())
+    async def _phase1_plan(
+        self, context: LLMContext, trace: AgentTrace, user_context: UserContext
+    ) -> PlanResult:
+        """规划层：声明可用工具，产出本轮 tool_calls。
+
+        有安全层时只下发角色可见工具（M4-T08 拦截点 1）；
+        无安全层时保持 T01 行为（全部工具）。
+        """
+        specs = (
+            self._safety.visible_tools(user_context)
+            if self._safety is not None
+            else self._tools.all_specs()
+        )
+        plan = await self._provider.plan(context, tools=specs)
         trace.llm_planning = {
             "reasoning": plan.reasoning,
             "tool_calls": [decision.model_dump() for decision in plan.tool_calls],
         }
         return plan
 
-    # ── Phase 2：安全护栏（空实现扩展点）──
+    # ── Phase 2：安全护栏（M4-T10：Guard + 权限 + 风险 + HITL）──
 
-    async def _phase2_guard(self, plan: PlanResult, trace: AgentTrace) -> None:
-        """安全护栏层（方案支柱一~五）：Guard 1-5 逐个校验 tool_calls。
+    async def _phase2_guard(
+        self,
+        plan: PlanResult,
+        trace: AgentTrace,
+        user_context: UserContext,
+    ) -> SafetyVerdict:
+        """安全审查：任一条拦截/取消则整批不执行。
 
-        空实现（归 M4）：本任务 tool_calls 直通。落地时在此插 AST 校验、
-        风险分、四层权限、HITL 分级确认，拦截写 ``trace.guard_checks``。
+        无安全层时直接放行（单测/骨架模式的 T01 行为）。
         """
+        if self._safety is None:
+            return SafetyVerdict(
+                proceed=True,
+                calls=tuple(
+                    GuardedCall(
+                        tool_name=decision.tool_name,
+                        arguments=dict(decision.arguments),
+                    )
+                    for decision in plan.tool_calls
+                ),
+            )
+
+        verdict = await self._safety.review(user_context, plan.tool_calls, str(trace.trace_id))
+        trace.guard_checks.extend(verdict.guard_records)
+        if verdict.risk is not None:
+            trace.risk_assessment = verdict.risk.to_dict()
+        if verdict.permission is not None:
+            trace.permission_check = verdict.permission.to_dict()
+        if verdict.hitl is not None:
+            trace.risk_assessment["hitl"] = verdict.hitl.to_dict()
+        return verdict
 
     # ── Phase 3：执行（真实现，复用 M2-T04 内核逻辑）──
 
-    async def _phase3_execute(self, plan: PlanResult, trace: AgentTrace) -> None:
-        """执行层：逐个执行 tool_calls，失败不中断（错误记入 ToolExecution 继续）。
+    async def _phase3_execute(self, calls: Sequence[GuardedCall], trace: AgentTrace) -> None:
+        """执行层：逐个执行已审查调用，失败不中断（错误记入 ToolExecution 继续）。
 
         Saga 事务归 M5；本轮查询为只读，无需补偿。累积进 trace 供反思与答复。
         """
-        for decision in plan.tool_calls:
-            trace.tool_executions.append(
-                await self._execute_one(decision.tool_name, decision.arguments)
-            )
+        for call in calls:
+            trace.tool_executions.append(await self._execute_one(call))
 
-    async def _execute_one(self, tool_name: str, arguments: dict[str, Any]) -> ToolExecution:
-        """执行单个工具并归一为执行记录（成功带 result，失败带 error）。
+    async def _execute_one(self, call: GuardedCall) -> ToolExecution:
+        """执行单个已审查调用（含行过滤注入与列字段剔除）。
 
         Why 只捕 KingPilotError：项目异常层次保证消息不含密钥（红线 3.6）；
         其他异常（编程错误）不吞，直接暴露。与 M2-T04 同源实现。
         """
         started = time.perf_counter()
-        execution = ToolExecution(tool_name=tool_name, parameters=arguments)
+        arguments = dict(call.arguments)
+        execution = ToolExecution(tool_name=call.tool_name, parameters=arguments)
         try:
-            tool = self._tools.get(tool_name)
-            result = await tool.execute(self._client, arguments)
-            execution.result = result.model_dump()
+            tool = self._tools.get(call.tool_name)
+            if call.row_filter:
+                result = await tool.execute(self._client, arguments, row_filter=call.row_filter)
+            else:
+                result = await tool.execute(self._client, arguments)
+            payload = result.model_dump()
+            if call.denied_fields:
+                # 列级权限：结果出口统一剔除禁用字段（M4-T08）
+                payload["rows"] = apply_column_filter(result.rows, call.denied_fields)
+            execution.result = payload
         except KingPilotError as exc:
             execution.error = str(exc)
         execution.latency_ms = (time.perf_counter() - started) * 1000
@@ -248,8 +308,8 @@ class AgentCore:
         """幻觉三重校验（方案支柱十）：数字事实 / 结果来源 / 业务一致性。
 
         只做检测（规则化、零 LLM）：命中置 ``trace.hallucination_detected``，
-        详情进 warning 日志；``hallucination_resolved`` 保持 False，纠错循环
-        与降级回复归 M4。无 memory 时实体图为空，仍能做前两项校验。
+        详情进 warning 日志；``hallucination_resolved`` 保持 False。
+        自动纠错循环暂未启用（M4-T10 决策：本轮只保证检测与拦截）。
         """
         entities = self._memory.entities() if self._memory is not None else ()
         history = self._memory.raw_messages() if self._memory is not None else ()

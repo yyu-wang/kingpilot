@@ -38,7 +38,9 @@ class _CustomerParams(EndpointParams):
 class _CustomerTool(ToolDefinition):
     """FakeTool：返回 BD_Customer 结果（含 CUS001），验证实体抽取入图。"""
 
-    async def execute(self, client: Any, arguments: dict[str, Any]) -> BillQueryResult:
+    async def execute(
+        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+    ) -> BillQueryResult:
         return BillQueryResult(
             form_id="BD_Customer",
             field_keys=["FNumber", "FName"],
@@ -75,7 +77,9 @@ def _echo_build_filter(params: Any) -> str:
 class _EchoTool(ToolDefinition):
     """FakeTool：覆盖 execute 返回固定结果，不碰金蝶 client。"""
 
-    async def execute(self, client: Any, arguments: dict[str, Any]) -> BillQueryResult:
+    async def execute(
+        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+    ) -> BillQueryResult:
         return BillQueryResult(form_id="ECHO", field_keys=["echo"], rows=[{"echo": "ok"}])
 
 

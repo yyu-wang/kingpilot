@@ -25,6 +25,8 @@ from config.settings import Settings, get_settings
 from infrastructure.exceptions import KingPilotError, SessionStoreError
 from infrastructure.logger import setup_logging
 from kingdee.client import KingdeeClient
+from safety.engine import SafetyLayer
+from safety.human_in_loop import CliConfirmationIO
 
 _EXIT_COMMANDS = frozenset({"/exit", "/quit"})
 _DEFAULT_SESSION = "default"
@@ -110,12 +112,15 @@ async def _run_session(settings: Settings, store: SessionStore, memory: MemorySt
         return 2
     try:
         async with KingdeeClient(settings) as client:
+            registry = build_default_registry()
+            safety = SafetyLayer(registry, client, CliConfirmationIO())
             core = AgentCore(
                 provider,
-                build_default_registry(),
+                registry,
                 client,
                 settings,
                 memory=memory,
+                safety=safety,
             )
             await run_chat_loop(core, memory, store, read_input=input, write_output=print)
     finally:
