@@ -21,9 +21,11 @@ from config.data_security import (
 
 REDACTED = "[REDACTED]"
 
-_PHONE_RE = re.compile(r"(?<!\d)(1[3-9]\d{9})(?!\d)")
-_ID_CARD_RE = re.compile(r"(?<!\d)(\d{17}[\dXx])(?!\d)")
-_BANK_CARD_RE = re.compile(r"(?<!\d)(\d{16,19})(?!\d)")
+# 数字边界排除前后的小数点：避免把高精度浮点（如耗时 0.03779199323616922）
+# 误判成银行卡/身份证；真实号码不会紧邻小数点。
+_PHONE_RE = re.compile(r"(?<![\d.])(1[3-9]\d{9})(?![\d.])")
+_ID_CARD_RE = re.compile(r"(?<![\d.])(\d{17}[\dXx])(?![\d.])")
+_BANK_CARD_RE = re.compile(r"(?<![\d.])(\d{16,19})(?![\d.])")
 _EMAIL_RE = re.compile(r"([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
 
 # DLP 出域扫描（M7-T02）复用同一组正则，避免两套规则漂移。

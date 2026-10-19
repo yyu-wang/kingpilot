@@ -181,6 +181,19 @@ def test_log_patcher_redacts_message() -> None:
     assert "trace_id" in record["extra"]
 
 
+def test_log_patcher_redacts_string_args() -> None:
+    """loguru 的 message 是模板，PII 常在 args 里（M7-T05 实测）。"""
+    record: dict[str, Any] = {
+        "extra": {},
+        "message": "客户手机 {}",
+        "args": ("13812345678",),
+    }
+
+    _inject_trace_id(record)  # type: ignore[arg-type]
+
+    assert record["args"] == ("138****5678",)
+
+
 # ── 主循环工具结果出口 ──
 
 

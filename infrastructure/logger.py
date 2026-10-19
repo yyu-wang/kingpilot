@@ -25,7 +25,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from types import FrameType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from loguru import logger
 
@@ -90,9 +90,16 @@ def _inject_trace_id(record: Record) -> None:
     """patcher：注入 trace_id，并对日志消息做 PII 掩码（M7-T01 日志出口）。
 
     ``record["extra"]`` 是 copy，故逐条覆盖不会串味（M0-T05 已用并发用例验证）。
+    patcher 执行时 ``record["message"]`` 仍是**模板**，真实 PII 可能在
+    ``record["args"]`` 的参数里，因此字符串参数也要逐条掩码（M7-T05 实测）。
     """
     record["extra"]["trace_id"] = _trace_id.get()
     record["message"] = redact_text(record["message"])
+    # loguru 的 Record 类型声明不含 args，运行期实际存在（格式化参数）
+    fields = cast(dict[str, Any], record)
+    args = fields.get("args") or ()
+    if args:
+        fields["args"] = tuple(redact_text(arg) if isinstance(arg, str) else arg for arg in args)
 
 
 class InterceptHandler(logging.Handler):
