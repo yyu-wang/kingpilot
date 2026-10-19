@@ -66,6 +66,10 @@ packages = [
     "infrastructure",
 ]
 
+# Prompt 资产不是 Python 包，需显式打进 wheel（M8-T04）
+[tool.hatch.build.targets.wheel.force-include]
+"prompts" = "prompts"
+
 # ══════════════════════════════ Ruff（lint + format）══════════════════════════
 [tool.ruff]
 line-length = 100

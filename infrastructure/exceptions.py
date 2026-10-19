@@ -114,3 +114,17 @@ class EvaluationError(KingPilotError):
 
     fail-closed：评测集是发布门禁的输入，坏数据必须当场拒绝而不是跑出假指标。
     """
+
+
+class ReleaseGateError(KingPilotError):
+    """发布门禁异常（M8-T03）：报告/基线缺失、JSON 非法、指标字段不合法。
+
+    fail-closed：无法证明「没有退化」时一律不放行。
+    """
+
+
+class PromptRegistryError(KingPilotError):
+    """Prompt 版本管理异常（M8-T04）：配置缺失、版本文件不存在、灰度比例非法。
+
+    fail-closed：Prompt 配置错误直接影响所有 LLM 调用，必须在启动期暴露。
+    """

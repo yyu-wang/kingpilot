@@ -1,0 +1,14 @@
+{
+  "generate": {
+    "active": "v1",
+    "rollout": {}
+  },
+  "reflect": {
+    "active": "v1",
+    "rollout": {}
+  },
+  "summarize": {
+    "active": "v1",
+    "rollout": {}
+  }
+}

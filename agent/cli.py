@@ -22,6 +22,8 @@ from agent.providers import get_provider
 from agent.session_store import SessionStore
 from agent.tools import build_default_registry
 from config.settings import Settings, get_settings
+from governance.online_sampler import OnlineSampler
+from governance.prompt_registry import PromptRegistry
 from infrastructure.exceptions import KingPilotError, SessionStoreError
 from infrastructure.logger import setup_logging
 from kingdee.client import KingdeeClient
@@ -42,8 +44,9 @@ async def run_chat_loop(
     *,
     read_input: Callable[[str], str],
     write_output: Callable[[str], None],
+    sampler: OnlineSampler | None = None,
 ) -> None:
-    """多轮对话循环：读输入 → 跑主循环 → 打印答复 → 落盘。
+    """多轮对话循环：读输入 → 跑主循环 → 打印答复 → 落盘（含在线抽样）。
 
     Args:
         core: 已注入同一 ``memory`` 的主循环。
@@ -51,6 +54,7 @@ async def run_chat_loop(
         store: 会话持久化存储（每轮答复后 ``save``；崩溃不丢已完成轮次）。
         read_input: 读一行输入（生产为 ``input``；测试注入脚本序列）。
         write_output: 输出一行文本（生产为 ``print``；测试注入收集器）。
+        sampler: 在线抽样器；None = 关闭（M8-T02）。
     """
     write_output(f"KingPilot 多轮对话已启动（会话 {memory.session_id}），输入 /exit 退出。")
     while True:
@@ -71,6 +75,9 @@ async def run_chat_loop(
             write_output(f"处理失败：{exc}")
             continue
         write_output(f"助手> {response.content}")
+        if sampler is not None:
+            # 在线抽样是旁路：写入失败只告警，不影响会话（M8-T02）
+            sampler.maybe_sample(response, session_id=memory.session_id)
         if response.hallucination_warning:
             # 措辞保守：含派生汇总（如合计=各项相加）时也会提示，属检测口径限制（M7 补聚合核对）
             write_output("（提示：部分内容未能与工具原始结果直接核对，请留意）")
@@ -112,15 +119,30 @@ async def _run_session(settings: Settings, store: SessionStore, memory: MemorySt
     audit = AuditLogger(JsonlAuditSink(settings.audit_log_path))
     audit.subscribe(AlertEngine().observe)
     try:
-        provider = get_provider(settings, audit=audit)
+        prompts = PromptRegistry(settings.prompts_dir)
+        provider = get_provider(
+            settings,
+            audit=audit,
+            prompts=prompts,
+            rollout_key=memory.session_id,
+        )
     except KingPilotError as exc:
-        print(f"LLM 初始化失败：{exc}（请检查 KINGPILOT_LLM_API_KEY）")
+        print(f"LLM 初始化失败：{exc}（请检查 KINGPILOT_LLM_API_KEY / prompts 目录）")
         return 2
     try:
         async with KingdeeClient(settings) as client:
             registry = build_default_registry()
             safety = SafetyLayer(registry, client, CliConfirmationIO(), audit=audit)
             trace_store = TraceStore(settings.trace_store_dir)
+            sampler = (
+                OnlineSampler(
+                    settings.online_sample_dir,
+                    sample_rate=settings.online_sample_rate,
+                    max_per_day=settings.online_sample_max_per_day,
+                )
+                if settings.online_sample_rate > 0
+                else None
+            )
             core = AgentCore(
                 provider,
                 registry,
@@ -131,7 +153,9 @@ async def _run_session(settings: Settings, store: SessionStore, memory: MemorySt
                 trace_store=trace_store,
                 audit=audit,
             )
-            await run_chat_loop(core, memory, store, read_input=input, write_output=print)
+            await run_chat_loop(
+                core, memory, store, read_input=input, write_output=print, sampler=sampler
+            )
     finally:
         await provider.aclose()
     return 0

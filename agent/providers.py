@@ -27,6 +27,7 @@ import httpx
 from agent.llm import TokenUsageSink
 from config.model_registry import MODEL_REGISTRY, ModelRoute
 from config.settings import Settings
+from governance.prompt_registry import PromptRegistry
 from infrastructure.exceptions import (
     LLMError,
     LLMRateLimitError,
@@ -81,9 +82,14 @@ class OpenAICompatibleProvider:
         route: ModelRoute | None = None,
         http: httpx.AsyncClient | None = None,
         usage_sink: TokenUsageSink | None = None,
+        prompts: PromptRegistry | None = None,
+        rollout_key: str = "",
     ) -> None:
         self._route = route or self._resolve_route(settings)
         self._usage_sink = usage_sink
+        # None = 使用内置 Prompt 常量（兼容旧入口）；注入后按版本/灰度取文本
+        self._prompts = prompts
+        self._rollout_key = rollout_key
         # fail-fast：密钥缺失在构造期报错，不等第一次调用才发现（配置错误应尽早暴露）
         self._api_key = settings.llm_api_key.get_secret_value()
         if not self._api_key:
@@ -136,7 +142,7 @@ class OpenAICompatibleProvider:
         }
         # M3-T05 实测强化：只给「回 JSON」时模型会输出名称片段当续跑指令并重复查询；
         # 且易把「本步成功」误判为「任务完成」。判定口径必须是「用户全部请求」。
-        instruction = (
+        instruction = self._prompt_text("reflect") or (
             "你是企业 ERP 查询 Agent 的反思层。判断用户**全部请求**是否已经完成"
             "（不是判断当前这一步是否成功）。只回 JSON："
             '{"continue_execution": true/false, "next_input": "...", "reasoning": "..."}\n'
@@ -174,7 +180,9 @@ class OpenAICompatibleProvider:
             "tool_executions": [te.model_dump() for te in execution.tool_executions],
             "memory": memory.model_dump(),
         }
-        instruction = "基于执行摘要生成面向用户的答复，禁止编造摘要之外的数字或单据号。"
+        instruction = self._prompt_text("generate") or (
+            "基于执行摘要生成面向用户的答复，禁止编造摘要之外的数字或单据号。"
+        )
         messages = [
             *context.messages,
             LLMMessage(
@@ -190,7 +198,9 @@ class OpenAICompatibleProvider:
         LLMResponseError（压缩器据此放行不阻断主对话，见 D4）。
         """
         request_messages = [
-            LLMMessage(role="system", content=_SUMMARIZE_INSTRUCTION),
+            LLMMessage(
+                role="system", content=self._prompt_text("summarize") or _SUMMARIZE_INSTRUCTION
+            ),
             *messages,
         ]
         text = await self._chat_text(LLMContext(messages=request_messages))
@@ -203,6 +213,12 @@ class OpenAICompatibleProvider:
             ) from exc
 
     # ── 内部：请求发送与响应解析 ──
+
+    def _prompt_text(self, prompt_id: str) -> str | None:
+        """从 Prompt Registry 取当前灰度版本文本；未注入时返回 None。"""
+        if self._prompts is None:
+            return None
+        return self._prompts.get(prompt_id, rollout_key=self._rollout_key).text
 
     async def _chat_once(self, context: LLMContext, *, tools: Sequence[ToolSpec]) -> dict[str, Any]:
         """发一次 chat/completions，返回 choices[0].message 原始对象。"""
@@ -319,17 +335,31 @@ def get_provider(
     *,
     usage_sink: TokenUsageSink | None = None,
     audit: AuditLogger | None = None,
+    prompts: PromptRegistry | None = None,
+    rollout_key: str = "",
 ) -> OpenAICompatibleProvider | RoutingProvider:
     """工厂：自动路由走档位选择，显式路由固定单 Provider。
 
     - ``llm_route`` 为 ``chat_default`` / 空 → ``RoutingProvider``（M7-T03）
     - 其他逻辑名 → 单路由覆盖，忽略 ``llm_tier``（兼容旧配置）
 
-    ``audit`` 供自动路由的预算降档/耗尽事件进统一审计流（M7-T04）。
+    ``audit`` 供自动路由的预算降档/耗尽事件进统一审计流（M7-T04）；
+    ``prompts`` / ``rollout_key`` 供 Prompt 版本灰度（M8-T04）。
     局部 import 避免 ``providers ↔ cost_engine`` 循环。
     """
     if settings.llm_route in _AUTO_ROUTES:
         from governance.cost_engine import RoutingProvider
 
-        return RoutingProvider(settings, usage_sink=usage_sink, audit=audit)
-    return OpenAICompatibleProvider(settings, usage_sink=usage_sink)
+        return RoutingProvider(
+            settings,
+            usage_sink=usage_sink,
+            audit=audit,
+            prompts=prompts,
+            rollout_key=rollout_key,
+        )
+    return OpenAICompatibleProvider(
+        settings,
+        usage_sink=usage_sink,
+        prompts=prompts,
+        rollout_key=rollout_key,
+    )

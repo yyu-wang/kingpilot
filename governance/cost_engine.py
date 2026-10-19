@@ -27,6 +27,7 @@ from config.model_registry import (
 )
 from config.settings import Settings
 from governance.budget import BudgetDecision, BudgetPolicy
+from governance.prompt_registry import PromptRegistry
 from infrastructure.exceptions import BudgetExceededError, LLMError
 from models.audit import AuditEvent
 from models.llm import (
@@ -167,6 +168,8 @@ class RoutingProvider:
         usage_sink: TokenUsageSink | None = None,
         budget: BudgetPolicy | None = None,
         audit: AuditLogger | None = None,
+        prompts: PromptRegistry | None = None,
+        rollout_key: str = "",
         routes: Mapping[str, ModelRoute] = MODEL_REGISTRY,
         routing: Mapping[ModelTier, str] | None = None,
     ) -> None:
@@ -183,6 +186,9 @@ class RoutingProvider:
             downgrade_ratio=settings.llm_budget_downgrade_ratio,
         )
         self._audit = audit
+        # Prompt 版本/灰度由底层 Provider 消费；None = 内置常量（M8-T04）
+        self._prompts = prompts
+        self._rollout_key = rollout_key
         self._providers: dict[ModelTier, OpenAICompatibleProvider] = {}
 
     @property
@@ -225,6 +231,8 @@ class RoutingProvider:
             self._settings,
             route=route,
             usage_sink=self._make_usage_sink(route),
+            prompts=self._prompts,
+            rollout_key=self._rollout_key,
         )
         self._providers[tier] = provider
         return provider

@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     # 默认 0.0（贪心解码）：查询场景要确定性输出；评测（M2-T05）依赖可复现
     llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0, description="采样温度")
 
+    # ── Prompt 版本管理（M8-T04）──
+    prompts_dir: Path = Field(
+        default=Path(__file__).resolve().parent.parent / "prompts",
+        description="Prompt 版本目录（含 rollout.json）",
+    )
+
     # ── 成本治理（M7-T03/T04）──
     llm_budget_usd: float = Field(
         default=5.0, gt=0, description="进程级 LLM 预算（USD），超限自动降档"
@@ -78,6 +84,18 @@ class Settings(BaseSettings):
     )
     semantic_cache_max_entries: int = Field(
         default=128, ge=1, description="只读计划缓存最大条数（LRU 淘汰）"
+    )
+
+    # ── 在线抽样（M8-T02）──
+    online_sample_rate: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="在线样本采样率（0=关闭；生产建议 0.05）"
+    )
+    online_sample_dir: Path = Field(
+        default=Path.home() / ".kingpilot" / "samples",
+        description="在线样本目录（按天一个 JSONL 文件）",
+    )
+    online_sample_max_per_day: int = Field(
+        default=500, ge=1, description="在线样本每日上限（防磁盘失控）"
     )
 
     # ── Agent 主循环（M3-T01）──
