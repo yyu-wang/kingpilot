@@ -48,7 +48,7 @@ from models.llm import (
 )
 
 if TYPE_CHECKING:
-    from governance.cost_engine import RoutingProvider
+    from governance.cost_engine import CostEngine, RoutingProvider
     from observability.audit import AuditLogger
 
 _CHAT_COMPLETIONS_PATH = "/chat/completions"
@@ -337,6 +337,7 @@ def get_provider(
     audit: AuditLogger | None = None,
     prompts: PromptRegistry | None = None,
     rollout_key: str = "",
+    cost_engine: CostEngine | None = None,
 ) -> OpenAICompatibleProvider | RoutingProvider:
     """工厂：自动路由走档位选择，显式路由固定单 Provider。
 
@@ -344,7 +345,8 @@ def get_provider(
     - 其他逻辑名 → 单路由覆盖，忽略 ``llm_tier``（兼容旧配置）
 
     ``audit`` 供自动路由的预算降档/耗尽事件进统一审计流（M7-T04）；
-    ``prompts`` / ``rollout_key`` 供 Prompt 版本灰度（M8-T04）。
+    ``prompts`` / ``rollout_key`` 供 Prompt 版本灰度（M8-T04）；
+    ``cost_engine`` 供看板成本事件持久化（M9-T06）。
     局部 import 避免 ``providers ↔ cost_engine`` 循环。
     """
     if settings.llm_route in _AUTO_ROUTES:
@@ -356,10 +358,23 @@ def get_provider(
             audit=audit,
             prompts=prompts,
             rollout_key=rollout_key,
+            cost_engine=cost_engine,
         )
+
+    route = MODEL_REGISTRY.get(settings.llm_route)
+
+    def _usage_sink(usage: TokenUsage) -> None:
+        if cost_engine is not None and route is not None:
+            cost_engine.record(route, usage)
+        if usage_sink is not None:
+            usage_sink(usage)
+
+    sink: TokenUsageSink | None = (
+        _usage_sink if cost_engine is not None or usage_sink is not None else None
+    )
     return OpenAICompatibleProvider(
         settings,
-        usage_sink=usage_sink,
+        usage_sink=sink,
         prompts=prompts,
         rollout_key=rollout_key,
     )

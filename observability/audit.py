@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Protocol
 
 from loguru import logger
+from pydantic import ValidationError
 
 from models.audit import AuditEvent
 
@@ -45,6 +46,37 @@ class JsonlAuditSink:
         line = json.dumps(event.to_dict(), ensure_ascii=False, sort_keys=True)
         with self._lock, self._path.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
+
+
+class JsonlAuditReader:
+    """审计 JSONL 读取器（M9-T06）：fail-soft，坏行跳过。"""
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+    def read_all(self) -> list[AuditEvent]:
+        """读取全部合法事件；文件不存在/不可读返回空列表。"""
+        try:
+            text = self._path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return []
+        except OSError as exc:
+            logger.warning("审计文件读取失败: path={} error={}", self._path, exc)
+            return []
+
+        events: list[AuditEvent] = []
+        for line in text.splitlines():
+            if not line.strip():
+                continue
+            try:
+                events.append(AuditEvent.model_validate(json.loads(line)))
+            except (ValueError, ValidationError) as exc:
+                logger.warning("跳过损坏的审计行: path={} error={}", self._path, exc)
+        return events
 
 
 class AuditLogger:

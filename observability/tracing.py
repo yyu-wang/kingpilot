@@ -34,7 +34,7 @@ _MAX_RESPONSE_CHARS = 1000
 
 @dataclass(frozen=True)
 class TraceInfo:
-    """Trace 列表条目（含归属字段，供 API 按用户/会话过滤）。"""
+    """Trace 列表条目（含归属字段，供 API 按用户/会话过滤与看板聚合）。"""
 
     trace_id: str
     user_input: str
@@ -43,6 +43,8 @@ class TraceInfo:
     saved_at: str
     user_id: str = ""
     session_id: str = ""
+    hallucination_detected: bool = False
+    risk_level: str = ""
 
 
 class TraceStore:
@@ -125,6 +127,8 @@ class TraceStore:
                     saved_at=saved_at,
                     user_id=trace.user_id,
                     session_id=trace.session_id,
+                    hallucination_detected=trace.hallucination_detected,
+                    risk_level=str(trace.risk_assessment.get("level") or ""),
                 )
             )
         return sorted(infos, key=lambda info: info.saved_at, reverse=True)

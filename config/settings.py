@@ -164,6 +164,11 @@ class Settings(BaseSettings):
     )
     approval_ttl_seconds: int = Field(default=1800, gt=0, description="待审批动作有效期（秒）")
 
+    # ── 运营看板（M9-T06）──
+    dashboard_timezone: str = Field(
+        default="Asia/Shanghai", description="看板切日时区（IANA 名称）"
+    )
+
     @property
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""

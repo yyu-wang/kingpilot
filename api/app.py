@@ -6,7 +6,7 @@
 - ``AsyncExitStack`` 统一管理「谁创建、谁关闭」，注入时不动外部资源
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
@@ -17,6 +17,7 @@ from agent.tools import ToolRegistry, build_default_registry
 from api.approvals import router as approvals_router
 from api.auth import ApiKeyDirectory
 from api.console import mount_console, security_headers
+from api.dashboard import router as dashboard_router
 from api.deps import AppDeps, DenyConfirmationIO
 from api.errors import install_error_handlers
 from api.routes import router
@@ -31,6 +32,8 @@ from governance.approval_executor import (
     RegistryToolExecutor,
 )
 from governance.approval_gateway import ApprovalGatewayImpl
+from governance.cost_engine import CostEngine, CostRecord
+from governance.dashboard import DashboardService
 from governance.online_sampler import OnlineSampler
 from governance.prompt_registry import PromptRegistry
 from infrastructure.logger import setup_logging
@@ -38,10 +41,34 @@ from kingdee.client import KingdeeClient
 from kingdee.idempotency import IdempotencyService
 from kingdee.write_coordinator import WriteCoordinator
 from ledger.write_ledger import SqliteWriteLedgerStore, WriteLedger
+from models.audit import AuditEvent
 from observability.alerts import AlertEngine
-from observability.audit import AuditLogger, JsonlAuditSink
+from observability.audit import AuditLogger, JsonlAuditReader, JsonlAuditSink
 from observability.tracing import TraceStore
 from safety.engine import SafetyLayer
+
+
+def _build_cost_sink(audit: AuditLogger) -> Callable[[CostRecord], None]:
+    """成本明细写统一审计流，供看板按天聚合（M9-T06）。"""
+
+    def sink(record: CostRecord) -> None:
+        audit.emit(
+            AuditEvent(
+                event_type="cost.recorded",
+                action="llm_call",
+                status="success",
+                detail={
+                    "route": record.route_name,
+                    "tier": record.tier,
+                    "model_id": record.model_id,
+                    "prompt_tokens": record.prompt_tokens,
+                    "completion_tokens": record.completion_tokens,
+                    "cost_usd": record.cost_usd,
+                },
+            )
+        )
+
+    return sink
 
 
 @asynccontextmanager
@@ -53,12 +80,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 审计先于 Provider：预算降档/耗尽事件也要进统一审计流（M7-T04）
     audit = AuditLogger(JsonlAuditSink(settings.audit_log_path))
     audit.subscribe(AlertEngine().observe)
+    cost_engine = CostEngine(sink=_build_cost_sink(audit))
 
     async with AsyncExitStack() as stack:
         provider: LLMProvider | None = app.state.provider_override
         if provider is None:
             prompts = PromptRegistry(settings.prompts_dir)
-            provider = get_provider(settings, audit=audit, prompts=prompts, rollout_key="")
+            provider = get_provider(
+                settings,
+                audit=audit,
+                prompts=prompts,
+                rollout_key="",
+                cost_engine=cost_engine,
+            )
             close_provider = getattr(provider, "aclose", None)
             if callable(close_provider):
                 stack.push_async_callback(close_provider)
@@ -92,6 +126,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             snapshots=NoopSnapshotProvider(),
             ledger=ledger,
         )
+        dashboard = DashboardService(
+            trace_store,
+            JsonlAuditReader(settings.audit_log_path),
+            ledger,
+            timezone=settings.dashboard_timezone,
+        )
         sampler = (
             OnlineSampler(
                 settings.online_sample_dir,
@@ -115,6 +155,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             session_root=settings.session_store_dir,
             approvals=approvals,
             approval_execution=execution,
+            dashboard=dashboard,
         )
         yield
 
@@ -141,5 +182,6 @@ def create_app(
     app.include_router(streaming_router)
     app.include_router(traces_router)
     app.include_router(approvals_router)
+    app.include_router(dashboard_router)
     mount_console(app)
     return app
