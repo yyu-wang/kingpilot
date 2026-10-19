@@ -25,6 +25,7 @@ from collections.abc import Sequence
 from loguru import logger
 
 from agent.entity_extractor import extract_entities
+from agent.events import AgentEvent, AgentEventSink, EventStatus
 from agent.hallucination import detect_hallucinations
 from agent.llm import LLMProvider, TokenUsageSink
 from agent.memory import MemoryStore, render_raw_for_llm
@@ -89,6 +90,7 @@ class AgentCore:
         trace_store: TraceStore | None = None,
         audit: AuditLogger | None = None,
         cache: SemanticCache | None = None,
+        event_sink: AgentEventSink | None = None,
     ) -> None:
         self._provider = provider
         self._tools = tools
@@ -112,6 +114,21 @@ class AgentCore:
             ttl_seconds=settings.semantic_cache_ttl_seconds,
             max_entries=settings.semantic_cache_max_entries,
         )
+        # None = 非流式路径（行为零变化）；SSE 请求注入 queue.put_nowait（M9-T02）
+        self._event_sink = event_sink
+
+    def _emit(self, event: AgentEvent) -> None:
+        """事件是旁路：sink 自身失败只告警，绝不打断主循环。"""
+        if self._event_sink is None:
+            return
+        try:
+            self._event_sink(event)
+        except Exception as exc:
+            logger.warning("事件推送失败（不影响主循环）: {}", exc)
+
+    def _phase(self, phase: str, status: EventStatus) -> None:
+        """阶段事件简写：只暴露阶段名与状态，不携带业务数据。"""
+        self._emit(AgentEvent(event="phase", phase=phase, status=status))
 
     async def run(self, user_input: str, user_context: UserContext | None = None) -> AgentResponse:
         """执行主循环、出域扫描并落盘 trace；落盘失败只告警，不影响用户响应。"""
@@ -197,9 +214,11 @@ class AgentCore:
 
         # ── 多步编排循环：Phase 1 规划 → 2 护栏 → 3 执行 → 4a 反思 ──
         for _step in range(self._settings.agent_max_steps):
+            self._phase("plan", "start")
             try:
                 plan = await self._phase1_plan(context, trace, context_for_user)
             except LLMUnavailableError as exc:
+                self._phase("plan", "error")
                 if trace.tool_executions:
                     # 后续步骤规划失败：已有结果足够，直接确定性回答，避免重复查询
                     return self._finish_fallback(
@@ -211,7 +230,10 @@ class AgentCore:
                 return await self._fallback_from_plan(
                     user_input, trace, context_for_user, started, reason=str(exc)
                 )
+            self._phase("plan", "success")
+            self._phase("guard", "start")
             verdict = await self._phase2_guard(plan, trace, context_for_user)
+            self._phase("guard", "success")
             if not verdict.proceed:
                 # 拦截/取消/只读建议：不执行、不反思、不生成答复，直接收尾
                 trace.final_response = verdict.message
@@ -226,18 +248,24 @@ class AgentCore:
                     trace=trace,
                 )
             step_start = len(trace.tool_executions)
-            await self._phase3_execute(verdict.calls, trace)
+            if verdict.calls:
+                self._phase("execute", "start")
+                await self._phase3_execute(verdict.calls, trace)
+                self._phase("execute", "success")
             step_executions = trace.tool_executions[step_start:]
             # 观察回灌：本步工具结果进上下文，本轮反思与下一轮规划都看得见
             context.messages.extend(observation_messages(step_executions))
             if not should_reflect(step_executions):
                 break  # 纯聊天无可观察结果，不浪费一次反思调用
+            self._phase("reflect", "start")
             try:
                 reflection = await self._phase4_reflect(
                     context, step_executions, snapshot, last_next_input
                 )
             except LLMUnavailableError:
+                self._phase("reflect", "error")
                 return self._finish_fallback(trace, started, user_input)
+            self._phase("reflect", "success")
             trace.reflections.append(reflection.model_dump())
             if not reflection.continue_execution:
                 break
@@ -249,10 +277,13 @@ class AgentCore:
             # D3：不抛错，用已累积的部分结果继续走答复——用户该拿到部分结果。
             trace.used_fallback = True
 
+        self._phase("generate", "start")
         try:
             await self._phase4_generate(context, trace, snapshot)
         except LLMUnavailableError:
+            self._phase("generate", "error")
             return self._finish_fallback(trace, started, user_input)
+        self._phase("generate", "success")
         self._phase5_hallucination(trace)
         self._phase6_finalize(trace, started, user_input)
         return AgentResponse(
@@ -374,7 +405,9 @@ class AgentCore:
         if matched is None:
             return self._finish_fallback(trace, started, user_input)
 
+        self._phase("guard", "start")
         verdict = await self._phase2_guard(matched.plan, trace, user_context)
+        self._phase("guard", "success")
         if not verdict.proceed:
             return self._finish_fallback(
                 trace,
@@ -384,7 +417,10 @@ class AgentCore:
                 blocked=verdict.blocked,
                 cancelled=verdict.cancelled,
             )
-        await self._phase3_execute(verdict.calls, trace)
+        if verdict.calls:
+            self._phase("execute", "start")
+            await self._phase3_execute(verdict.calls, trace)
+            self._phase("execute", "success")
         return self._finish_fallback(trace, started, user_input)
 
     def _finish_fallback(
@@ -462,7 +498,17 @@ class AgentCore:
         Saga 事务归 M5；本轮查询为只读，无需补偿。累积进 trace 供反思与答复。
         """
         for call in calls:
-            trace.tool_executions.append(await self._execute_one(call))
+            self._emit(AgentEvent(event="tool", tool_name=call.tool_name, status="start"))
+            execution = await self._execute_one(call)
+            self._emit(
+                AgentEvent(
+                    event="tool",
+                    tool_name=call.tool_name,
+                    status="error" if execution.error else "success",
+                    latency_ms=execution.latency_ms,
+                )
+            )
+            trace.tool_executions.append(execution)
 
     async def _execute_one(self, call: GuardedCall) -> ToolExecution:
         """执行单个已审查调用（含行过滤注入与列字段剔除）。

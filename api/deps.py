@@ -15,6 +15,7 @@ from weakref import WeakValueDictionary
 from fastapi import Header, Request
 
 from agent.core import AgentCore
+from agent.events import AgentEventSink
 from agent.llm import LLMProvider
 from agent.memory import MemoryStore
 from agent.session_store import SessionStore
@@ -77,8 +78,16 @@ class AppDeps:
         """每个用户独立的会话根目录（路径级隔离）。"""
         return SessionStore(self.session_root / "users" / user_id)
 
-    def build_core(self, memory: MemoryStore) -> AgentCore:
-        """每个请求构造主循环实例：记忆是请求级状态，Provider 等是进程级。"""
+    def build_core(
+        self,
+        memory: MemoryStore,
+        *,
+        event_sink: AgentEventSink | None = None,
+    ) -> AgentCore:
+        """每个请求构造主循环实例：记忆是请求级状态，Provider 等是进程级。
+
+        ``event_sink`` 仅流式请求注入（M9-T02）；None 时与同步接口完全一致。
+        """
         return AgentCore(
             self.provider,
             self.registry,
@@ -88,6 +97,7 @@ class AppDeps:
             safety=self.safety,
             trace_store=self.trace_store,
             audit=self.audit,
+            event_sink=event_sink,
         )
 
 

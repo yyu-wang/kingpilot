@@ -18,6 +18,7 @@ from api.auth import ApiKeyDirectory
 from api.deps import AppDeps, DenyConfirmationIO
 from api.errors import install_error_handlers
 from api.routes import router
+from api.streaming import router as streaming_router
 from config.settings import Settings, get_settings
 from governance.online_sampler import OnlineSampler
 from governance.prompt_registry import PromptRegistry
@@ -93,4 +94,5 @@ def create_app(
     app.state.client_override = client
     install_error_handlers(app)
     app.include_router(router)
+    app.include_router(streaming_router)
     return app
