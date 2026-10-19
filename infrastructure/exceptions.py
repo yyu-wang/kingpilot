@@ -128,3 +128,10 @@ class PromptRegistryError(KingPilotError):
 
     fail-closed：Prompt 配置错误直接影响所有 LLM 调用，必须在启动期暴露。
     """
+
+
+class ApiKeyConfigError(KingPilotError):
+    """API Key 配置非法（M9-T01）：JSON 损坏、哈希格式错、身份字段非法。
+
+    fail-closed：配置错误必须在启动期暴露，不能等到请求时才 401。
+    """

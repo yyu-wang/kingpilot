@@ -9,7 +9,7 @@ PYTEST := $(UV) run pytest
 RUFF   := $(UV) run ruff
 
 .DEFAULT_GOAL := help
-.PHONY: help lint typecheck test test-integration cov audit check sandbox query-demo eval release-gate chat
+.PHONY: help lint typecheck test test-integration cov audit check sandbox query-demo eval release-gate chat serve
 
 help:  ## 显示可用命令
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -65,3 +65,11 @@ release-gate:  ## 发布门禁（REPORT=评测报告 JSON 路径；BASELINE 可�
 
 chat:  ## CLI 多轮对话（沙箱版；默认 default 会话可续聊，ARGS="--new|--list"）
 	$(UV) run python scripts/chat.py $(ARGS)
+
+# ── M9-T01 HTTP API：需配置 KINGPILOT_API_KEY_HASHES（只存哈希）──
+
+API_HOST ?= 127.0.0.1
+API_PORT ?= 8080
+
+serve:  ## 启动 HTTP API（默认 127.0.0.1:8080；单 worker）
+	$(UV) run python -m api --host $(API_HOST) --port $(API_PORT)

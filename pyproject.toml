@@ -21,11 +21,15 @@ dependencies = [
     "pydantic>=2.7,<3.0",         # 数据模型（v2 API）
     "pydantic-settings>=2.3,<3.0", # 配置管理
     "loguru>=0.7,<1.0",           # 日志
+    "fastapi>=0.115,<1.0",        # M9-T01：HTTP API 运行期依赖
+    "uvicorn>=0.32,<1.0",         # M9-T01：ASGI 服务器
 ]
 
 [project.scripts]
 # M3-T07：CLI 交互入口（多轮对话 + 本地会话持久化）
 kingpilot-chat = "agent.cli:main"
+# M9-T01：HTTP API 入口（python -m api 的等价命令）
+kingpilot-api = "api.__main__:main"
 
 [project.optional-dependencies]
 # 开发期依赖：`uv sync --extra dev` 或 `pip install -e ".[dev]"`
@@ -42,10 +46,6 @@ dev = [
     "detect-secrets>=1.5",
     # M0-T07 新增：make cov 的覆盖率引擎（卡片指定的六命令之一）
     "pytest-cov>=5.0",
-    # M1-T06a 新增：契约仿真沙箱的服务端与启动器（sandbox/，测试设施）
-    # 理由：契约测试替身需真实 HTTP 服务；进程内 mock 无法暴露 URL/header/cookie/超时类缺陷
-    "fastapi>=0.115,<1.0",
-    "uvicorn>=0.32,<1.0",
 ]
 
 [tool.uv]
@@ -58,6 +58,7 @@ packages = [
     "config",
     "kingdee",
     "agent",
+    "api",
     "safety",
     "ledger",
     "observability",
@@ -98,6 +99,7 @@ known-first-party = [
     "config",
     "kingdee",
     "agent",
+    "api",
     "safety",
     "ledger",
     "observability",
@@ -137,6 +139,7 @@ source = [
     "config",
     "kingdee",
     "agent",
+    "api",
     "safety",
     "ledger",
     "observability",

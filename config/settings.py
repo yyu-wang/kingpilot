@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     # 默认 0.0（贪心解码）：查询场景要确定性输出；评测（M2-T05）依赖可复现
     llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0, description="采样温度")
 
+    # ── HTTP API（M9-T01）──
+    # 只存 SHA-256 哈希，不存明文 key；格式：
+    # {"<64位hash>": {"user_id": "alice", "role": "viewer", "data_scope": {}}}
+    api_key_hashes: SecretStr = Field(
+        default=SecretStr("{}"),
+        description="API Key SHA-256 哈希 → 身份映射（JSON）",
+    )
+
     # ── Prompt 版本管理（M8-T04）──
     prompts_dir: Path = Field(
         default=Path(__file__).resolve().parent.parent / "prompts",
