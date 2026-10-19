@@ -33,6 +33,7 @@ from agent.reflection import observation_messages, reflect_step, should_reflect
 from agent.rule_engine import RuleEngine
 from agent.tools import ToolRegistry
 from config.settings import Settings
+from governance.semantic_cache import SemanticCache, build_cache_key, is_cacheable_plan
 from infrastructure.exceptions import KingPilotError, LLMUnavailableError, TraceStoreError
 from kingdee.client import KingdeeClient
 from models.agent import AgentResponse, AgentTrace
@@ -87,6 +88,7 @@ class AgentCore:
         rule_engine: RuleEngine | None = None,
         trace_store: TraceStore | None = None,
         audit: AuditLogger | None = None,
+        cache: SemanticCache | None = None,
     ) -> None:
         self._provider = provider
         self._tools = tools
@@ -105,6 +107,11 @@ class AgentCore:
         self._audit = audit
         # 出域扫描默认开启（fail-closed）：所有响应在返回前统一过 DLP
         self._dlp = DlpScanner()
+        # 只读计划缓存默认开启（M7-T04）；注入供测试控制 TTL/时钟/容量
+        self._cache = cache or SemanticCache(
+            ttl_seconds=settings.semantic_cache_ttl_seconds,
+            max_entries=settings.semantic_cache_max_entries,
+        )
 
     async def run(self, user_input: str, user_context: UserContext | None = None) -> AgentResponse:
         """执行主循环、出域扫描并落盘 trace；落盘失败只告警，不影响用户响应。"""
@@ -130,6 +137,9 @@ class AgentCore:
 
         if response.trace is not None:
             response.trace.final_response = _DLP_BLOCK_CONTENT
+        # Phase 6 已把原始答复写进记忆；阻断后同步替换，防止再次进入上下文
+        if self._memory is not None:
+            self._memory.replace_last_assistant(_DLP_BLOCK_CONTENT)
         self._emit_dlp_audit(response, result)
         logger.warning(
             "DLP 出域拦截 | trace_id={} categories={} total={}",
@@ -294,15 +304,46 @@ class AgentCore:
     ) -> PlanResult:
         """规划层：声明可用工具，产出本轮 tool_calls。
 
+        首轮只读计划走语义缓存（M7-T04）：命中不调 LLM；
+        续跑计划依赖上一步观察，不读写缓存。
         有安全层时只下发角色可见工具（M4-T08 拦截点 1）；
         无安全层时保持 T01 行为（全部工具）。
         """
+        cache_key = ""
+        if not trace.tool_executions and not trace.reflections:
+            cache_key = self._cache_key(trace.user_input, user_context)
+            cached = self._cache.get(cache_key)
+            if cached is not None:
+                trace.llm_planning = {
+                    "cache_hit": True,
+                    "reasoning": cached.reasoning,
+                    "tool_calls": [decision.model_dump() for decision in cached.tool_calls],
+                }
+                return cached
+
         plan = await self._provider.plan(context, tools=self._visible_specs(user_context))
         trace.llm_planning = {
             "reasoning": plan.reasoning,
             "tool_calls": [decision.model_dump() for decision in plan.tool_calls],
         }
+        if cache_key and is_cacheable_plan(plan, self._tool_types()):
+            self._cache.set(cache_key, plan)
         return plan
+
+    def _cache_key(self, user_input: str, user_context: UserContext) -> str:
+        """缓存键：问题 + 可见工具 + 角色/数据域。"""
+        return build_cache_key(
+            user_input,
+            tool_names=[spec.name for spec in self._visible_specs(user_context)],
+            scope={
+                "role": user_context.role,
+                "data_scope": user_context.data_scope,
+            },
+        )
+
+    def _tool_types(self) -> dict[str, str]:
+        """工具名 → 服务端工具类型（只读判定依据）。"""
+        return {tool.name: tool.tool_type for tool in self._tools.all_tools()}
 
     def _visible_specs(self, user_context: UserContext) -> list[ToolSpec]:
         """当前用户可见的工具声明（安全层过滤 / 全部）。"""

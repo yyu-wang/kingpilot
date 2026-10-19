@@ -12,6 +12,7 @@ import pytest
 
 from agent.providers import OpenAICompatibleProvider, get_provider
 from config.settings import Settings
+from governance.cost_engine import RoutingProvider
 from models.llm import LLMContext, LLMMessage, PlanResult, ToolSpec
 
 _ORDER_TOOL = ToolSpec(
@@ -27,7 +28,7 @@ _ORDER_TOOL = ToolSpec(
 )
 
 
-def _real_provider() -> OpenAICompatibleProvider:
+def _real_provider() -> OpenAICompatibleProvider | RoutingProvider:
     """返回真 Provider；未配 key 则 skip（Settings 从 .env 读真凭证）。"""
     settings = Settings()
     if not settings.llm_api_key.get_secret_value():

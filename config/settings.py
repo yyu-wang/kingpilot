@@ -19,6 +19,8 @@ from typing import Literal
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from config.model_registry import ModelTier
+
 
 class Settings(BaseSettings):
     """进程级配置。
@@ -55,10 +57,28 @@ class Settings(BaseSettings):
 
     # ── LLM（M2-T02：DeepSeek，OpenAI 兼容协议）──
     # 路由表在 config/model_registry.py（规则与逻辑分离）；密钥只进 Settings
+    # 取值说明：chat_default（或空）= 自动按 llm_tier 走 ROUTING_CONFIG；
+    # 其他逻辑名 = 显式单路由覆盖（忽略档位）
     llm_route: str = Field(default="chat_default", description="MODEL_REGISTRY 的逻辑名")
+    # 模型档位（M7-T03）：仅自动路由时生效；T04 预算熔断会据此降档
+    llm_tier: ModelTier = Field(default="high", description="模型档位：high / mid / economy")
     llm_api_key: SecretStr = Field(default=SecretStr(""), description="LLM API 密钥（永不入日志）")
     # 默认 0.0（贪心解码）：查询场景要确定性输出；评测（M2-T05）依赖可复现
     llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0, description="采样温度")
+
+    # ── 成本治理（M7-T03/T04）──
+    llm_budget_usd: float = Field(
+        default=5.0, gt=0, description="进程级 LLM 预算（USD），超限自动降档"
+    )
+    llm_budget_downgrade_ratio: float = Field(
+        default=0.8, gt=0.0, lt=1.0, description="预算占用率达到此比例触发首次降档"
+    )
+    semantic_cache_ttl_seconds: int = Field(
+        default=300, gt=0, description="只读计划缓存有效期（秒）"
+    )
+    semantic_cache_max_entries: int = Field(
+        default=128, ge=1, description="只读计划缓存最大条数（LRU 淘汰）"
+    )
 
     # ── Agent 主循环（M3-T01）──
     # 多步编排（reflect 续跑）的轮次上限：单轮=1，默认 5 轮；

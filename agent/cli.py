@@ -108,16 +108,17 @@ def main(argv: Sequence[str] | None = None, *, settings: Settings | None = None)
 
 async def _run_session(settings: Settings, store: SessionStore, memory: MemoryStore) -> int:
     """建立 Provider/Client 并跑完整个会话；资源在 finally 统一释放。"""
+    # 审计先于 Provider：预算降档/耗尽事件也要进统一审计流（M7-T04）
+    audit = AuditLogger(JsonlAuditSink(settings.audit_log_path))
+    audit.subscribe(AlertEngine().observe)
     try:
-        provider = get_provider(settings)
+        provider = get_provider(settings, audit=audit)
     except KingPilotError as exc:
         print(f"LLM 初始化失败：{exc}（请检查 KINGPILOT_LLM_API_KEY）")
         return 2
     try:
         async with KingdeeClient(settings) as client:
             registry = build_default_registry()
-            audit = AuditLogger(JsonlAuditSink(settings.audit_log_path))
-            audit.subscribe(AlertEngine().observe)
             safety = SafetyLayer(registry, client, CliConfirmationIO(), audit=audit)
             trace_store = TraceStore(settings.trace_store_dir)
             core = AgentCore(

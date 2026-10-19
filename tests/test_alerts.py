@@ -251,12 +251,14 @@ def test_rule_validation(kwargs: dict[str, int], message: str) -> None:
 def test_default_rules_exist() -> None:
     engine, _, _ = _engine()
 
-    assert len(ALERT_RULES) == 3
+    assert len(ALERT_RULES) == 5
     assert engine.rules == ALERT_RULES
     assert {rule.alert_id for rule in ALERT_RULES} == {
         "PERMISSION_DENIED_FREQUENCY",
         "SAGA_COMPENSATION_FAILED",
         "HIGH_RISK_OPERATION",
+        "BUDGET_DOWNGRADED",
+        "BUDGET_EXHAUSTED",
     }
 
 

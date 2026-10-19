@@ -194,6 +194,10 @@ def _metric_for_event(event: AuditEvent) -> tuple[AlertMetric, str] | None:
         return "saga_compensation_failed", event.saga_id or event.trace_id or "-"
     if event.event_type == "ledger.write" and event.risk_level in _HIGH_RISK_LEVELS:
         return "high_risk", event.user_id or event.trace_id or "-"
+    if event.event_type == "budget.downgraded":
+        return "budget_downgraded", event.user_id or event.trace_id or "-"
+    if event.event_type == "budget.exhausted":
+        return "budget_exhausted", event.user_id or event.trace_id or "-"
     return None
 
 

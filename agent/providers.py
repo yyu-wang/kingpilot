@@ -16,9 +16,11 @@ DeepSeek/GLM/Qwen 均兼容此形状。
 安全红线：API key 只进 ``Authorization`` 头，永不出现在异常消息与日志中。
 """
 
+from __future__ import annotations
+
 import json
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -44,7 +46,13 @@ from models.llm import (
     ToolSpec,
 )
 
+if TYPE_CHECKING:
+    from governance.cost_engine import RoutingProvider
+    from observability.audit import AuditLogger
+
 _CHAT_COMPLETIONS_PATH = "/chat/completions"
+# 自动路由哨兵：按 Settings.llm_tier 走 ROUTING_CONFIG（M7-T03）
+_AUTO_ROUTES = frozenset({"", "chat_default"})
 
 # 记忆压缩指令（M3-T03，方案 §5.3 压缩 Prompt 要点：严格 JSON + 只留有业务意义的内容）
 _SUMMARIZE_INSTRUCTION = (
@@ -104,7 +112,7 @@ class OpenAICompatibleProvider:
         if self._owns_http:
             await self._http.aclose()
 
-    async def __aenter__(self) -> "OpenAICompatibleProvider":
+    async def __aenter__(self) -> OpenAICompatibleProvider:
         return self
 
     async def __aexit__(self, *exc_info: object) -> None:
@@ -307,7 +315,21 @@ class OpenAICompatibleProvider:
 
 
 def get_provider(
-    settings: Settings, *, usage_sink: TokenUsageSink | None = None
-) -> OpenAICompatibleProvider:
-    """工厂：按 Settings 查路由表建 Provider（生产入口，测试直接构造注入）。"""
+    settings: Settings,
+    *,
+    usage_sink: TokenUsageSink | None = None,
+    audit: AuditLogger | None = None,
+) -> OpenAICompatibleProvider | RoutingProvider:
+    """工厂：自动路由走档位选择，显式路由固定单 Provider。
+
+    - ``llm_route`` 为 ``chat_default`` / 空 → ``RoutingProvider``（M7-T03）
+    - 其他逻辑名 → 单路由覆盖，忽略 ``llm_tier``（兼容旧配置）
+
+    ``audit`` 供自动路由的预算降档/耗尽事件进统一审计流（M7-T04）。
+    局部 import 避免 ``providers ↔ cost_engine`` 循环。
+    """
+    if settings.llm_route in _AUTO_ROUTES:
+        from governance.cost_engine import RoutingProvider
+
+        return RoutingProvider(settings, usage_sink=usage_sink, audit=audit)
     return OpenAICompatibleProvider(settings, usage_sink=usage_sink)

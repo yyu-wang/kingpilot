@@ -100,3 +100,17 @@ class DeadLetterError(KingPilotError):
 
     fail-closed：死信状态不确定时宁可报错，也不静默丢掉待人工处理的事务。
     """
+
+
+class BudgetExceededError(KingPilotError):
+    """LLM 预算耗尽（M7-T04）：经济档仍超预算时拒绝继续调用。
+
+    fail-closed：宁可中止本次请求，也不在无预算保障下继续产生费用。
+    """
+
+
+class EvaluationError(KingPilotError):
+    """评测集/报告异常（M8-T01）：文件缺失、JSON 非法、字段缺失或工具名漂移。
+
+    fail-closed：评测集是发布门禁的输入，坏数据必须当场拒绝而不是跑出假指标。
+    """

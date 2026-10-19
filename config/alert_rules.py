@@ -11,6 +11,8 @@ AlertMetric = Literal[
     "permission_denied",
     "saga_compensation_failed",
     "high_risk",
+    "budget_downgraded",
+    "budget_exhausted",
 ]
 AlertSeverity = Literal["info", "warning", "critical"]
 
@@ -64,5 +66,24 @@ ALERT_RULES: tuple[AlertRule, ...] = (
         window_seconds=60,
         severity="warning",
         silence_seconds=60,
+    ),
+    # M7-T04：预算降档 / 耗尽（进程级成本，按用户聚合）
+    AlertRule(
+        alert_id="BUDGET_DOWNGRADED",
+        label="模型预算降档",
+        metric="budget_downgraded",
+        threshold=1,
+        window_seconds=300,
+        severity="warning",
+        silence_seconds=300,
+    ),
+    AlertRule(
+        alert_id="BUDGET_EXHAUSTED",
+        label="模型预算耗尽",
+        metric="budget_exhausted",
+        threshold=1,
+        window_seconds=300,
+        severity="critical",
+        silence_seconds=300,
     ),
 )

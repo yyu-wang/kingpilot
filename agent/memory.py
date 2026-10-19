@@ -13,7 +13,7 @@
 
 import json
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from models.llm import LLMMessage, MemorySnapshot
@@ -180,6 +180,22 @@ class MemoryStore:
         )
         self._memory.raw_buffer.append(message)
         return message
+
+    def replace_last_assistant(self, content: str) -> None:
+        """替换最近一条 assistant 原文（M7-T02 DLP 阻断后净化记忆）。
+
+        主循环先写回记忆、后做出域扫描；命中阻断时必须把已落进 Layer 1
+        的原始答复同步替换，否则敏感内容会随记忆再次进入后续 LLM 上下文。
+        """
+        for index in range(len(self._memory.raw_buffer) - 1, -1, -1):
+            message = self._memory.raw_buffer[index]
+            if message.role == "assistant":
+                self._memory.raw_buffer[index] = replace(
+                    message,
+                    content=content,
+                    token_count=estimate_tokens(content),
+                )
+                return
 
     # ── Layer 2 读写 ──
 
