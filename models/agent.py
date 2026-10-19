@@ -35,6 +35,7 @@ class AgentTrace(KingPilotBaseModel):
     # ── 审计扩展字段（审计日志需要）──
     user_id: str = Field(description="用户 ID（冗余自 user_context，便于审计查询）")
     session_id: str = Field(default="", description="会话 ID（多轮对话聚合）")
+    approval_id: str = Field(default="", description="审批单 ID（M9-T05 审批待处理时）")
     llm_planning: dict[str, Any] = Field(
         default_factory=dict, description="LLM 规划记录（Phase 1，含降级标志）"
     )
@@ -74,4 +75,8 @@ class AgentResponse(KingPilotBaseModel):
     cancelled: bool = Field(default=False, description="是否被用户取消（HITL 确认拒绝）")
     saga_status: str = Field(default="", description="Saga 事务状态（Phase 3）")
     hallucination_warning: bool = Field(default=False, description="幻觉警告（检测到但未解决）")
+    approval_pending: bool = Field(
+        default=False, description="是否进入审批待处理（M9-T05，写操作未执行）"
+    )
+    approval_id: str = Field(default="", description="审批单 ID（approval_pending=True 时）")
     trace: AgentTrace | None = Field(default=None, description="完整追踪记录（可选返回）")

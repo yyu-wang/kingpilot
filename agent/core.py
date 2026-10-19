@@ -235,8 +235,9 @@ class AgentCore:
             verdict = await self._phase2_guard(plan, trace, context_for_user)
             self._phase("guard", "success")
             if not verdict.proceed:
-                # 拦截/取消/只读建议：不执行、不反思、不生成答复，直接收尾
+                # 拦截/取消/审批待处理：不执行、不反思、不生成答复，直接收尾
                 trace.final_response = verdict.message
+                trace.approval_id = verdict.approval_id
                 self._phase6_finalize(trace, started, user_input)
                 return AgentResponse(
                     content=verdict.message,
@@ -245,6 +246,8 @@ class AgentCore:
                     reason=verdict.message,
                     cancelled=verdict.cancelled,
                     hallucination_warning=False,
+                    approval_pending=verdict.approval_pending,
+                    approval_id=verdict.approval_id,
                     trace=trace,
                 )
             step_start = len(trace.tool_executions)
@@ -480,7 +483,12 @@ class AgentCore:
                 ),
             )
 
-        verdict = await self._safety.review(user_context, plan.tool_calls, str(trace.trace_id))
+        verdict = await self._safety.review(
+            user_context,
+            plan.tool_calls,
+            str(trace.trace_id),
+            session_id=trace.session_id,
+        )
         trace.guard_checks.extend(verdict.guard_records)
         if verdict.risk is not None:
             trace.risk_assessment = verdict.risk.to_dict()

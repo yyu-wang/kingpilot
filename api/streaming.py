@@ -124,6 +124,8 @@ async def _stream_chat(
                         blocked=response.blocked,
                         cancelled=response.cancelled,
                         hallucination_warning=response.hallucination_warning,
+                        approval_pending=response.approval_pending,
+                        approval_id=response.approval_id,
                     )
                 )
 

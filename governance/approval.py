@@ -35,6 +35,7 @@ from models.approval import (
     PendingAction,
 )
 from models.audit import AuditEvent, AuditEventType, AuditStatus
+from models.ledger import WriteAction
 from models.user import UserContext
 from observability.audit import AuditLogger
 from safety.datasecurity import redact_text
@@ -169,6 +170,7 @@ class ApprovalService:
         risk_level: str = "",
         required_approvers: Sequence[str] = (),
         idempotency_key: str,
+        write_action: WriteAction = "save",
     ) -> PendingAction:
         """创建待审批单；同发起人 + 幂等键重复调用返回原单。"""
         async with self._create_lock:
@@ -191,6 +193,7 @@ class ApprovalService:
                 required_approvers=list(required_approvers),
                 required_approvals=DEFAULT_REQUIRED_APPROVALS,
                 idempotency_key=idempotency_key,
+                write_action=write_action,
                 arguments=dict(arguments),
                 created_at=now,
                 updated_at=now,
@@ -247,6 +250,66 @@ class ApprovalService:
     async def reject(self, approval_id: str, user: UserContext, comment: str = "") -> PendingAction:
         """拒绝审批单（拒绝优先）。"""
         return await self._decide(approval_id, user, comment, "reject")
+
+    async def get_for_execution(self, approval_id: str) -> PendingAction:
+        """执行器专用：按 ID 取单，不做用户可见性校验。"""
+        async with self._lock_for(approval_id):
+            action = self._store.load(approval_id)
+            return self._expire_if_needed(action)
+
+    async def begin_execution(self, approval_id: str) -> PendingAction:
+        """把 approved 单推进到 running；已成功则直接返回。"""
+        async with self._lock_for(approval_id):
+            action = self._store.load(approval_id)
+            if action.status != "approved":
+                raise ApprovalError("审批单未通过，不能执行", code="approval_conflict")
+            if action.execution_status == "succeeded":
+                return action
+            updated = action.model_copy(
+                update={
+                    "execution_status": "running",
+                    "execution_error": "",
+                    "updated_at": self._now(),
+                }
+            )
+            self._store.save(updated)
+            self._emit_audit(updated, "approval.execution_started", None, "success")
+            return updated
+
+    async def finish_execution(
+        self,
+        approval_id: str,
+        *,
+        succeeded: bool,
+        result: Mapping[str, Any],
+        error: str,
+    ) -> PendingAction:
+        """落执行结论；成功状态不可被后续失败覆盖。"""
+        async with self._lock_for(approval_id):
+            action = self._store.load(approval_id)
+            if action.status != "approved":
+                raise ApprovalError("审批单未通过，不能执行", code="approval_conflict")
+            if action.execution_status == "succeeded":
+                return action
+
+            now = self._now()
+            updated = action.model_copy(
+                update={
+                    "execution_status": "succeeded" if succeeded else "failed",
+                    "execution_result": dict(result),
+                    "execution_error": redact_text(error)[:500],
+                    "executed_at": now,
+                    "updated_at": now,
+                }
+            )
+            self._store.save(updated)
+            self._emit_audit(
+                updated,
+                "approval.executed" if succeeded else "approval.execution_failed",
+                None,
+                "success" if succeeded else "failed",
+            )
+            return updated
 
     async def _decide(
         self,

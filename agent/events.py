@@ -34,6 +34,8 @@ class AgentEvent(KingPilotBaseModel):
     blocked: bool = Field(default=False, description="是否被 DLP/护栏拦截（final）")
     cancelled: bool = Field(default=False, description="是否被 HITL 取消（final）")
     hallucination_warning: bool = Field(default=False, description="幻觉告警（final）")
+    approval_pending: bool = Field(default=False, description="是否进入审批待处理（final）")
+    approval_id: str = Field(default="", description="审批单 ID（final）")
     code: str = Field(default="", description="错误码（error 事件）")
     message: str = Field(default="", description="安全错误文案（error 事件）")
 

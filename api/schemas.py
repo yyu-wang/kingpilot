@@ -29,6 +29,8 @@ class ChatResponse(KingPilotBaseModel):
     blocked: bool = Field(default=False, description="是否被安全护栏/DLP 拦截")
     cancelled: bool = Field(default=False, description="是否被 HITL 确认取消")
     hallucination_warning: bool = Field(default=False, description="是否存在幻觉告警")
+    approval_pending: bool = Field(default=False, description="是否进入审批待处理（HTTP 202）")
+    approval_id: str = Field(default="", description="审批单 ID")
 
 
 class SessionSummary(KingPilotBaseModel):
@@ -118,6 +120,9 @@ class ApprovalView(KingPilotBaseModel):
     updated_at: datetime
     expires_at: datetime
     can_decide: bool = False
+    execution_status: str = "not_started"
+    execution_error: str = ""
+    executed_at: datetime | None = None
 
 
 class ApprovalListResponse(KingPilotBaseModel):

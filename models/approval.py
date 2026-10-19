@@ -13,10 +13,12 @@ from uuid import uuid4
 from pydantic import Field
 
 from models.base import KingPilotBaseModel, Role
+from models.ledger import WriteAction
 
 ApprovalStatus = Literal["pending", "approved", "rejected", "expired"]
 ApprovalDecisionType = Literal["approve", "reject"]
 ApprovalScope = Literal["inbox", "mine", "all"]
+ApprovalExecutionStatus = Literal["not_started", "running", "succeeded", "failed"]
 
 
 class ApprovalDecision(KingPilotBaseModel):
@@ -58,3 +60,12 @@ class PendingAction(KingPilotBaseModel):
     arguments: dict[str, Any] = Field(
         default_factory=dict, description="待执行参数（仅供 T05，API 不返回）"
     )
+
+    # ── 执行状态（M9-T05）──
+    write_action: WriteAction = Field(default="save", description="写动作")
+    execution_status: ApprovalExecutionStatus = Field(default="not_started", description="执行状态")
+    execution_error: str = Field(default="", max_length=500, description="安全错误摘要")
+    execution_result: dict[str, Any] = Field(
+        default_factory=dict, description="执行结果摘要（不含原始报文）"
+    )
+    executed_at: datetime | None = Field(default=None, description="执行完成时间（UTC）")

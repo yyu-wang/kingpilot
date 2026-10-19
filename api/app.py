@@ -13,7 +13,7 @@ from fastapi import FastAPI
 
 from agent.llm import LLMProvider
 from agent.providers import get_provider
-from agent.tools import build_default_registry
+from agent.tools import ToolRegistry, build_default_registry
 from api.approvals import router as approvals_router
 from api.auth import ApiKeyDirectory
 from api.console import mount_console, security_headers
@@ -24,10 +24,20 @@ from api.streaming import router as streaming_router
 from api.traces import router as traces_router
 from config.settings import Settings, get_settings
 from governance.approval import ApprovalService, FileApprovalStore
+from governance.approval_executor import (
+    ApprovalExecution,
+    ApprovalExecutor,
+    NoopSnapshotProvider,
+    RegistryToolExecutor,
+)
+from governance.approval_gateway import ApprovalGatewayImpl
 from governance.online_sampler import OnlineSampler
 from governance.prompt_registry import PromptRegistry
 from infrastructure.logger import setup_logging
 from kingdee.client import KingdeeClient
+from kingdee.idempotency import IdempotencyService
+from kingdee.write_coordinator import WriteCoordinator
+from ledger.write_ledger import SqliteWriteLedgerStore, WriteLedger
 from observability.alerts import AlertEngine
 from observability.audit import AuditLogger, JsonlAuditSink
 from observability.tracing import TraceStore
@@ -57,12 +67,30 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if client is None:
             client = await stack.enter_async_context(KingdeeClient(settings))
 
-        registry = build_default_registry()
-        safety = SafetyLayer(registry, client, DenyConfirmationIO(), audit=audit)
+        registry = app.state.registry_override or build_default_registry()
         approvals = ApprovalService(
             FileApprovalStore(settings.approval_store_dir),
             audit=audit,
             ttl_seconds=settings.approval_ttl_seconds,
+        )
+        gateway = ApprovalGatewayImpl(approvals, registry)
+        safety = SafetyLayer(
+            registry,
+            client,
+            DenyConfirmationIO(),
+            audit=audit,
+            approval_gateway=gateway,
+        )
+        trace_store = TraceStore(settings.trace_store_dir)
+        ledger = WriteLedger(SqliteWriteLedgerStore(settings.ledger_db_path), audit=audit)
+        writer = WriteCoordinator(ledger, idempotency=IdempotencyService())
+        execution: ApprovalExecution = app.state.approval_execution_override or ApprovalExecutor(
+            approvals,
+            trace_store=trace_store,
+            writer=writer,
+            executor=RegistryToolExecutor(registry, client),
+            snapshots=NoopSnapshotProvider(),
+            ledger=ledger,
         )
         sampler = (
             OnlineSampler(
@@ -80,12 +108,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             client=client,
             registry=registry,
             safety=safety,
-            trace_store=TraceStore(settings.trace_store_dir),
+            trace_store=trace_store,
             audit=audit,
             sampler=sampler,
             api_keys=ApiKeyDirectory.from_settings(settings),
             session_root=settings.session_store_dir,
             approvals=approvals,
+            approval_execution=execution,
         )
         yield
 
@@ -95,13 +124,17 @@ def create_app(
     *,
     provider: LLMProvider | None = None,
     client: KingdeeClient | None = None,
+    registry: ToolRegistry | None = None,
+    approval_execution: ApprovalExecution | None = None,
 ) -> FastAPI:
-    """App factory：生产零参数启动，测试注入 Settings/Provider/Client。"""
+    """App factory：生产零参数启动，测试注入 Settings/Provider/Client/Registry/执行器。"""
     resolved = settings or get_settings()
     app = FastAPI(title="KingPilot API", version="0.1.0", lifespan=lifespan)
     app.state.settings = resolved
     app.state.provider_override = provider
     app.state.client_override = client
+    app.state.registry_override = registry
+    app.state.approval_execution_override = approval_execution
     app.middleware("http")(security_headers)
     install_error_handlers(app)
     app.include_router(router)

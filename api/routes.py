@@ -10,7 +10,7 @@
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from loguru import logger
 
 from api.deps import get_current_user, get_deps
@@ -38,6 +38,7 @@ async def health() -> HealthResponse:
 async def chat(
     payload: ChatRequest,
     request: Request,
+    http_response: Response,
     user: Annotated[UserContext, Depends(get_current_user)],
 ) -> ChatResponse:
     """单轮/多轮对话：认证 → 加载会话 → 主循环 → 落盘。"""
@@ -69,6 +70,10 @@ async def chat(
             except Exception as exc:  # 旁路失败不影响主响应
                 logger.warning("在线抽样失败（不影响响应）: {}", exc)
 
+    if response.approval_pending:
+        # 写操作已提交审批但尚未执行：202 而不是 200
+        http_response.status_code = 202
+
     return ChatResponse(
         session_id=session_id,
         trace_id=str(response.trace_id),
@@ -76,6 +81,8 @@ async def chat(
         blocked=response.blocked,
         cancelled=response.cancelled,
         hallucination_warning=response.hallucination_warning,
+        approval_pending=response.approval_pending,
+        approval_id=response.approval_id,
     )
 
 

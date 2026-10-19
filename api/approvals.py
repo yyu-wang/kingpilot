@@ -15,6 +15,7 @@ from api.schemas import (
     ApprovalView,
 )
 from config.approval_rules import APPROVER_ROLES
+from infrastructure.exceptions import ApprovalError
 from models.approval import ApprovalScope, ApprovalStatus, PendingAction
 from models.user import UserContext
 
@@ -58,6 +59,9 @@ def _to_view(action: PendingAction, user: UserContext) -> ApprovalView:
         updated_at=action.updated_at,
         expires_at=action.expires_at,
         can_decide=can_decide,
+        execution_status=action.execution_status,
+        execution_error=action.execution_error,
+        executed_at=action.executed_at,
     )
 
 
@@ -95,7 +99,11 @@ async def approve(
     user: Annotated[UserContext, Depends(get_current_user)],
 ) -> ApprovalView:
     """投一张通过票；两票（不同用户）后状态变 approved。"""
-    action = await get_deps(request).approvals.approve(approval_id, user, payload.comment)
+    deps = get_deps(request)
+    action = await deps.approvals.approve(approval_id, user, payload.comment)
+    if action.status == "approved":
+        # 双人复核完成的同一请求内恢复执行；失败只落 execution_status
+        action = await deps.approval_execution.execute(action.approval_id)
     return _to_view(action, user)
 
 
@@ -108,4 +116,17 @@ async def reject(
 ) -> ApprovalView:
     """拒绝审批单（拒绝优先）。"""
     action = await get_deps(request).approvals.reject(approval_id, user, payload.comment)
+    return _to_view(action, user)
+
+
+@router.post("/v1/approvals/{approval_id}/execute", response_model=ApprovalView)
+async def execute(
+    approval_id: str,
+    request: Request,
+    user: Annotated[UserContext, Depends(get_current_user)],
+) -> ApprovalView:
+    """手动恢复执行（admin/manager）；用于进程重启后的 approved 单。"""
+    if user.role not in APPROVER_ROLES:
+        raise ApprovalError("当前角色无执行权限", code="approval_forbidden")
+    action = await get_deps(request).approval_execution.execute(approval_id)
     return _to_view(action, user)

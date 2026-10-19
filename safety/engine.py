@@ -28,6 +28,7 @@ from kingdee.entity_lookup import KingdeeEntityLookup
 from models.llm import ToolCallDecision, ToolSpec
 from models.user import UserContext
 from observability.audit import AuditLogger
+from safety.approval_gateway import ApprovalGateway, ApprovalRequest
 from safety.guard import GuardContext, GuardPipeline, GuardPipelineResult
 from safety.guard_entity import EntityPreflightGuard
 from safety.guard_limit import LimitGuard
@@ -69,6 +70,8 @@ class SafetyVerdict:
     blocked: bool = False
     cancelled: bool = False
     read_only: bool = False
+    approval_pending: bool = False
+    approval_id: str = ""
     guard_records: tuple[dict[str, Any], ...] = ()
     risk: RiskDecision | None = None
     permission: PermissionDecision | None = None
@@ -86,6 +89,7 @@ class SafetyLayer:
         *,
         clock: Callable[[], datetime] | None = None,
         audit: AuditLogger | None = None,
+        approval_gateway: ApprovalGateway | None = None,
     ) -> None:
         self._tools = tools
         self._permission = PermissionEngine(audit=audit)
@@ -93,6 +97,8 @@ class SafetyLayer:
         self._hitl = HumanInTheLoop(hitl_io)
         # 可注入时钟：测试固定工作时间，避免「非工作时间 +3 分」造成结果漂移
         self._clock = clock
+        # None = CLI/无审批模式；API 模式注入网关，把 dual_approve 落成审批单
+        self._approval_gateway = approval_gateway
         self._pipeline = GuardPipeline(
             [
                 # 拦截点 2：执行前权限兜底（先失败快）
@@ -115,6 +121,8 @@ class SafetyLayer:
         user: UserContext,
         calls: Sequence[ToolCallDecision],
         trace_id: str,
+        *,
+        session_id: str = "",
     ) -> SafetyVerdict:
         """逐条审查规划；任一条拦截则整批不执行。"""
         records: list[dict[str, Any]] = []
@@ -171,6 +179,27 @@ class SafetyLayer:
         permission = _merge_permissions(permissions)
         hitl_decision = self._hitl.route(risk, permission)
         summary = build_action_summary(calls, risk)
+        if hitl_decision.level == "dual_approve" and self._approval_gateway is not None:
+            approval_id = await self._approval_gateway.request(
+                ApprovalRequest(
+                    trace_id=trace_id,
+                    session_id=session_id,
+                    user=user,
+                    calls=tuple(calls),
+                    risk=risk,
+                    permission=permission,
+                    summary=summary,
+                )
+            )
+            return SafetyVerdict(
+                proceed=False,
+                approval_pending=True,
+                approval_id=approval_id,
+                message=f"已提交审批（{approval_id}），双人复核通过后自动执行。",
+                guard_records=tuple(records),
+                risk=risk,
+                permission=permission,
+            )
         outcome = await self._hitl.confirm(hitl_decision, summary)
 
         if not outcome.approved:
