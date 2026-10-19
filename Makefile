@@ -9,7 +9,7 @@ PYTEST := $(UV) run pytest
 RUFF   := $(UV) run ruff
 
 .DEFAULT_GOAL := help
-.PHONY: help lint typecheck test test-integration cov audit check sandbox query-demo eval chat
+.PHONY: help lint typecheck test test-integration cov audit check sandbox query-demo eval release-gate chat
 
 help:  ## 显示可用命令
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -55,6 +55,11 @@ query-demo:  ## 硬编码查询脚本：经 KingdeeClient 查仿真沙箱的销�
 
 eval:  ## Tool 选对率评测（31 题，读 .env 路由；评测务必 ROUTE=chat_default 用 DeepSeek）
 	$(UV) run python scripts/eval_tool_selection.py --route "$(ROUTE)"
+
+# ── M8-T03 发布门禁：报告对比基线，退化即非零退出 ──
+
+release-gate:  ## 发布门禁（REPORT=评测报告 JSON 路径；BASELINE 可选）
+	$(UV) run python scripts/release_gate.py --report "$(REPORT)" $(if $(BASELINE),--baseline "$(BASELINE)",)
 
 # ── M3-T07 交互入口：CLI 多轮对话（需先 make sandbox；ARGS 透传如 --new/--list）──
 
