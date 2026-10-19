@@ -39,6 +39,7 @@ from config.settings import Settings
 from governance.rag.answer import enforce_citations, render_knowledge_fallback
 from governance.semantic_cache import SemanticCache, build_cache_key, is_cacheable_plan
 from infrastructure.exceptions import KingPilotError, LLMUnavailableError, TraceStoreError
+from infrastructure.tenancy import tenant_scope
 from kingdee.client import KingdeeClient
 from models.agent import AgentResponse, AgentTrace
 from models.audit import AuditEvent
@@ -53,6 +54,7 @@ from models.llm import (
     ToolSpec,
 )
 from models.rag import KnowledgeSearchResult
+from models.tenant import TenantContext
 from models.tool import ToolExecution
 from models.user import UserContext
 from observability.audit import AuditLogger
@@ -136,16 +138,21 @@ class AgentCore:
         self._emit(AgentEvent(event="phase", phase=phase, status=status))
 
     async def run(self, user_input: str, user_context: UserContext | None = None) -> AgentResponse:
-        """执行主循环、出域扫描并落盘 trace；落盘失败只告警，不影响用户响应。"""
-        response = await self._run(user_input, user_context)
-        # 出域扫描在 Trace 落盘之前：磁盘上只保留净化后的答复（M7-T02）
-        response = self._enforce_dlp(response)
-        if self._trace_store is not None and response.trace is not None:
-            try:
-                self._trace_store.save(response.trace)
-            except TraceStoreError as exc:
-                logger.warning("Trace 落盘失败（不影响响应）: {}", exc)
-        return response
+        """执行主循环、出域扫描并落盘 trace；落盘失败只告警，不影响用户响应。
+
+        M9-T11：整个运行进入租户上下文，使审计/成本/存储等旁路按租户隔离。
+        """
+        user = user_context or _default_user_context()
+        with tenant_scope(TenantContext.from_user(user).tenant_id):
+            response = await self._run(user_input, user)
+            # 出域扫描在 Trace 落盘之前：磁盘上只保留净化后的答复（M7-T02）
+            response = self._enforce_dlp(response)
+            if self._trace_store is not None and response.trace is not None:
+                try:
+                    self._trace_store.save(response.trace)
+                except TraceStoreError as exc:
+                    logger.warning("Trace 落盘失败（不影响响应）: {}", exc)
+            return response
 
     def _enforce_dlp(self, response: AgentResponse) -> AgentResponse:
         """响应发送前的 DLP 出域扫描：命中即整条阻断并审计。

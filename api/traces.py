@@ -44,7 +44,7 @@ async def session_messages(
     user: Annotated[UserContext, Depends(get_current_user)],
 ) -> SessionMessagesResponse:
     """当前用户的会话历史（只含 user/assistant，统一脱敏）。"""
-    store = get_deps(request).store_for(user.user_id)
+    store = get_deps(request).store_for(user.user_id, tenant_id=user.tenant_id)
     try:
         path = store.path_for(session_id)
     except SessionStoreError as exc:
@@ -78,10 +78,11 @@ async def list_traces(
 ) -> TraceListResponse:
     """当前用户的 Trace 列表；可按 session_id 过滤。"""
     deps = get_deps(request)
+    trace_store = deps.resources_for(user.tenant_id).trace_store
     capped = max(1, min(limit, _MAX_TRACE_LIMIT))
     infos = [
         info
-        for info in deps.trace_store.list_traces()
+        for info in trace_store.list_traces()
         if info.user_id == user.user_id and (not session_id or info.session_id == session_id)
     ][:capped]
     return TraceListResponse(
@@ -108,7 +109,7 @@ async def get_trace(
     """单条 Trace 的脱敏报告；非本人一律 404。"""
     deps = get_deps(request)
     try:
-        trace = deps.trace_store.load(trace_id)
+        trace = deps.resources_for(user.tenant_id).trace_store.load(trace_id)
     except TraceStoreError as exc:
         raise ApiError(404, "trace_not_found", "Trace 不存在") from exc
     if trace.user_id != user.user_id:

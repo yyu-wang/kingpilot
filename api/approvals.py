@@ -74,9 +74,8 @@ async def list_approvals(
     limit: int = 50,
 ) -> ApprovalListResponse:
     """按可见范围列出审批单（默认 inbox）。"""
-    actions = await get_deps(request).approvals.list_for_user(
-        user, scope=scope, status=status, limit=limit
-    )
+    resources = get_deps(request).resources_for(user.tenant_id)
+    actions = await resources.approvals.list_for_user(user, scope=scope, status=status, limit=limit)
     return ApprovalListResponse(approvals=[_to_view(action, user) for action in actions])
 
 
@@ -87,7 +86,8 @@ async def get_approval(
     user: Annotated[UserContext, Depends(get_current_user)],
 ) -> ApprovalView:
     """审批单详情；非发起人且非审批角色 → 404。"""
-    action = await get_deps(request).approvals.get(approval_id, user)
+    resources = get_deps(request).resources_for(user.tenant_id)
+    action = await resources.approvals.get(approval_id, user)
     return _to_view(action, user)
 
 
@@ -100,10 +100,11 @@ async def approve(
 ) -> ApprovalView:
     """投一张通过票；两票（不同用户）后状态变 approved。"""
     deps = get_deps(request)
-    action = await deps.approvals.approve(approval_id, user, payload.comment)
+    resources = deps.resources_for(user.tenant_id)
+    action = await resources.approvals.approve(approval_id, user, payload.comment)
     if action.status == "approved":
         # 双人复核完成的同一请求内恢复执行；失败只落 execution_status
-        action = await deps.approval_execution.execute(action.approval_id)
+        action = await resources.approval_execution.execute(action.approval_id)
     return _to_view(action, user)
 
 
@@ -115,7 +116,8 @@ async def reject(
     user: Annotated[UserContext, Depends(get_current_user)],
 ) -> ApprovalView:
     """拒绝审批单（拒绝优先）。"""
-    action = await get_deps(request).approvals.reject(approval_id, user, payload.comment)
+    resources = get_deps(request).resources_for(user.tenant_id)
+    action = await resources.approvals.reject(approval_id, user, payload.comment)
     return _to_view(action, user)
 
 
@@ -128,5 +130,6 @@ async def execute(
     """手动恢复执行（admin/manager）；用于进程重启后的 approved 单。"""
     if user.role not in APPROVER_ROLES:
         raise ApprovalError("当前角色无执行权限", code="approval_forbidden")
-    action = await get_deps(request).approval_execution.execute(approval_id)
+    resources = get_deps(request).resources_for(user.tenant_id)
+    action = await resources.approval_execution.execute(approval_id)
     return _to_view(action, user)

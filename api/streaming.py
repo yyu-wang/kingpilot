@@ -56,7 +56,7 @@ async def chat_stream(
         raise ApiError(422, "empty_message", "消息不能为空")
 
     session_id = payload.session_id or uuid4().hex[:12]
-    store = deps.store_for(user.user_id)
+    store = deps.store_for(user.user_id, tenant_id=user.tenant_id)
     try:
         store.path_for(session_id)  # 流开始前挡住路径穿越
     except SessionStoreError as exc:
@@ -86,7 +86,7 @@ async def _stream_chat(
     async def produce() -> None:
         try:
             # 与同步接口一致：load → run → save 整段串行（M9-T01 D5）
-            async with deps.locks.get(f"{user.user_id}:{session_id}"):
+            async with deps.locks.get(f"{user.tenant_id}:{user.user_id}:{session_id}"):
                 try:
                     memory = store.load(session_id)
                 except SessionStoreError:
@@ -99,7 +99,7 @@ async def _stream_chat(
                     )
                     return
 
-                core = deps.build_core(memory, event_sink=sink)
+                core = deps.build_core(memory, user=user, event_sink=sink)
                 response = await core.run(message, user_context=user)
 
                 try:
@@ -129,9 +129,10 @@ async def _stream_chat(
                     )
                 )
 
-                if deps.sampler is not None:
+                sampler = deps.resources_for(user.tenant_id).sampler
+                if sampler is not None:
                     try:
-                        deps.sampler.maybe_sample(response, session_id=session_id)
+                        sampler.maybe_sample(response, session_id=session_id)
                     except Exception as exc:
                         logger.warning("在线抽样失败（不影响流式响应）: {}", exc)
         except Exception as exc:

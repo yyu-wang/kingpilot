@@ -33,6 +33,6 @@ async def overview(
     resolved_to = to_date or today
     resolved_from = from_date or (resolved_to - timedelta(days=_DEFAULT_DAYS - 1))
     try:
-        return deps.dashboard.overview(resolved_from, resolved_to)
+        return deps.resources_for(user.tenant_id).dashboard.overview(resolved_from, resolved_to)
     except ValueError as exc:
         raise ApiError(422, "invalid_range", str(exc)) from exc

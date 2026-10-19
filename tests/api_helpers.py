@@ -26,9 +26,15 @@ def api_settings(
     tmp_path: Path,
     keys: Mapping[str, Mapping[str, Any]],
 ) -> Settings:
-    """构造指向仿真沙箱的 Settings，并把明文测试 key 转成 SHA-256 哈希配置。"""
+    """构造指向仿真沙箱的 Settings，并把明文测试 key 转成 SHA-256 哈希配置。
+
+    身份未显式给 ``tenant_id`` 时默认 ``default``（M9-T11 兼容既有单租户用例）。
+    """
     hashed = {
-        hashlib.sha256(raw_key.encode("utf-8")).hexdigest(): dict(identity)
+        hashlib.sha256(raw_key.encode("utf-8")).hexdigest(): {
+            "tenant_id": "default",
+            **dict(identity),
+        }
         for raw_key, identity in keys.items()
     }
     return sandbox_settings(base_url).model_copy(

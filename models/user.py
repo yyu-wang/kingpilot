@@ -12,12 +12,20 @@ from typing import Any
 from pydantic import Field
 
 from models.base import KingPilotBaseModel, Role
+from models.tenant import DEFAULT_TENANT, TENANT_ID_PATTERN
 
 
 class UserContext(KingPilotBaseModel):
     """用户上下文（四层权限隔离的载体）。"""
 
     user_id: str = Field(description="用户唯一标识")
+    tenant_id: str = Field(
+        default=DEFAULT_TENANT,
+        min_length=1,
+        max_length=32,
+        pattern=TENANT_ID_PATTERN,
+        description="租户 ID（API Key 身份注入；CLI 默认 default）",
+    )
     role: Role = Field(description="角色（admin/operator/viewer）")
     risk_score: float = Field(
         default=0.0, ge=0.0, le=100.0, description="历史风险画像分（0-100，M4 风险评分用）"

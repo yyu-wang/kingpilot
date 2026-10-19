@@ -45,6 +45,7 @@ class AuditEvent(KingPilotBaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     trace_id: str = ""
+    tenant_id: str = ""
     user_id: str = ""
     user_role: str = ""
     ip_address: str = ""

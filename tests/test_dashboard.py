@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from api.app import _build_cost_sink
+from api.deps import _build_cost_sink
 from governance.cost_engine import CostRecord
 from governance.dashboard import DashboardService
 from models.audit import AuditEvent

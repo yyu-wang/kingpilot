@@ -54,13 +54,17 @@ async def mark_badcase(
 ) -> BadcaseView:
     """从 Trace 标记一条 Badcase；同一 Trace 幂等返回原记录。"""
     _require_reviewer(user)
-    record = await get_deps(request).badcases.mark(
-        trace_id=payload.trace_id,
-        expected_tool=payload.expected_tool,
-        reason=payload.reason,
-        category=payload.category,
-        expected_behavior=payload.expected_behavior,
-        user=user,
+    record = (
+        await get_deps(request)
+        .resources_for(user.tenant_id)
+        .badcases.mark(
+            trace_id=payload.trace_id,
+            expected_tool=payload.expected_tool,
+            reason=payload.reason,
+            category=payload.category,
+            expected_behavior=payload.expected_behavior,
+            user=user,
+        )
     )
     return _to_view(record)
 
@@ -74,7 +78,11 @@ async def list_badcases(
 ) -> BadcaseListResponse:
     """按创建时间倒序列出 Badcase。"""
     _require_reviewer(user)
-    records = await get_deps(request).badcases.list_records(user, status=status, limit=limit)
+    records = (
+        await get_deps(request)
+        .resources_for(user.tenant_id)
+        .badcases.list_records(user, status=status, limit=limit)
+    )
     return BadcaseListResponse(badcases=[_to_view(record) for record in records])
 
 
@@ -86,7 +94,7 @@ async def get_badcase(
 ) -> BadcaseView:
     """Badcase 详情；不存在 → 404。"""
     _require_reviewer(user)
-    record = await get_deps(request).badcases.get(badcase_id, user)
+    record = await get_deps(request).resources_for(user.tenant_id).badcases.get(badcase_id, user)
     return _to_view(record)
 
 
@@ -99,9 +107,13 @@ async def export_badcase(
 ) -> BadcaseView:
     """导出到版本化评测集；重复导出幂等，重复用例 → 409。"""
     _require_reviewer(user)
-    record = await get_deps(request).badcases.export(
-        badcase_id,
-        dataset_version=payload.dataset_version,
-        user=user,
+    record = (
+        await get_deps(request)
+        .resources_for(user.tenant_id)
+        .badcases.export(
+            badcase_id,
+            dataset_version=payload.dataset_version,
+            user=user,
+        )
     )
     return _to_view(record)

@@ -26,7 +26,10 @@ from governance.online_sampler import OnlineSampler
 from governance.prompt_registry import PromptRegistry
 from infrastructure.exceptions import KingPilotError, SessionStoreError
 from infrastructure.logger import setup_logging
+from infrastructure.secrets import build_secret_provider
+from infrastructure.tenancy import tenant_paths
 from kingdee.client import KingdeeClient
+from models.tenant import DEFAULT_TENANT
 from observability.alerts import AlertEngine
 from observability.audit import AuditLogger, JsonlAuditSink
 from observability.tracing import TraceStore
@@ -94,7 +97,7 @@ def main(argv: Sequence[str] | None = None, *, settings: Settings | None = None)
     setup_logging()
     args = _build_parser().parse_args(argv)
     resolved = settings or get_settings()
-    store = SessionStore(resolved.session_store_dir)
+    store = SessionStore(tenant_paths(resolved, DEFAULT_TENANT).session_root)
 
     if args.list:
         _print_sessions(store)
@@ -116,27 +119,30 @@ def main(argv: Sequence[str] | None = None, *, settings: Settings | None = None)
 async def _run_session(settings: Settings, store: SessionStore, memory: MemoryStore) -> int:
     """建立 Provider/Client 并跑完整个会话；资源在 finally 统一释放。"""
     # 审计先于 Provider：预算降档/耗尽事件也要进统一审计流（M7-T04）
-    audit = AuditLogger(JsonlAuditSink(settings.audit_log_path))
+    paths = tenant_paths(settings, DEFAULT_TENANT)
+    audit = AuditLogger(JsonlAuditSink(paths.audit_path))
     audit.subscribe(AlertEngine().observe)
+    secrets = build_secret_provider(settings)
     try:
         prompts = PromptRegistry(settings.prompts_dir)
         provider = get_provider(
             settings,
             audit=audit,
             prompts=prompts,
-            rollout_key=memory.session_id,
+            rollout_key=DEFAULT_TENANT,
+            secrets=secrets,
         )
     except KingPilotError as exc:
         print(f"LLM 初始化失败：{exc}（请检查 KINGPILOT_LLM_API_KEY / prompts 目录）")
         return 2
     try:
-        async with KingdeeClient(settings) as client:
+        async with KingdeeClient(settings, secrets=secrets) as client:
             registry = build_default_registry()
             safety = SafetyLayer(registry, client, CliConfirmationIO(), audit=audit)
-            trace_store = TraceStore(settings.trace_store_dir)
+            trace_store = TraceStore(paths.trace_dir)
             sampler = (
                 OnlineSampler(
-                    settings.online_sample_dir,
+                    paths.sample_dir,
                     sample_rate=settings.online_sample_rate,
                     max_per_day=settings.online_sample_max_per_day,
                 )

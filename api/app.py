@@ -1,173 +1,72 @@
-"""FastAPI app factory 与 lifespan（M9-T01）。
+"""FastAPI app factory 与 lifespan（M9-T01，M9-T11 多租户化）。
 
 资源生命周期：
-- 进程级资源在 lifespan 内创建：Provider / KingdeeClient / SafetyLayer / Trace / Audit
-- 测试可注入 Provider/Client：``create_app(settings, provider=..., client=...)``
-- ``AsyncExitStack`` 统一管理「谁创建、谁关闭」，注入时不动外部资源
+- 进程级共享：Audit（租户感知 sink）/ Client / Registry / Prompt / SecretProvider / API Key 目录
+- 每租户资源：由 ``AppDeps.resources_for`` 懒加载（Provider/Trace/Ledger/审批/看板/采样）
+- 测试可注入 Provider/Client/Registry/审批执行器
 """
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 
 from agent.llm import LLMProvider
-from agent.providers import get_provider
 from agent.tools import ToolRegistry, build_default_registry
 from api.approvals import router as approvals_router
 from api.auth import ApiKeyDirectory
 from api.badcases import router as badcases_router
 from api.console import mount_console, security_headers
 from api.dashboard import router as dashboard_router
-from api.deps import AppDeps, DenyConfirmationIO
+from api.deps import AppDeps
 from api.errors import install_error_handlers
 from api.routes import router
 from api.streaming import router as streaming_router
 from api.traces import router as traces_router
 from config.settings import Settings, get_settings
-from governance.approval import ApprovalService, FileApprovalStore
-from governance.approval_executor import (
-    ApprovalExecution,
-    ApprovalExecutor,
-    NoopSnapshotProvider,
-    RegistryToolExecutor,
-)
-from governance.approval_gateway import ApprovalGatewayImpl
-from governance.badcase import BadcaseService, FileBadcaseStore
-from governance.cost_engine import CostEngine, CostRecord
-from governance.dashboard import DashboardService
-from governance.online_sampler import OnlineSampler
+from governance.approval_executor import ApprovalExecution
 from governance.prompt_registry import PromptRegistry
 from infrastructure.logger import setup_logging
+from infrastructure.secrets import build_secret_provider
 from kingdee.client import KingdeeClient
-from kingdee.idempotency import IdempotencyService
-from kingdee.write_coordinator import WriteCoordinator
-from ledger.write_ledger import SqliteWriteLedgerStore, WriteLedger
-from models.audit import AuditEvent
 from observability.alerts import AlertEngine
-from observability.audit import AuditLogger, JsonlAuditReader, JsonlAuditSink
-from observability.tracing import TraceStore
-from safety.engine import SafetyLayer
-
-
-def _build_cost_sink(audit: AuditLogger) -> Callable[[CostRecord], None]:
-    """成本明细写统一审计流，供看板按天聚合（M9-T06）。"""
-
-    def sink(record: CostRecord) -> None:
-        audit.emit(
-            AuditEvent(
-                event_type="cost.recorded",
-                action="llm_call",
-                status="success",
-                detail={
-                    "route": record.route_name,
-                    "tier": record.tier,
-                    "model_id": record.model_id,
-                    "prompt_tokens": record.prompt_tokens,
-                    "completion_tokens": record.completion_tokens,
-                    "cost_usd": record.cost_usd,
-                },
-            )
-        )
-
-    return sink
+from observability.audit import AuditLogger, JsonlAuditSink
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """构建进程级依赖；退出时按进入顺序反向释放。"""
+    """构建进程级依赖；租户资源按需创建，退出时统一释放 Provider。"""
     settings: Settings = app.state.settings
     setup_logging()
 
     # 审计先于 Provider：预算降档/耗尽事件也要进统一审计流（M7-T04）
-    audit = AuditLogger(JsonlAuditSink(settings.audit_log_path))
+    audit = AuditLogger(JsonlAuditSink(settings.audit_log_path, tenant_aware=True))
     audit.subscribe(AlertEngine().observe)
-    cost_engine = CostEngine(sink=_build_cost_sink(audit))
+    secrets = build_secret_provider(settings)
+    prompts = PromptRegistry(settings.prompts_dir)
 
     async with AsyncExitStack() as stack:
-        provider: LLMProvider | None = app.state.provider_override
-        if provider is None:
-            prompts = PromptRegistry(settings.prompts_dir)
-            provider = get_provider(
-                settings,
-                audit=audit,
-                prompts=prompts,
-                rollout_key="",
-                cost_engine=cost_engine,
-            )
-            close_provider = getattr(provider, "aclose", None)
-            if callable(close_provider):
-                stack.push_async_callback(close_provider)
-
         client: KingdeeClient | None = app.state.client_override
         if client is None:
-            client = await stack.enter_async_context(KingdeeClient(settings))
+            client = await stack.enter_async_context(KingdeeClient(settings, secrets=secrets))
 
         registry = app.state.registry_override or build_default_registry()
-        approvals = ApprovalService(
-            FileApprovalStore(settings.approval_store_dir),
-            audit=audit,
-            ttl_seconds=settings.approval_ttl_seconds,
-        )
-        gateway = ApprovalGatewayImpl(approvals, registry)
-        safety = SafetyLayer(
-            registry,
-            client,
-            DenyConfirmationIO(),
-            audit=audit,
-            approval_gateway=gateway,
-        )
-        trace_store = TraceStore(settings.trace_store_dir)
-        ledger = WriteLedger(SqliteWriteLedgerStore(settings.ledger_db_path), audit=audit)
-        writer = WriteCoordinator(ledger, idempotency=IdempotencyService())
-        execution: ApprovalExecution = app.state.approval_execution_override or ApprovalExecutor(
-            approvals,
-            trace_store=trace_store,
-            writer=writer,
-            executor=RegistryToolExecutor(registry, client),
-            snapshots=NoopSnapshotProvider(),
-            ledger=ledger,
-        )
-        dashboard = DashboardService(
-            trace_store,
-            JsonlAuditReader(settings.audit_log_path),
-            ledger,
-            timezone=settings.dashboard_timezone,
-        )
-        badcases = BadcaseService(
-            FileBadcaseStore(settings.badcase_store_dir),
-            trace_store=trace_store,
-            tools=registry,
-            dataset_root=settings.eval_dataset_dir,
-            audit=audit,
-        )
-        sampler = (
-            OnlineSampler(
-                settings.online_sample_dir,
-                sample_rate=settings.online_sample_rate,
-                max_per_day=settings.online_sample_max_per_day,
-            )
-            if settings.online_sample_rate > 0
-            else None
-        )
-
-        app.state.deps = AppDeps(
+        deps = AppDeps(
             settings=settings,
-            provider=provider,
             client=client,
             registry=registry,
-            safety=safety,
-            trace_store=trace_store,
             audit=audit,
-            sampler=sampler,
             api_keys=ApiKeyDirectory.from_settings(settings),
-            session_root=settings.session_store_dir,
-            approvals=approvals,
-            approval_execution=execution,
-            dashboard=dashboard,
-            badcases=badcases,
+            prompts=prompts,
+            secrets=secrets,
+            provider_override=app.state.provider_override,
+            approval_execution_override=app.state.approval_execution_override,
         )
-        yield
+        app.state.deps = deps
+        try:
+            yield
+        finally:
+            await deps.aclose()
 
 
 def create_app(

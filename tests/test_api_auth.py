@@ -29,7 +29,7 @@ def _hash_of(raw: str) -> str:
 
 
 def _directory(identity: dict[str, object]) -> ApiKeyDirectory:
-    payload = {_hash_of("some-key"): identity}
+    payload = {_hash_of("some-key"): {"tenant_id": "default", **identity}}
     return ApiKeyDirectory.from_settings(
         Settings(_env_file=None, api_key_hashes=SecretStr(json.dumps(payload)))
     )
@@ -110,6 +110,19 @@ def test_invalid_user_id_fails_closed() -> None:
 def test_invalid_role_fails_closed() -> None:
     with pytest.raises(ApiKeyConfigError):
         _directory({"user_id": "alice", "role": "root"})
+
+
+def test_missing_tenant_fails_closed() -> None:
+    """M9-T11：API Key 身份缺 tenant_id → 启动失败（默认拒绝）。"""
+    payload = {_hash_of("some-key"): {"user_id": "alice", "role": "viewer"}}
+    settings = Settings(_env_file=None, api_key_hashes=SecretStr(json.dumps(payload)))
+    with pytest.raises(ApiKeyConfigError):
+        ApiKeyDirectory.from_settings(settings)
+
+
+def test_invalid_tenant_fails_closed() -> None:
+    with pytest.raises(ApiKeyConfigError):
+        _directory({"user_id": "alice", "tenant_id": "../evil", "role": "viewer"})
 
 
 def test_invalid_hash_format_fails_closed() -> None:

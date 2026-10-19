@@ -17,6 +17,7 @@ from typing import Protocol
 from loguru import logger
 from pydantic import ValidationError
 
+from infrastructure.tenancy import current_tenant, tenant_file
 from models.audit import AuditEvent
 
 AuditObserver = Callable[[AuditEvent], None]
@@ -31,10 +32,15 @@ class AuditSink(Protocol):
 
 
 class JsonlAuditSink:
-    """append-only JSONL 文件出口（本地合规留存）。"""
+    """append-only JSONL 文件出口（本地合规留存）。
 
-    def __init__(self, path: Path) -> None:
+    ``tenant_aware=True`` 时按事件 ``tenant_id`` 路由到
+    ``tenants/{tenant}/{filename}``，default 租户保持原文件路径。
+    """
+
+    def __init__(self, path: Path, *, tenant_aware: bool = False) -> None:
         self._path = path
+        self._tenant_aware = tenant_aware
         self._lock = threading.Lock()
 
     @property
@@ -42,9 +48,14 @@ class JsonlAuditSink:
         return self._path
 
     def write(self, event: AuditEvent) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
+        path = (
+            tenant_file(self._path, event.tenant_id or current_tenant())
+            if self._tenant_aware
+            else self._path
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
         line = json.dumps(event.to_dict(), ensure_ascii=False, sort_keys=True)
-        with self._lock, self._path.open("a", encoding="utf-8") as handle:
+        with self._lock, path.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
 
 
@@ -91,7 +102,13 @@ class AuditLogger:
         self._observers.append(observer)
 
     def emit(self, event: AuditEvent) -> None:
-        """写审计出口并通知订阅者；任何失败都不向业务抛异常。"""
+        """写审计出口并通知订阅者；任何失败都不向业务抛异常。
+
+        事件未显式携带租户时，从当前上下文补齐（M9-T11）——
+        这样 Guard/账本/成本等旁路无需层层传 tenant。
+        """
+        if not event.tenant_id:
+            event = event.model_copy(update={"tenant_id": current_tenant()})
         try:
             self._sink.write(event)
         except Exception as exc:  # 审计丢失必须大声告警，但不阻塞业务

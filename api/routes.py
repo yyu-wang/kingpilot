@@ -48,25 +48,26 @@ async def chat(
         raise ApiError(422, "empty_message", "消息不能为空")
 
     session_id = payload.session_id or uuid4().hex[:12]
-    store = deps.store_for(user.user_id)
+    store = deps.store_for(user.user_id, tenant_id=user.tenant_id)
 
     # 读-改-写整体加锁：同会话并发请求不能互相覆盖
-    async with deps.locks.get(f"{user.user_id}:{session_id}"):
+    async with deps.locks.get(f"{user.tenant_id}:{user.user_id}:{session_id}"):
         try:
             memory = store.load(session_id)
         except SessionStoreError as exc:
             raise ApiError(400, "session_invalid", "会话不存在或已损坏") from exc
 
-        response = await deps.build_core(memory).run(message, user_context=user)
+        response = await deps.build_core(memory, user=user).run(message, user_context=user)
 
         try:
             store.save(memory)
         except SessionStoreError as exc:
             raise ApiError(500, "session_write_failed", "会话保存失败，请重试") from exc
 
-        if deps.sampler is not None:
+        sampler = deps.resources_for(user.tenant_id).sampler
+        if sampler is not None:
             try:
-                deps.sampler.maybe_sample(response, session_id=session_id)
+                sampler.maybe_sample(response, session_id=session_id)
             except Exception as exc:  # 旁路失败不影响主响应
                 logger.warning("在线抽样失败（不影响响应）: {}", exc)
 
@@ -92,7 +93,7 @@ async def list_sessions(
     user: Annotated[UserContext, Depends(get_current_user)],
 ) -> SessionListResponse:
     """列出当前用户自己的会话（目录级隔离）。"""
-    infos = get_deps(request).store_for(user.user_id).list_sessions()
+    infos = get_deps(request).store_for(user.user_id, tenant_id=user.tenant_id).list_sessions()
     return SessionListResponse(
         sessions=[
             SessionSummary(
@@ -112,7 +113,7 @@ async def get_session(
     user: Annotated[UserContext, Depends(get_current_user)],
 ) -> SessionSummary:
     """单个会话元信息；不存在或不属于当前用户一律 404。"""
-    store = get_deps(request).store_for(user.user_id)
+    store = get_deps(request).store_for(user.user_id, tenant_id=user.tenant_id)
     try:
         store.path_for(session_id)  # ID 白名单校验（防路径穿越）
     except SessionStoreError as exc:

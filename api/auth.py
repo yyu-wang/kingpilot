@@ -22,6 +22,7 @@ from pydantic import Field, ValidationError
 from config.settings import Settings
 from infrastructure.exceptions import ApiKeyConfigError
 from models.base import KingPilotBaseModel, Role
+from models.tenant import TENANT_ID_PATTERN
 
 _HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 # 与 SessionStore 的命名规则一致：user_id 会作为目录名，必须挡住 ``../``
@@ -32,6 +33,12 @@ class ApiKeyIdentity(KingPilotBaseModel):
     """一条 API Key 对应的身份与权限上下文。"""
 
     user_id: str = Field(min_length=1, max_length=64, pattern=_USER_ID_RE.pattern)
+    tenant_id: str = Field(
+        min_length=1,
+        max_length=32,
+        pattern=TENANT_ID_PATTERN,
+        description="租户 ID（M9-T11 必填；缺失启动失败）",
+    )
     role: Role
     data_scope: dict[str, Any] = Field(default_factory=dict)
 
