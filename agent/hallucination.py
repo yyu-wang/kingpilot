@@ -323,8 +323,14 @@ def _check_numbers(
 
 
 def _is_ordinal(text: str, start: int) -> bool:
-    """序数（第 N）不是事实断言，跳过。"""
-    return start > 0 and text[start - 1] == "第"
+    """序数（第 N / 第 N 段）不是事实断言，跳过。
+
+    允许「第」与数字之间存在空格：RAG 引用格式为 ``《文档》第 2 段``。
+    """
+    index = start - 1
+    while index >= 0 and text[index].isspace():
+        index -= 1
+    return index >= 0 and text[index] == "第"
 
 
 def _in_spans(start: int, end: int, spans: Sequence[tuple[int, int]]) -> bool:

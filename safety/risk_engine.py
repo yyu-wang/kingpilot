@@ -149,7 +149,7 @@ def build_risk_context(
     return RiskContext(
         tool_type=tool.tool_type,
         action=tool.action,
-        form_id=tool.endpoint.form_id,
+        form_id=tool.endpoint.form_id if tool.endpoint is not None else "",
         amount=_as_float(arguments.get("amount")),
         batch_size=_as_batch_size(arguments.get("batch_size"), default=default_batch),
         user_role=user_context.role,

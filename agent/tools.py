@@ -9,12 +9,14 @@
   Guard 校验留给 M4（本层只做形状级 fail-closed 校验）。
 """
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Literal
 
 from pydantic import ValidationError
 
+from agent.knowledge import KB_SEARCH_TOOL, KnowledgeParams, KnowledgeService
+from config.settings import get_settings
 from infrastructure.exceptions import ToolError
 from kingdee.client import KingdeeClient
 from kingdee.endpoints.base import EndpointDescriptor, EndpointParams, QueryToolBinding
@@ -26,6 +28,7 @@ from kingdee.endpoints.stk_inventory import INVENTORY_TOOL
 from models.base import KingPilotBaseModel
 from models.kingdee import BillQueryResult
 from models.llm import ToolSpec
+from models.rag import KnowledgeSearchResult
 
 
 @dataclass(frozen=True)
@@ -45,23 +48,30 @@ class EntityReference:
 # 工具类型：服务端事实，不信任 LLM 自述（提示注入可把写操作标成查询）
 ToolType = Literal["query", "write", "action"]
 
+# 本地工具执行器：接收已校验参数，返回结构化结果（M9-T09）
+LocalRunner = Callable[[KingPilotBaseModel], Awaitable[Any]]
+
+# 工具执行结果：金蝶查询或本地知识检索
+ToolResult = BillQueryResult | KnowledgeSearchResult
+
 
 @dataclass(frozen=True)
 class ToolDefinition:
-    """一个可执行工具：LLM 侧声明（ToolSpec）+ 参数模型 + 组装器 + 端点绑定。
+    """一个可执行工具：LLM 侧声明（ToolSpec）+ 参数模型 + 执行入口。
 
-    ``execute`` 是唯一执行入口：Pydantic 校验 LLM 给的 arguments（fail-closed，
-    未知参数/越界/非法枚举全拒）→ 端点组装 FilterString → KingdeeClient 查询。
-    返回 ``BillQueryResult``（rows 已按 FieldKeys 转成 dict，可直接序列化进对话）。
+    两种形态：
+    - **金蝶端点工具**：``endpoint`` + ``build_filter``，执行走 KingdeeClient
+    - **本地工具**（M9-T09）：``runner``，执行不经金蝶，如 ``kb_search``
 
     ``tool_type`` / ``entity_references`` / ``required_parameters`` 是 M4 护栏的
     元数据：查询工具保持默认值，写/动作工具显式声明并由 Guard 3/5 校验。
     """
 
     spec: ToolSpec
-    params_model: type[EndpointParams]
-    build_filter: Callable[[KingPilotBaseModel], str]
-    endpoint: EndpointDescriptor
+    params_model: type[KingPilotBaseModel]
+    build_filter: Callable[[KingPilotBaseModel], str] | None = None
+    endpoint: EndpointDescriptor | None = None
+    runner: LocalRunner | None = None
     tool_type: ToolType = "query"
     entity_references: tuple[EntityReference, ...] = ()
     # 业务必填项：可多于 Schema 的 required（如 Schema 允许空串、业务不允许）
@@ -74,14 +84,19 @@ class ToolDefinition:
         """工具名（LLM tool_calls 里的对齐键）。"""
         return self.spec.name
 
+    @property
+    def is_local(self) -> bool:
+        """是否本地执行器（无金蝶 endpoint，不产生 FilterString）。"""
+        return self.runner is not None
+
     async def execute(
         self,
         client: KingdeeClient,
         arguments: dict[str, Any],
         *,
         row_filter: str = "",
-    ) -> BillQueryResult:
-        """校验参数 → 组装过滤条件 → 查询。
+    ) -> ToolResult:
+        """校验参数 → 本地执行或组装过滤条件查询。
 
         Args:
             row_filter: 可信行级过滤（M4 权限引擎产出）。在 Guard 校验之后追加，
@@ -102,6 +117,26 @@ class ToolDefinition:
                 f"工具参数校验失败: {self.spec.name}（{detail}）",
                 context={"tool": self.spec.name},
             ) from exc
+
+        if self.runner is not None:
+            if row_filter:
+                raise ToolError(
+                    f"本地工具不支持行级过滤: {self.spec.name}",
+                    context={"tool": self.spec.name},
+                )
+            result = await self.runner(params)
+            if not isinstance(result, (BillQueryResult, KnowledgeSearchResult)):
+                raise ToolError(
+                    f"本地工具返回了不支持的结果类型: {self.spec.name}",
+                    context={"tool": self.spec.name},
+                )
+            return result
+
+        if self.endpoint is None or self.build_filter is None:
+            raise ToolError(
+                f"工具缺少端点绑定或执行器: {self.spec.name}",
+                context={"tool": self.spec.name},
+            )
 
         try:
             filter_string = self.build_filter(params)
@@ -167,8 +202,19 @@ def _from_binding(binding: QueryToolBinding) -> ToolDefinition:
     )
 
 
-def build_default_registry() -> ToolRegistry:
-    """装配默认注册表：5 个查询工具（销售/采购订单、客户、供应商、库存）。"""
+_KNOWLEDGE_TOOL_DESCRIPTION = (
+    "查询 KingPilot 内部知识库（操作手册、流程规范、制度说明）。"
+    "仅用于“怎么做、流程是什么、有什么规定”类知识问题；"
+    "不查询订单、库存、客户等实时 ERP 数据，也不用于写操作。"
+)
+
+
+def build_default_registry(*, knowledge: KnowledgeService | None = None) -> ToolRegistry:
+    """装配默认注册表：5 个金蝶查询工具 + 1 个本地知识检索工具。
+
+    ``knowledge`` 不传时按 Settings 的索引目录构造；索引不存在也注册，
+    调用时返回「知识库没有找到相关文档」，不影响 ERP 查询。
+    """
     registry = ToolRegistry()
     for binding in (
         SAL_ORDER_TOOL,
@@ -178,4 +224,17 @@ def build_default_registry() -> ToolRegistry:
         INVENTORY_TOOL,
     ):
         registry.register(_from_binding(binding))
+
+    service = knowledge or KnowledgeService(index_dir=get_settings().rag_index_dir)
+    registry.register(
+        ToolDefinition(
+            spec=ToolSpec(
+                name=KB_SEARCH_TOOL,
+                description=_KNOWLEDGE_TOOL_DESCRIPTION,
+                parameters=KnowledgeParams.model_json_schema(),
+            ),
+            params_model=KnowledgeParams,
+            runner=service.run,
+        )
+    )
     return registry

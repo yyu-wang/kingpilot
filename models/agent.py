@@ -64,6 +64,14 @@ class AgentTrace(KingPilotBaseModel):
         default=False, description="幻觉是否已通过纠错循环解决（Phase 5）"
     )
 
+    # ── 知识引用（M9-T09）──
+    citations: list[str] = Field(default_factory=list, description="命中分块的引用列表")
+    citation_enforced: bool = Field(default=False, description="是否执行过引用强制校验")
+    citation_no_hit: bool = Field(default=False, description="知识库是否无命中")
+    citation_fallback: bool = Field(
+        default=False, description="LLM 引用不合规时是否走了确定性摘录兜底"
+    )
+
 
 class AgentResponse(KingPilotBaseModel):
     """主循环出口（方案 §2.3）。"""

@@ -155,8 +155,8 @@ def test_missing_required_field_fails(tmp_path: Path) -> None:
 
 def test_migrated_dataset_is_versioned_and_complete() -> None:
     assert DATASET_VERSION == "v1"
-    assert len(QUESTIONS) == 31
-    assert len({q.question_id for q in QUESTIONS}) == 31
+    assert len(QUESTIONS) == 39
+    assert len({q.question_id for q in QUESTIONS}) == 39
 
 
 # ── 指标计算 ──

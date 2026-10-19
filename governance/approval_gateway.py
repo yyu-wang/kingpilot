@@ -44,6 +44,8 @@ class ApprovalGatewayImpl:
             raise ApprovalError("审批工具不存在", code="approval_conflict") from exc
         if tool.action not in _WRITE_ACTIONS:
             raise ApprovalError("审批工具不是写操作", code="approval_conflict")
+        if tool.endpoint is None:
+            raise ApprovalError("审批工具缺少端点描述", code="approval_conflict")
 
         digest = build_idempotency_key(request.user.user_id, call.tool_name, call.arguments)
         approval = await self._approvals.create(

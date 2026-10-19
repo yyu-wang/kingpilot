@@ -96,7 +96,7 @@ def test_chinese_count_mismatch_detected() -> None:
 
 def test_date_percent_and_ordinal_are_skipped() -> None:
     """日期/百分比/序数不属业务事实断言（口径见模块 docstring），不误报。"""
-    response = "在 2026年3月 完成了 30% 的订单，第1笔是 SO000001。"
+    response = "在 2026年3月 完成了 30% 的订单，第1笔是 SO000001，第 2 段是审核说明。"
     result = detect_hallucinations(response, [_orders_execution()])
     assert result.has_hallucination is False
 

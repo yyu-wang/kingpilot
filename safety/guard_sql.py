@@ -175,6 +175,18 @@ class FilterGuard:
                 detail={"tool": context.tool_name, "error_count": len(exc.errors())},
             )
 
+        if tool.is_local:
+            # 本地工具不产生 FilterString（无注入面），Schema 已由 Guard 1 校验
+            return GuardResult.allow(
+                detail={"tool": context.tool_name, "local": True, "skipped": True}
+            )
+
+        if tool.build_filter is None:
+            return GuardResult.block(
+                f"工具缺少过滤条件组装器: {context.tool_name}",
+                detail={"tool": context.tool_name, "branch": "missing_builder"},
+            )
+
         try:
             filter_string = tool.build_filter(params)
         except ValueError as exc:
@@ -194,6 +206,12 @@ class FilterGuard:
             return GuardResult.block(
                 f"过滤条件非法: {exc}",
                 detail={"tool": context.tool_name, "filter_string": filter_string},
+            )
+
+        if tool.endpoint is None:
+            return GuardResult.block(
+                f"工具缺少端点描述，无法校验可过滤字段: {context.tool_name}",
+                detail={"tool": context.tool_name, "branch": "missing_endpoint"},
             )
 
         allowed = tool.endpoint.filterable_fields

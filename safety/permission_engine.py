@@ -122,6 +122,13 @@ class PermissionEngine:
             role_access = self._matrix.get(user.role)
             if role_access is None:
                 continue
+            # 本地只读工具（如 kb_search）不属于任何 ERP 数据域：
+            # 工具层 allow/deny 已判定，角色合法即可下发
+            if tool.is_local:
+                specs.append(tool.spec)
+                continue
+            if tool.endpoint is None:
+                continue
             domain = self._form_domains.get(tool.endpoint.form_id)
             if domain is None:
                 continue
@@ -142,7 +149,7 @@ class PermissionEngine:
     ) -> PermissionDecision:
         """按工具层 → 数据域 → 行级 → 写规则 → 列级顺序判定。"""
         access: AccessType = "read" if tool.tool_type == "query" else "write"
-        form_id = tool.endpoint.form_id
+        form_id = tool.endpoint.form_id if tool.endpoint is not None else ""
 
         # 1) 工具层
         if tool.name in user.deny_tools:
@@ -154,6 +161,10 @@ class PermissionEngine:
         role_access = self._matrix.get(user.role)
         if role_access is None:
             return self._deny(user, tool, None, access, f"未知角色: {user.role}", trace_id=trace_id)
+
+        # 本地只读工具：无数据域/行级/列级概念，工具层与角色校验通过即放行
+        if tool.is_local:
+            return PermissionDecision(allowed=True, access_type="read")
 
         domain = self._form_domains.get(form_id)
         if domain is None:
@@ -263,11 +274,12 @@ class PermissionEngine:
     ) -> tuple[WriteRule | None, tuple[str, ...], str]:
         """返回 (拒绝规则, 审批角色列表, 命中规则 ID)；deny 优先于 escalate。"""
         amount = _as_float(arguments.get("amount"))
+        form_id = tool.endpoint.form_id if tool.endpoint is not None else ""
         matched: list[WriteRule] = []
         for rule in self._write_rules:
             if rule.roles and user.role not in rule.roles:
                 continue
-            if rule.form_ids and tool.endpoint.form_id not in rule.form_ids:
+            if rule.form_ids and form_id not in rule.form_ids:
                 continue
             if rule.actions and tool.action not in rule.actions:
                 continue
@@ -305,7 +317,7 @@ class PermissionEngine:
                     user_role=user.role,
                     ip_address=user.ip_address,
                     action=tool.action,
-                    form_id=tool.endpoint.form_id,
+                    form_id=tool.endpoint.form_id if tool.endpoint is not None else "",
                     tool_name=tool.name,
                     status="rejected",
                     detail={
@@ -321,7 +333,7 @@ class PermissionEngine:
                 "越权尝试 | event=security.denied tool={} form={} domain={} access={} "
                 "user={} role={} reason={}",
                 tool.name,
-                tool.endpoint.form_id,
+                tool.endpoint.form_id if tool.endpoint is not None else "",
                 domain.value if domain is not None else "-",
                 access,
                 user.user_id,

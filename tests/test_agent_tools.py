@@ -16,6 +16,7 @@ from infrastructure.exceptions import ToolError
 from kingdee.client import KingdeeClient
 from kingdee.endpoints.bd_customer import CUSTOMER_TOOL, CustomerParams
 from kingdee.endpoints.sal_order import SAL_ORDER_TOOL, SalesOrderParams
+from models.kingdee import BillQueryResult
 from models.llm import ToolSpec
 from sandbox import sandbox_settings
 from sandbox.kingdee_stub.app import LOGIN_PATH, QUERY_PATH
@@ -32,6 +33,7 @@ EXPECTED_TOOL_NAMES = {
     "kingdee_query_customer",
     "kingdee_query_supplier",
     "kingdee_query_inventory",
+    "kb_search",
 }
 
 
@@ -45,6 +47,7 @@ async def test_execute_returns_typed_rows_and_sends_filter() -> None:
         tool = build_default_registry().get("kingdee_query_sales_order")
         result = await tool.execute(client, {"limit": 5, "document_status": "C"})
 
+    assert isinstance(result, BillQueryResult)
     assert result.row_count == 1
     assert result.rows[0]["FBillNo"] == "SO000001"
     assert result.rows[0]["FBillAllAmount"] == "150000.0000000000"  # 金额字符串原样
@@ -88,11 +91,11 @@ async def test_execute_wraps_filter_rejection_as_tool_error() -> None:
             await tool.execute(client, {"name": "o'reilly"})
 
 
-def test_default_registry_has_five_tools() -> None:
-    """默认注册表含 5 个查询工具，名字集合精确匹配。"""
+def test_default_registry_has_six_tools() -> None:
+    """默认注册表含 5 个 ERP 查询工具 + 1 个本地知识工具。"""
     specs = build_default_registry().all_specs()
     assert {spec.name for spec in specs} == EXPECTED_TOOL_NAMES
-    assert len(specs) == 5
+    assert len(specs) == 6
 
 
 def test_get_unknown_tool_carries_known_list() -> None:

@@ -49,7 +49,12 @@ class LimitGuard:
                 detail={"tool": context.tool_name, "error_count": len(exc.errors())},
             )
 
-        limit = params.limit
+        limit = getattr(params, "limit", None)
+        if not isinstance(limit, int) or isinstance(limit, bool):
+            return GuardResult.block(
+                f"工具参数缺少整数 limit: {context.tool_name}",
+                detail={"tool": context.tool_name, "branch": "missing_limit"},
+            )
         if not 1 <= limit <= _MAX_PAGE_SIZE:
             return GuardResult.block(
                 f"分页参数 limit={limit} 超出允许范围 1~{_MAX_PAGE_SIZE}",
@@ -60,14 +65,22 @@ class LimitGuard:
                 },
             )
 
-        if tool.tool_type != "query":
+        if tool.tool_type != "query" or tool.is_local:
+            # 写/动作工具无查询语义；本地工具（如 kb_search）没有 FilterString
             return GuardResult.allow(
                 detail={
                     "tool": context.tool_name,
                     "tool_type": tool.tool_type,
                     "limit": limit,
                     "condition_present": False,
+                    "local": tool.is_local,
                 }
+            )
+
+        if tool.build_filter is None:
+            return GuardResult.block(
+                f"工具缺少过滤条件组装器，无法校验查询条件: {context.tool_name}",
+                detail={"tool": context.tool_name, "branch": "missing_builder"},
             )
 
         try:

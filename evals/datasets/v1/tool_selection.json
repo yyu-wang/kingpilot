@@ -31,6 +31,14 @@
     {"question_id": "CHAT-01", "question": "你好，你是谁？", "expected_tool": null, "category": "纯聊天"},
     {"question_id": "CHAT-02", "question": "你能帮我做什么？", "expected_tool": null, "category": "纯聊天"},
     {"question_id": "CHAT-03", "question": "今天天气怎么样？", "expected_tool": null, "category": "纯聊天"},
-    {"question_id": "CHAT-04", "question": "谢谢，辛苦了", "expected_tool": null, "category": "纯聊天"}
+    {"question_id": "CHAT-04", "question": "谢谢，辛苦了", "expected_tool": null, "category": "纯聊天"},
+    {"question_id": "KB-01", "question": "销售订单怎么审核？", "expected_tool": "kb_search", "category": "知识库"},
+    {"question_id": "KB-02", "question": "采购订单入库流程是什么？", "expected_tool": "kb_search", "category": "知识库"},
+    {"question_id": "KB-03", "question": "库存盘点的操作步骤是什么？", "expected_tool": "kb_search", "category": "知识库"},
+    {"question_id": "KB-04", "question": "供应商对账制度是怎么规定的？", "expected_tool": "kb_search", "category": "知识库"},
+    {"question_id": "KB-05", "question": "新建销售订单需要哪些步骤？", "expected_tool": "kb_search", "category": "知识库"},
+    {"question_id": "KB-06", "question": "操作手册里关于发货通知单的说明", "expected_tool": "kb_search", "category": "知识库"},
+    {"question_id": "KB-07", "question": "公司的差旅报销流程是什么样的？", "expected_tool": "kb_search", "category": "知识库"},
+    {"question_id": "KB-08", "question": "知识库里有没有关于信用额度管理的说明？", "expected_tool": "kb_search", "category": "知识库"}
   ]
 }

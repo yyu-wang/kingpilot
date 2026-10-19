@@ -16,7 +16,7 @@ import pytest
 from agent.tools import build_default_registry
 from infrastructure.exceptions import KingdeeAPIError
 from kingdee.client import KingdeeClient
-from models.kingdee import BillQueryParams
+from models.kingdee import BillQueryParams, BillQueryResult
 from sandbox import sandbox_settings
 from sandbox.kingdee_stub import reset_sessions
 from scripts.query_sal_orders import run_query
@@ -116,6 +116,7 @@ async def test_tool_execute_sales_order_end_to_end(client: KingdeeClient) -> Non
 
     result = await tool.execute(client, {"limit": 5, "document_status": "C"})
 
+    assert isinstance(result, BillQueryResult)
     assert result.form_id == "SAL_Order"
     assert result.row_count == 5
     assert any(row["FBillNo"] == "SO000001" for row in result.rows)

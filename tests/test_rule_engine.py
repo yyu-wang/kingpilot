@@ -21,6 +21,20 @@ def _match(text: str, available: set[str] | None = None) -> FallbackPlan | None:
     return RuleEngine().match(text, available_tools=available)
 
 
+def test_knowledge_intent_is_not_downgraded_to_erp() -> None:
+    """M9-T09：流程/步骤类知识问题不降级为 ERP 查询。"""
+    assert _match("销售订单审核流程是什么？") is None
+    assert _match("库存盘点的操作步骤") is None
+
+
+def test_explicit_business_code_still_matches() -> None:
+    """有显式单据编码时，即使带「说明」也仍按 ERP 查询。"""
+    result = _match("查一下 SO000008 的订单说明")
+
+    assert result is not None
+    assert result.plan.tool_calls[0].tool_name == SALES_ORDER_TOOL
+
+
 def test_sales_order_by_bill_no() -> None:
     result = _match("查销售订单 SO000008")
 

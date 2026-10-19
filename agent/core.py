@@ -23,10 +23,12 @@ import time
 from collections.abc import Sequence
 
 from loguru import logger
+from pydantic import ValidationError
 
 from agent.entity_extractor import extract_entities
 from agent.events import AgentEvent, AgentEventSink, EventStatus
 from agent.hallucination import detect_hallucinations
+from agent.knowledge import KB_SEARCH_TOOL
 from agent.llm import LLMProvider, TokenUsageSink
 from agent.memory import MemoryStore, render_raw_for_llm
 from agent.memory_compressor import maybe_compress
@@ -34,11 +36,13 @@ from agent.reflection import observation_messages, reflect_step, should_reflect
 from agent.rule_engine import RuleEngine
 from agent.tools import ToolRegistry
 from config.settings import Settings
+from governance.rag.answer import enforce_citations, render_knowledge_fallback
 from governance.semantic_cache import SemanticCache, build_cache_key, is_cacheable_plan
 from infrastructure.exceptions import KingPilotError, LLMUnavailableError, TraceStoreError
 from kingdee.client import KingdeeClient
 from models.agent import AgentResponse, AgentTrace
 from models.audit import AuditEvent
+from models.kingdee import BillQueryResult
 from models.llm import (
     ExecutionSummary,
     LLMContext,
@@ -48,6 +52,7 @@ from models.llm import (
     ReflectionResult,
     ToolSpec,
 )
+from models.rag import KnowledgeSearchResult
 from models.tool import ToolExecution
 from models.user import UserContext
 from observability.audit import AuditLogger
@@ -287,6 +292,7 @@ class AgentCore:
             self._phase("generate", "error")
             return self._finish_fallback(trace, started, user_input)
         self._phase("generate", "success")
+        self._phase4_citation(trace)
         self._phase5_hallucination(trace)
         self._phase6_finalize(trace, started, user_input)
         return AgentResponse(
@@ -448,6 +454,9 @@ class AgentCore:
             detail = _UNAVAILABLE_MESSAGE
         content = f"{_FALLBACK_NOTICE}\n{detail}"
         trace.final_response = content
+        # 降级路径同样强制引用/无命中兜底，避免绕开知识安全策略
+        self._phase4_citation(trace)
+        content = trace.final_response
         self._phase6_finalize(trace, started, user_input)
         return AgentResponse(
             content=content,
@@ -534,12 +543,14 @@ class AgentCore:
             else:
                 result = await tool.execute(self._client, arguments)
             payload = result.model_dump()
-            rows = result.rows
-            if call.denied_fields:
-                # 列级权限：结果出口统一剔除禁用字段（M4-T08）
-                rows = apply_column_filter(rows, call.denied_fields)
-            # 数据安全：敏感字段在进入 Trace / LLM / 记忆前统一脱敏（M7-T01）
-            payload["rows"] = redact_rows(rows)
+            # ERP 结果才做列级权限与字段脱敏；知识库结果不含 ERP 字段
+            if isinstance(result, BillQueryResult):
+                rows = result.rows
+                if call.denied_fields:
+                    # 列级权限：结果出口统一剔除禁用字段（M4-T08）
+                    rows = apply_column_filter(rows, call.denied_fields)
+                # 数据安全：敏感字段在进入 Trace / LLM / 记忆前统一脱敏（M7-T01）
+                payload["rows"] = redact_rows(rows)
             execution.result = payload
         except KingPilotError as exc:
             execution.error = str(exc)
@@ -574,6 +585,22 @@ class AgentCore:
         """答复生成：用全部累积的工具执行记录生成自然语言答复。"""
         summary = ExecutionSummary(tool_executions=trace.tool_executions, needs_more_steps=False)
         trace.final_response = await self._provider.generate_response(context, summary, snapshot)
+
+    # ── Phase 4.5：知识引用强制（M9-T09）──
+
+    def _phase4_citation(self, trace: AgentTrace) -> None:
+        """有 kb_search 结果时强制引用：无命中覆盖、引用不合规走原文摘录。"""
+        result = _latest_knowledge_result(trace)
+        if result is None:
+            return
+        citation = enforce_citations(trace.final_response, result)
+        trace.final_response = citation.content
+        trace.citations = citation.citations
+        trace.citation_enforced = True
+        trace.citation_no_hit = citation.no_hit
+        trace.citation_fallback = citation.fallback_used
+        if citation.no_hit:
+            logger.info("知识库无命中，已返回固定兜底文案 | trace_id={}", trace.trace_id)
 
     # ── Phase 5：幻觉检测（M3-T06；纠错闭环归 M4）──
 
@@ -649,6 +676,12 @@ def render_fallback_response(executions: Sequence[ToolExecution]) -> str:
             parts.append(f"工具 {execution.tool_name} 执行失败：{execution.error}")
             continue
 
+        if execution.tool_name == KB_SEARCH_TOOL:
+            knowledge = _knowledge_from_dict(execution.result)
+            if knowledge is not None:
+                parts.append(render_knowledge_fallback(knowledge))
+                continue
+
         result = execution.result if isinstance(execution.result, dict) else {}
         rows = result.get("rows")
         rows = rows if isinstance(rows, list) else []
@@ -670,3 +703,24 @@ def render_fallback_response(executions: Sequence[ToolExecution]) -> str:
             parts.append(f"...（仅显示前 {_FALLBACK_MAX_ROWS} 条）")
 
     return "\n".join(parts)
+
+
+def _latest_knowledge_result(trace: AgentTrace) -> KnowledgeSearchResult | None:
+    """取最近一条成功的 kb_search 结果（跳过失败/坏结构）。"""
+    for execution in reversed(trace.tool_executions):
+        if execution.tool_name != KB_SEARCH_TOOL or execution.error is not None:
+            continue
+        result = _knowledge_from_dict(execution.result)
+        if result is not None:
+            return result
+    return None
+
+
+def _knowledge_from_dict(payload: object) -> KnowledgeSearchResult | None:
+    """把 ToolExecution.result 还原为知识检索结果；结构不符返回 None。"""
+    if not isinstance(payload, dict):
+        return None
+    try:
+        return KnowledgeSearchResult.model_validate(payload)
+    except ValidationError:
+        return None

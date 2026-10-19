@@ -62,6 +62,10 @@ _WRITE_KEYWORDS = (
 )
 _READ_STATUS_WORDS = ("已审核", "未审核", "待审核", "审核中", "重新审核")
 
+# 知识意图关键词（M9-T09）：LLM 宕机时不要把「怎么做/流程/规范」误降级成 ERP 查询
+_KNOWLEDGE_KEYWORDS = ("怎么", "如何", "流程", "规范", "手册", "制度", "步骤", "说明")
+_BUSINESS_CODE_RE = re.compile(r"\b(?:SO|CUS|SUP|MAT)\d+\b", re.IGNORECASE)
+
 
 @dataclass(frozen=True)
 class FallbackPlan:
@@ -83,6 +87,9 @@ class RuleEngine:
         """匹配只读查询；无匹配或写意图返回 None。"""
         text = user_input.strip()
         if not text or _is_write_intent(text):
+            return None
+        if _is_knowledge_intent(text):
+            # 知识问题交给 kb_search；LLM 不可用时宁可不答，也不误查 ERP
             return None
 
         is_purchase = "采购" in text
@@ -195,3 +202,10 @@ def _is_write_intent(text: str) -> bool:
         return True
     # “审核”只有在不是查询状态词时才视为写操作
     return "审核" in text and not any(word in text for word in _READ_STATUS_WORDS)
+
+
+def _is_knowledge_intent(text: str) -> bool:
+    """知识意图：有「怎么做/流程/规范…」且没有显式业务编码。"""
+    if _BUSINESS_CODE_RE.search(text):
+        return False
+    return any(keyword in text for keyword in _KNOWLEDGE_KEYWORDS)
