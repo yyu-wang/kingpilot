@@ -27,13 +27,16 @@ import httpx
 from agent.llm import TokenUsageSink
 from config.model_registry import MODEL_REGISTRY, ModelRoute
 from config.settings import Settings
+from governance.budget import BudgetPolicy
 from governance.prompt_registry import PromptRegistry
 from infrastructure.exceptions import (
     LLMError,
     LLMRateLimitError,
     LLMResponseError,
     LLMUnavailableError,
+    SecretError,
 )
+from infrastructure.secrets import SecretName, SecretProvider, build_secret_provider
 from models.llm import (
     ExecutionSummary,
     LLMContext,
@@ -84,19 +87,24 @@ class OpenAICompatibleProvider:
         usage_sink: TokenUsageSink | None = None,
         prompts: PromptRegistry | None = None,
         rollout_key: str = "",
+        secrets: SecretProvider | None = None,
     ) -> None:
         self._route = route or self._resolve_route(settings)
         self._usage_sink = usage_sink
         # None = 使用内置 Prompt 常量（兼容旧入口）；注入后按版本/灰度取文本
         self._prompts = prompts
         self._rollout_key = rollout_key
-        # fail-fast：密钥缺失在构造期报错，不等第一次调用才发现（配置错误应尽早暴露）
-        self._api_key = settings.llm_api_key.get_secret_value()
-        if not self._api_key:
+        # 密钥按请求获取（M9-T10）：构造期只校验非空，不缓存值，
+        # 轮换后下一次 plan/reflect/generate 自动使用新 key
+        self._secrets = secrets or build_secret_provider(settings)
+        try:
+            self._secrets.get_required(SecretName.LLM_API_KEY)
+        except SecretError as exc:
+            # 保持既有错误语义（LLM 配置错误），不把 Provider 细节暴露给上层
             raise LLMError(
                 "LLM API 密钥未配置",
                 context={"route": self._route.name, "hint": "KINGPILOT_LLM_API_KEY"},
-            )
+            ) from exc
         self._temperature = settings.llm_temperature
         self._owns_http = http is None
         self._http = http or httpx.AsyncClient(timeout=httpx.Timeout(self._route.timeout_seconds))
@@ -242,8 +250,16 @@ class OpenAICompatibleProvider:
             ]
         url = self._route.base_url.rstrip("/") + _CHAT_COMPLETIONS_PATH
         try:
+            api_key = self._secrets.get_required(SecretName.LLM_API_KEY).get_secret_value()
+        except SecretError as exc:
+            # 运行期密钥不可用（被删除/轮换失败）→ 确定性配置错误，不触发降级
+            raise LLMError(
+                "LLM 密钥不可用",
+                context={"route": self._route.name, "code": exc.code},
+            ) from exc
+        try:
             resp = await self._http.post(
-                url, json=payload, headers={"Authorization": f"Bearer {self._api_key}"}
+                url, json=payload, headers={"Authorization": f"Bearer {api_key}"}
             )
         except httpx.TimeoutException as exc:
             raise LLMUnavailableError("LLM 请求超时", context={"route": self._route.name}) from exc
@@ -338,6 +354,8 @@ def get_provider(
     prompts: PromptRegistry | None = None,
     rollout_key: str = "",
     cost_engine: CostEngine | None = None,
+    secrets: SecretProvider | None = None,
+    budget: BudgetPolicy | None = None,
 ) -> OpenAICompatibleProvider | RoutingProvider:
     """工厂：自动路由走档位选择，显式路由固定单 Provider。
 
@@ -359,6 +377,8 @@ def get_provider(
             prompts=prompts,
             rollout_key=rollout_key,
             cost_engine=cost_engine,
+            secrets=secrets,
+            budget=budget,
         )
 
     route = MODEL_REGISTRY.get(settings.llm_route)
@@ -377,4 +397,5 @@ def get_provider(
         usage_sink=sink,
         prompts=prompts,
         rollout_key=rollout_key,
+        secrets=secrets,
     )

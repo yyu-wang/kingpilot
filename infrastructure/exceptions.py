@@ -168,3 +168,27 @@ class RagError(KingPilotError):
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message, context={"code": code})
         self.code = code
+
+
+class SecretError(KingPilotError):
+    """密钥读取异常（M9-T10）：缺失/不可用/结构非法/文件权限过宽。
+
+    ``code`` 供调用方分支；消息与 context **只含逻辑名与错误码**，
+    永不携带密钥值或 Vault token。
+    """
+
+    def __init__(self, message: str, *, code: str, secret: str = "") -> None:
+        super().__init__(message, context={"code": code, "secret": secret})
+        self.code = code
+        self.secret = secret
+
+
+class TenantError(KingPilotError):
+    """租户隔离异常（M9-T11）：租户 ID 非法/缺失/跨租户访问。
+
+    ``code`` 供 API 层映射 403/404；消息不暴露资源是否存在。
+    """
+
+    def __init__(self, message: str, *, code: str) -> None:
+        super().__init__(message, context={"code": code})
+        self.code = code

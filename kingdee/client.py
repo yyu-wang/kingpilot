@@ -27,6 +27,7 @@ import httpx
 
 from config.settings import Settings
 from infrastructure.exceptions import KingdeeAPIError, KingdeeAuthError, KingdeeRateLimitError
+from infrastructure.secrets import SecretProvider
 from kingdee.auth import KingdeeAuth
 from models.kingdee import BillQueryParams, BillQueryResult, extract_response_status, rows_to_dicts
 
@@ -76,11 +77,12 @@ class KingdeeClient:
         clock: Callable[[], float] = time.time,
         jitter: Callable[[float], float] | None = None,
         sleep: Callable[[float], Coroutine[Any, Any, None]] | None = None,
+        secrets: SecretProvider | None = None,
     ) -> None:
         self._settings = settings
         self._owns_http = http is None
         self._http = http or httpx.AsyncClient(timeout=settings.kingdee_timeout_seconds)
-        self._auth = KingdeeAuth(settings, self._http, clock=clock)
+        self._auth = KingdeeAuth(settings, self._http, clock=clock, secrets=secrets)
         self._semaphore = asyncio.Semaphore(settings.kingdee_max_concurrency)
         self._jitter = jitter or (lambda delay: random.uniform(0, delay))
         self._sleep = sleep or asyncio.sleep

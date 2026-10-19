@@ -35,6 +35,8 @@ def _sandbox_settings(server_url: str) -> Settings:
             "kingdee_app_id": SANDBOX_APP_ID,
             "kingdee_app_secret": SecretStr(SANDBOX_APP_SECRET),
             "kingdee_timeout_seconds": 5.0,
+            # 沙箱凭证必须走 env，避免 file/vault 覆盖成真实环境密钥
+            "secret_provider": "env",
         }
     )
 

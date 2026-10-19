@@ -189,6 +189,26 @@ class Settings(BaseSettings):
         description="RAG 索引目录（index.json）",
     )
 
+    # ── 密钥来源（M9-T10）──
+    secret_provider: Literal["env", "file", "vault"] = Field(
+        default="env", description="密钥来源：env / file / vault"
+    )
+    secret_cache_ttl_seconds: int = Field(
+        default=60, ge=1, description="文件/Vault 密钥缓存 TTL（秒）"
+    )
+    secret_file_path: Path = Field(
+        default=Path.home() / ".kingpilot" / "secrets.json",
+        description="文件密钥路径（JSON，权限必须 0600）",
+    )
+    vault_url: str = Field(default="", description="Vault 地址，如 https://vault.example.com")
+    vault_token: SecretStr = Field(default=SecretStr(""), description="Vault Token（永不入日志）")
+    vault_mount: str = Field(default="secret", description="Vault KV v2 mount")
+    vault_path: str = Field(default="kingpilot", description="Vault KV v2 path")
+    vault_timeout_seconds: float = Field(default=3.0, gt=0, description="Vault 请求超时（秒）")
+    vault_allow_fallback: bool = Field(
+        default=False, description="Vault 不可用时是否回退环境变量（默认失败）"
+    )
+
     @property
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""

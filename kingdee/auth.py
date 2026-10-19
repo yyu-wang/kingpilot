@@ -18,7 +18,8 @@ import httpx
 from loguru import logger
 
 from config.settings import Settings
-from infrastructure.exceptions import KingdeeAuthError
+from infrastructure.exceptions import KingdeeAuthError, SecretError
+from infrastructure.secrets import SecretName, SecretProvider, build_secret_provider
 from models.kingdee import LoginResult
 
 # 协议固定值（非环境配置，故不放 config/settings）：
@@ -46,11 +47,14 @@ class KingdeeAuth:
         *,
         clock: Callable[[], float] = time.time,
         session_ttl: float = _DEFAULT_SESSION_TTL,
+        secrets: SecretProvider | None = None,
     ) -> None:
         self._settings = settings
         self._http = http
         self._clock = clock
         self._session_ttl = session_ttl
+        # M9-T10：app_secret 按登录获取，重登即可用新密钥
+        self._secrets = secrets or build_secret_provider(settings)
         self._expires_at = 0.0  # 0 = 从未登录，必然触发首次登录
         self._refresh_lock = asyncio.Lock()
 
@@ -92,7 +96,7 @@ class KingdeeAuth:
             self._settings.kingdee_acct_id,
             self._settings.kingdee_user,
             self._settings.kingdee_app_id,
-            self._settings.kingdee_app_secret.get_secret_value(),
+            self._secrets.get_required(SecretName.KINGDEE_APP_SECRET).get_secret_value(),
             str(timestamp),
         ]
         digest = hashlib.sha256("".join(sorted(parts)).encode("utf-8")).hexdigest()
@@ -116,7 +120,10 @@ class KingdeeAuth:
             )
             if not value
         ]
-        if not s.kingdee_app_secret.get_secret_value():
+        try:
+            self._secrets.get_required(SecretName.KINGDEE_APP_SECRET)
+        except SecretError:
+            # 统一归一为凭证缺失，异常消息不携带 Provider 细节与密钥
             missing.append("kingdee_app_secret")
         if missing:
             raise KingdeeAuthError(

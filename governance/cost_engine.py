@@ -29,6 +29,7 @@ from config.settings import Settings
 from governance.budget import BudgetDecision, BudgetPolicy
 from governance.prompt_registry import PromptRegistry
 from infrastructure.exceptions import BudgetExceededError, LLMError
+from infrastructure.secrets import SecretProvider
 from models.audit import AuditEvent
 from models.llm import (
     ExecutionSummary,
@@ -172,6 +173,7 @@ class RoutingProvider:
         rollout_key: str = "",
         routes: Mapping[str, ModelRoute] = MODEL_REGISTRY,
         routing: Mapping[ModelTier, str] | None = None,
+        secrets: SecretProvider | None = None,
     ) -> None:
         self._settings = settings
         self._tier = _validate_tier(tier or settings.llm_tier)
@@ -189,6 +191,8 @@ class RoutingProvider:
         # Prompt 版本/灰度由底层 Provider 消费；None = 内置常量（M8-T04）
         self._prompts = prompts
         self._rollout_key = rollout_key
+        # M9-T10：与底层 Provider 共享同一个密钥入口，轮换对全部档位生效
+        self._secrets = secrets
         self._providers: dict[ModelTier, OpenAICompatibleProvider] = {}
 
     @property
@@ -233,6 +237,7 @@ class RoutingProvider:
             usage_sink=self._make_usage_sink(route),
             prompts=self._prompts,
             rollout_key=self._rollout_key,
+            secrets=self._secrets,
         )
         self._providers[tier] = provider
         return provider
