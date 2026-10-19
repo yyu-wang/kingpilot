@@ -1,7 +1,8 @@
-"""Tool 选对率评测脚本（M2-T05）：固定 31 题批量跑 plan，输出选对率报告。
+"""Tool 选对率评测脚本（M8-T01：统一评测框架的薄入口）。
 
 只评 LLM 选工具这一步（provider.plan），不执行工具、不连金蝶沙箱；
-验收线选对率 > 90%（Step 2 验收标准），判定口径见 evals/runner.py。
+判定口径与指标计算见 ``governance/evaluation/offline_eval.py``。
+验收线选对率 > 90%（Step 2 验收标准）。
 
 用法：
     make eval                        # 用 .env 当前路由（报告头会显式打印模型路由）
@@ -16,13 +17,20 @@ import argparse
 import asyncio
 import json
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from agent.providers import get_provider
 from agent.tools import build_default_registry
 from config.settings import get_settings
-from evals.dataset import QUESTIONS
-from evals.runner import EvaluationReport, QuestionVerdict, run_evaluation
+from evals.dataset import DATASET_VERSION, QUESTIONS
+from governance.cost_engine import RoutingProvider
+from governance.evaluation.offline_eval import (
+    EvaluationReport,
+    QuestionVerdict,
+    report_to_dict,
+    run_evaluation,
+)
 
 # Step 2 验收标准：选对率 > 90%；未达标脚本以非零码退出（未来 CI 门禁直接可用）
 _ACCURACY_THRESHOLD = 0.9
@@ -56,7 +64,10 @@ def _print_verdict(v: QuestionVerdict) -> None:
 def _render(report: EvaluationReport, route_label: str) -> None:
     """控制台明细 + 汇总（纯 print 对齐，不引渲染依赖）。"""
     print("=" * 72)
-    print(f"KingPilot M2-T05 Tool 选对率评测 | {route_label} | 问题数 {len(QUESTIONS)}")
+    print(
+        f"KingPilot Tool 选对率评测 | {route_label} | "
+        f"数据集 {DATASET_VERSION} | 问题数 {len(QUESTIONS)}"
+    )
     print("=" * 72)
     for v in report.verdicts:
         _print_verdict(v)
@@ -68,29 +79,12 @@ def _render(report: EvaluationReport, route_label: str) -> None:
         f"总计: {len(QUESTIONS)} 题 | 计分 {report.scored_count} | 错误 {report.error_count}（不计分母）"
     )
     print(f"选对率: {report.accuracy:.1%}  (阈值 {_ACCURACY_THRESHOLD:.0%})")
+    print(f"平均延迟: {report.avg_latency_ms:.1f} ms | 平均成本: ${report.avg_cost_usd:.6f}")
 
 
-def _dump_json(report: EvaluationReport, output: str) -> None:
-    """报告落盘（--output 指定路径时），明细全量可回放。"""
-    payload = {
-        "accuracy": report.accuracy,
-        "scored_count": report.scored_count,
-        "error_count": report.error_count,
-        "per_tool": report.per_tool,
-        "questions": [
-            {
-                "id": v.question.question_id,
-                "question": v.question.question,
-                "expected": v.question.expected_tool,
-                "actual": v.actual_tool,
-                "passed": v.passed,
-                "params_valid": v.params_valid,
-                "is_error": v.is_error,
-                "error": v.error_message,
-            }
-            for v in report.verdicts
-        ],
-    }
+def _dump_json(report: EvaluationReport, output: str, route_label: str) -> None:
+    """报告落盘（--output 指定路径时），明细与指标全量可回放。"""
+    payload = report_to_dict(report, route_label=route_label)
     Path(output).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"报告已写入 {output}")
 
@@ -101,15 +95,28 @@ async def main() -> int:
     if args.route:
         settings = settings.model_copy(update={"llm_route": args.route})
     provider = get_provider(settings)
+    # 自动路由（RoutingProvider）时把成本账本作为探针，报告可给出单题成本
+    cost_probe: Callable[[], float] | None = None
+    if isinstance(provider, RoutingProvider):
+        cost_probe = lambda: provider.cost_engine.total_cost_usd  # noqa: E731
     try:
-        report = await run_evaluation(provider, QUESTIONS, build_default_registry())
+        report = await run_evaluation(
+            provider,
+            QUESTIONS,
+            build_default_registry(),
+            dataset_version=DATASET_VERSION,
+            cost_probe=cost_probe,
+        )
     finally:
         await provider.aclose()
 
-    route_label = f"route={settings.llm_route} temp={settings.llm_temperature}"
+    route_label = (
+        f"route={settings.llm_route or 'auto'} tier={settings.llm_tier} "
+        f"temp={settings.llm_temperature}"
+    )
     _render(report, route_label)
     if args.output:
-        _dump_json(report, args.output)
+        _dump_json(report, args.output, route_label)
     return 0 if report.accuracy > _ACCURACY_THRESHOLD else 1
 
 
