@@ -21,6 +21,10 @@ AuditEventType = Literal[
     "dlp.blocked",
     "budget.downgraded",
     "budget.exhausted",
+    "approval.requested",
+    "approval.approved",
+    "approval.rejected",
+    "approval.expired",
 ]
 
 AuditStatus = Literal["success", "failed", "blocked", "rejected", "rolled_back"]

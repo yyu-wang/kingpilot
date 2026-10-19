@@ -157,6 +157,13 @@ class Settings(BaseSettings):
         description="死信目录（每条失败事务一个 JSON 文件）",
     )
 
+    # ── 审批中心（M9-T04）──
+    approval_store_dir: Path = Field(
+        default=Path.home() / ".kingpilot" / "approvals",
+        description="审批单目录（一单一个 JSON，0600）",
+    )
+    approval_ttl_seconds: int = Field(default=1800, gt=0, description="待审批动作有效期（秒）")
+
     @property
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""

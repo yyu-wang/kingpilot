@@ -135,3 +135,14 @@ class ApiKeyConfigError(KingPilotError):
 
     fail-closed：配置错误必须在启动期暴露，不能等到请求时才 401。
     """
+
+
+class ApprovalError(KingPilotError):
+    """审批单异常（M9-T04）：不存在/越权/状态冲突/过期/落盘失败。
+
+    ``code`` 供 API 层映射 HTTP 状态；消息本身不含敏感参数。
+    """
+
+    def __init__(self, message: str, *, code: str) -> None:
+        super().__init__(message, context={"code": code})
+        self.code = code

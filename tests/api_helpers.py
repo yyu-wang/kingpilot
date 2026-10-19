@@ -37,6 +37,7 @@ def api_settings(
             "session_store_dir": tmp_path / "sessions",
             "trace_store_dir": tmp_path / "traces",
             "audit_log_path": tmp_path / "audit.jsonl",
+            "approval_store_dir": tmp_path / "approvals",
             "online_sample_rate": 0.0,
         }
     )

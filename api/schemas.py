@@ -4,10 +4,12 @@
 统一继承 ``KingPilotBaseModel``：``extra="forbid"``，未知字段直接 422。
 """
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import Field
 
+from models.approval import ApprovalDecisionType, ApprovalStatus
 from models.base import KingPilotBaseModel
 
 
@@ -83,6 +85,51 @@ class TraceView(KingPilotBaseModel):
     user_input: str = ""
     final_response: str = ""
     report_text: str = ""
+
+
+class ApprovalDecisionView(KingPilotBaseModel):
+    """一条审批意见。"""
+
+    approver_id: str
+    decision: ApprovalDecisionType
+    comment: str = ""
+    decided_at: datetime
+
+
+class ApprovalView(KingPilotBaseModel):
+    """审批单视图（不包含 arguments / idempotency_key）。"""
+
+    approval_id: str
+    trace_id: str
+    session_id: str = ""
+    requester_id: str
+    requester_role: str
+    tool_name: str
+    summary: str = ""
+    form_id: str = ""
+    business_key: str = ""
+    risk_score: float = 0.0
+    risk_level: str = ""
+    required_approvers: list[str] = Field(default_factory=list)
+    required_approvals: int
+    status: ApprovalStatus
+    decisions: list[ApprovalDecisionView] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+    expires_at: datetime
+    can_decide: bool = False
+
+
+class ApprovalListResponse(KingPilotBaseModel):
+    """审批单列表。"""
+
+    approvals: list[ApprovalView] = Field(default_factory=list)
+
+
+class ApprovalActionRequest(KingPilotBaseModel):
+    """通过/拒绝请求体。"""
+
+    comment: str = Field(default="", max_length=500, description="审批意见（可空）")
 
 
 class HealthResponse(KingPilotBaseModel):

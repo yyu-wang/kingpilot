@@ -23,6 +23,7 @@ from agent.tools import ToolRegistry
 from api.auth import ApiKeyDirectory
 from api.errors import ApiError
 from config.settings import Settings
+from governance.approval import ApprovalService
 from governance.online_sampler import OnlineSampler
 from kingdee.client import KingdeeClient
 from models.user import UserContext
@@ -72,6 +73,7 @@ class AppDeps:
     sampler: OnlineSampler | None
     api_keys: ApiKeyDirectory
     session_root: Path
+    approvals: ApprovalService
     locks: SessionLocks = field(default_factory=SessionLocks)
 
     def store_for(self, user_id: str) -> SessionStore:

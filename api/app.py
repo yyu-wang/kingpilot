@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from agent.llm import LLMProvider
 from agent.providers import get_provider
 from agent.tools import build_default_registry
+from api.approvals import router as approvals_router
 from api.auth import ApiKeyDirectory
 from api.console import mount_console, security_headers
 from api.deps import AppDeps, DenyConfirmationIO
@@ -22,6 +23,7 @@ from api.routes import router
 from api.streaming import router as streaming_router
 from api.traces import router as traces_router
 from config.settings import Settings, get_settings
+from governance.approval import ApprovalService, FileApprovalStore
 from governance.online_sampler import OnlineSampler
 from governance.prompt_registry import PromptRegistry
 from infrastructure.logger import setup_logging
@@ -57,6 +59,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         registry = build_default_registry()
         safety = SafetyLayer(registry, client, DenyConfirmationIO(), audit=audit)
+        approvals = ApprovalService(
+            FileApprovalStore(settings.approval_store_dir),
+            audit=audit,
+            ttl_seconds=settings.approval_ttl_seconds,
+        )
         sampler = (
             OnlineSampler(
                 settings.online_sample_dir,
@@ -78,6 +85,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             sampler=sampler,
             api_keys=ApiKeyDirectory.from_settings(settings),
             session_root=settings.session_store_dir,
+            approvals=approvals,
         )
         yield
 
@@ -99,5 +107,6 @@ def create_app(
     app.include_router(router)
     app.include_router(streaming_router)
     app.include_router(traces_router)
+    app.include_router(approvals_router)
     mount_console(app)
     return app
