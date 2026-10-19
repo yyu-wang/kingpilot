@@ -43,6 +43,48 @@ class SessionListResponse(KingPilotBaseModel):
     sessions: list[SessionSummary] = Field(default_factory=list)
 
 
+class MessageView(KingPilotBaseModel):
+    """会话历史中的一条消息（只含对话文本，不含工具原始结果）。"""
+
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class SessionMessagesResponse(KingPilotBaseModel):
+    """会话历史响应。"""
+
+    session_id: str
+    messages: list[MessageView] = Field(default_factory=list)
+
+
+class TraceSummary(KingPilotBaseModel):
+    """Trace 列表条目。"""
+
+    trace_id: str
+    session_id: str = ""
+    user_input: str = ""
+    used_fallback: bool = False
+    total_latency_ms: float = 0.0
+    saved_at: str = ""
+
+
+class TraceListResponse(KingPilotBaseModel):
+    """当前用户的 Trace 列表。"""
+
+    traces: list[TraceSummary] = Field(default_factory=list)
+
+
+class TraceView(KingPilotBaseModel):
+    """单条 Trace 的脱敏视图（不返回原始 tool_executions）。"""
+
+    trace_id: str
+    session_id: str = ""
+    user_id: str = ""
+    user_input: str = ""
+    final_response: str = ""
+    report_text: str = ""
+
+
 class HealthResponse(KingPilotBaseModel):
     """健康检查响应（不含环境/版本等可被侦察的信息）。"""
 

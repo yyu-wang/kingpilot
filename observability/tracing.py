@@ -23,6 +23,7 @@ from loguru import logger
 
 from infrastructure.exceptions import TraceStoreError
 from models.agent import AgentTrace
+from safety.datasecurity import redact_text
 
 _SCHEMA_VERSION = 1
 _TRACE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
@@ -33,13 +34,15 @@ _MAX_RESPONSE_CHARS = 1000
 
 @dataclass(frozen=True)
 class TraceInfo:
-    """Trace 列表条目。"""
+    """Trace 列表条目（含归属字段，供 API 按用户/会话过滤）。"""
 
     trace_id: str
     user_input: str
     used_fallback: bool
     total_latency_ms: float
     saved_at: str
+    user_id: str = ""
+    session_id: str = ""
 
 
 class TraceStore:
@@ -116,10 +119,12 @@ class TraceStore:
             infos.append(
                 TraceInfo(
                     trace_id=str(trace.trace_id),
-                    user_input=trace.user_input,
+                    user_input=redact_text(trace.user_input),
                     used_fallback=trace.used_fallback,
                     total_latency_ms=trace.total_latency_ms,
                     saved_at=saved_at,
+                    user_id=trace.user_id,
+                    session_id=trace.session_id,
                 )
             )
         return sorted(infos, key=lambda info: info.saved_at, reverse=True)
