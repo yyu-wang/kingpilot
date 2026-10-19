@@ -146,3 +146,14 @@ class ApprovalError(KingPilotError):
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message, context={"code": code})
         self.code = code
+
+
+class BadcaseError(KingPilotError):
+    """Badcase 处理台异常（M9-T07）：不存在/非法/敏感/重复/数据集冲突/落盘失败。
+
+    ``code`` 供 API 层映射 HTTP 状态；消息本身不含问题原文与敏感值。
+    """
+
+    def __init__(self, message: str, *, code: str) -> None:
+        super().__init__(message, context={"code": code})
+        self.code = code

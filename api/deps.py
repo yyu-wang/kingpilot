@@ -25,6 +25,7 @@ from api.errors import ApiError
 from config.settings import Settings
 from governance.approval import ApprovalService
 from governance.approval_executor import ApprovalExecution
+from governance.badcase import BadcaseService
 from governance.dashboard import DashboardService
 from governance.online_sampler import OnlineSampler
 from kingdee.client import KingdeeClient
@@ -78,6 +79,7 @@ class AppDeps:
     approvals: ApprovalService
     approval_execution: ApprovalExecution
     dashboard: DashboardService
+    badcases: BadcaseService
     locks: SessionLocks = field(default_factory=SessionLocks)
 
     def store_for(self, user_id: str) -> SessionStore:

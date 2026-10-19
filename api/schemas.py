@@ -10,6 +10,7 @@ from typing import Literal
 from pydantic import Field
 
 from models.approval import ApprovalDecisionType, ApprovalStatus
+from models.badcase import BadcaseStatus
 from models.base import KingPilotBaseModel
 
 
@@ -135,6 +136,50 @@ class ApprovalActionRequest(KingPilotBaseModel):
     """通过/拒绝请求体。"""
 
     comment: str = Field(default="", max_length=500, description="审批意见（可空）")
+
+
+class BadcaseMarkRequest(KingPilotBaseModel):
+    """标记 Badcase 请求体。
+
+    ``expected_tool`` 必填且可为 null：null 表示期望纯聊天、不调用工具；
+    不提供默认值，避免“漏填被当成纯聊天”污染评测集。
+    """
+
+    trace_id: str = Field(min_length=1, max_length=64, description="来源 Trace ID")
+    expected_tool: str | None = Field(description="期望工具；null 表示期望纯聊天")
+    reason: str = Field(description="标记原因（1~500 字符）")
+    category: str = Field(default="badcase", description="分类（人工可读）")
+    expected_behavior: str = Field(default="", description="期望行为说明（可选）")
+
+
+class BadcaseExportRequest(KingPilotBaseModel):
+    """导出到评测集请求体。"""
+
+    dataset_version: str = Field(default="v1", description="目标数据集版本")
+
+
+class BadcaseView(KingPilotBaseModel):
+    """Badcase 视图（只含脱敏后的问题与人工说明）。"""
+
+    badcase_id: str
+    trace_id: str
+    question: str
+    expected_tool: str | None
+    expected_behavior: str = ""
+    category: str
+    reason: str
+    status: BadcaseStatus
+    created_by: str
+    created_at: datetime
+    exported_dataset: str = ""
+    exported_question_id: str = ""
+    exported_at: datetime | None = None
+
+
+class BadcaseListResponse(KingPilotBaseModel):
+    """Badcase 列表。"""
+
+    badcases: list[BadcaseView] = Field(default_factory=list)
 
 
 class HealthResponse(KingPilotBaseModel):

@@ -16,6 +16,7 @@ from agent.providers import get_provider
 from agent.tools import ToolRegistry, build_default_registry
 from api.approvals import router as approvals_router
 from api.auth import ApiKeyDirectory
+from api.badcases import router as badcases_router
 from api.console import mount_console, security_headers
 from api.dashboard import router as dashboard_router
 from api.deps import AppDeps, DenyConfirmationIO
@@ -32,6 +33,7 @@ from governance.approval_executor import (
     RegistryToolExecutor,
 )
 from governance.approval_gateway import ApprovalGatewayImpl
+from governance.badcase import BadcaseService, FileBadcaseStore
 from governance.cost_engine import CostEngine, CostRecord
 from governance.dashboard import DashboardService
 from governance.online_sampler import OnlineSampler
@@ -132,6 +134,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             ledger,
             timezone=settings.dashboard_timezone,
         )
+        badcases = BadcaseService(
+            FileBadcaseStore(settings.badcase_store_dir),
+            trace_store=trace_store,
+            tools=registry,
+            dataset_root=settings.eval_dataset_dir,
+            audit=audit,
+        )
         sampler = (
             OnlineSampler(
                 settings.online_sample_dir,
@@ -156,6 +165,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             approvals=approvals,
             approval_execution=execution,
             dashboard=dashboard,
+            badcases=badcases,
         )
         yield
 
@@ -183,5 +193,6 @@ def create_app(
     app.include_router(traces_router)
     app.include_router(approvals_router)
     app.include_router(dashboard_router)
+    app.include_router(badcases_router)
     mount_console(app)
     return app

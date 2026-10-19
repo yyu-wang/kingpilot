@@ -14,7 +14,12 @@ from loguru import logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.schemas import ErrorBody, ErrorEnvelope
-from infrastructure.exceptions import ApprovalError, BudgetExceededError, KingPilotError
+from infrastructure.exceptions import (
+    ApprovalError,
+    BadcaseError,
+    BudgetExceededError,
+    KingPilotError,
+)
 
 _APPROVAL_HTTP: dict[str, int] = {
     "approval_not_found": 404,
@@ -22,6 +27,17 @@ _APPROVAL_HTTP: dict[str, int] = {
     "approval_conflict": 409,
     "approval_expired": 409,
     "approval_store_failed": 500,
+}
+
+_BADCASE_HTTP: dict[str, int] = {
+    "badcase_not_found": 404,
+    "badcase_invalid": 422,
+    "badcase_sensitive": 422,
+    "badcase_unknown_tool": 422,
+    "badcase_duplicate": 409,
+    "badcase_dataset_conflict": 409,
+    "badcase_store_failed": 500,
+    "forbidden": 403,
 }
 
 
@@ -79,6 +95,11 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApprovalError)
     async def _approval_error(request: Request, exc: ApprovalError) -> JSONResponse:
         status_code = _APPROVAL_HTTP.get(exc.code, 500)
+        return _envelope(status_code, exc.code, str(exc))
+
+    @app.exception_handler(BadcaseError)
+    async def _badcase_error(request: Request, exc: BadcaseError) -> JSONResponse:
+        status_code = _BADCASE_HTTP.get(exc.code, 500)
         return _envelope(status_code, exc.code, str(exc))
 
     @app.exception_handler(KingPilotError)

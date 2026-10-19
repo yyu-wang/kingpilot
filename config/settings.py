@@ -169,6 +169,16 @@ class Settings(BaseSettings):
         default="Asia/Shanghai", description="看板切日时区（IANA 名称）"
     )
 
+    # ── Badcase 处理台（M9-T07）──
+    badcase_store_dir: Path = Field(
+        default=Path.home() / ".kingpilot" / "badcases",
+        description="Badcase 目录（一单一个 JSON，0600）",
+    )
+    eval_dataset_dir: Path = Field(
+        default=Path(__file__).resolve().parent.parent / "evals" / "datasets",
+        description="版本化评测集根目录",
+    )
+
     @property
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""

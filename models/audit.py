@@ -29,6 +29,8 @@ AuditEventType = Literal[
     "approval.executed",
     "approval.execution_failed",
     "cost.recorded",
+    "badcase.marked",
+    "badcase.exported",
 ]
 
 AuditStatus = Literal["success", "failed", "blocked", "rejected", "rolled_back"]
