@@ -31,6 +31,7 @@ AuditEventType = Literal[
     "cost.recorded",
     "badcase.marked",
     "badcase.exported",
+    "rag.indexed",
 ]
 
 AuditStatus = Literal["success", "failed", "blocked", "rejected", "rolled_back"]

@@ -157,3 +157,14 @@ class BadcaseError(KingPilotError):
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message, context={"code": code})
         self.code = code
+
+
+class RagError(KingPilotError):
+    """RAG 知识库异常（M9-T08）：源目录缺失/索引损坏/索引写入失败。
+
+    ``code`` 供调用方分支；消息本身不含文档内容与敏感值。
+    """
+
+    def __init__(self, message: str, *, code: str) -> None:
+        super().__init__(message, context={"code": code})
+        self.code = code

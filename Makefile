@@ -9,7 +9,7 @@ PYTEST := $(UV) run pytest
 RUFF   := $(UV) run ruff
 
 .DEFAULT_GOAL := help
-.PHONY: help lint typecheck test test-integration cov audit check sandbox query-demo eval release-gate chat serve
+.PHONY: help lint typecheck test test-integration cov audit check sandbox query-demo eval release-gate chat serve rag-ingest
 
 help:  ## 显示可用命令
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -73,3 +73,10 @@ API_PORT ?= 8080
 
 serve:  ## 启动 HTTP API（默认 127.0.0.1:8080；单 worker）
 	$(UV) run python -m api --host $(API_HOST) --port $(API_PORT)
+
+# ── M9-T08 RAG 知识库摄入（开发辅助，不属于六门禁）──
+
+TOP_K ?= 5
+
+rag-ingest:  ## 知识库摄入（SOURCE=目录 QUERY=检索词 TOP_K=5）
+	$(UV) run python scripts/rag_ingest.py $(if $(SOURCE),--source "$(SOURCE)",) $(if $(QUERY),--query "$(QUERY)",) --top-k $(TOP_K)

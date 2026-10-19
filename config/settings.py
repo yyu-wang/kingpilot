@@ -179,6 +179,16 @@ class Settings(BaseSettings):
         description="版本化评测集根目录",
     )
 
+    # ── RAG 知识库（M9-T08）──
+    rag_source_dir: Path = Field(
+        default=Path.home() / ".kingpilot" / "knowledge",
+        description="知识文档源目录（支持 md/txt，按一级目录名分级）",
+    )
+    rag_index_dir: Path = Field(
+        default=Path.home() / ".kingpilot" / "rag_index",
+        description="RAG 索引目录（index.json）",
+    )
+
     @property
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""
