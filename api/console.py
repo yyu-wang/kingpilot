@@ -13,6 +13,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
+_ADMIN_DIR = _STATIC_DIR / "admin"
 
 _CSP = (
     "default-src 'self'; "
@@ -29,8 +30,9 @@ _DOCS_PATHS = ("/docs", "/redoc", "/openapi.json")
 
 
 def mount_console(app: FastAPI) -> None:
-    """挂载静态控制台并添加根路径重定向。"""
+    """挂载静态控制台/管理后台并添加根路径重定向。"""
     app.mount("/console", StaticFiles(directory=_STATIC_DIR, html=True), name="console")
+    app.mount("/admin", StaticFiles(directory=_ADMIN_DIR, html=True), name="admin")
 
     @app.get("/", include_in_schema=False)
     async def root() -> RedirectResponse:

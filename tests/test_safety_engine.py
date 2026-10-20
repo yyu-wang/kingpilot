@@ -130,7 +130,7 @@ def _tool(
 _CUSTOMER_REF = EntityReference(parameter="customer_number", entity_type="customer")
 
 _WRITE_TOOL = _tool(
-    "kingdee_create_sales_order",
+    "test_create_sales_order",
     "SAL_Order",
     tool_type="write",
     action="save",
@@ -268,7 +268,7 @@ async def test_review_uses_entity_fid_after_conversion() -> None:
 
     verdict = await layer.review(
         _user("salesperson"),
-        [_call("kingdee_create_sales_order", {"customer_number": "客户A", "amount": 1000})],
+        [_call("test_create_sales_order", {"customer_number": "客户A", "amount": 1000})],
         "trace-1",
     )
 
@@ -308,7 +308,7 @@ async def test_review_write_confirm_cancelled() -> None:
         _user("salesperson"),
         [
             _call(
-                "kingdee_create_sales_order",
+                "test_create_sales_order",
                 {"customer_number": "100001", "amount": 50_000},
             )
         ],
@@ -329,7 +329,7 @@ async def test_review_write_confirm_accepted() -> None:
         _user("salesperson"),
         [
             _call(
-                "kingdee_create_sales_order",
+                "test_create_sales_order",
                 {"customer_number": "100001", "amount": 50_000},
             )
         ],
@@ -349,7 +349,7 @@ async def test_review_permission_escalation_requires_dual_approval() -> None:
         _user("salesperson"),
         [
             _call(
-                "kingdee_create_sales_order",
+                "test_create_sales_order",
                 {"customer_number": "100001", "amount": 150_000},
             )
         ],
@@ -372,7 +372,7 @@ async def test_review_missing_entity_returns_user_message() -> None:
 
     verdict = await layer.review(
         _user("salesperson"),
-        [_call("kingdee_create_sales_order", {"customer_number": "编造客户", "amount": 1})],
+        [_call("test_create_sales_order", {"customer_number": "编造客户", "amount": 1})],
         "trace-1",
     )
 

@@ -140,7 +140,7 @@ async def test_unsupported_entity_type_raises() -> None:
     client = _FakeClient([])
 
     with pytest.raises(KingdeeError, match="不支持的实体类型"):
-        await _lookup(client).lookup("material", "MAT001")
+        await _lookup(client).lookup("warehouse", "WH001")
 
     assert client.queries == []
 

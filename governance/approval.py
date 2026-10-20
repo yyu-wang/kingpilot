@@ -169,10 +169,17 @@ class ApprovalService:
         risk_score: float = 0.0,
         risk_level: str = "",
         required_approvers: Sequence[str] = (),
+        required_approvals: int = DEFAULT_REQUIRED_APPROVALS,
         idempotency_key: str,
         write_action: WriteAction = "save",
     ) -> PendingAction:
-        """创建待审批单；同发起人 + 幂等键重复调用返回原单。"""
+        """创建待审批单；同发起人 + 幂等键重复调用返回原单。
+
+        ``required_approvals``：confirm 档 1 票、dual_approve 档 2 票（默认保持旧行为）。
+        创建类动作（save）在执行前没有单号，用 ``CREATE-{approval_id}`` 作业务键。
+        """
+        if required_approvals < 1:
+            raise ValueError("审批票数必须大于 0")
         async with self._create_lock:
             existing = self._store.find_by_idempotency_key(requester.user_id, idempotency_key)
             if existing is not None:
@@ -191,7 +198,7 @@ class ApprovalService:
                 risk_score=risk_score,
                 risk_level=risk_level,
                 required_approvers=list(required_approvers),
-                required_approvals=DEFAULT_REQUIRED_APPROVALS,
+                required_approvals=required_approvals,
                 idempotency_key=idempotency_key,
                 write_action=write_action,
                 arguments=dict(arguments),
@@ -199,6 +206,10 @@ class ApprovalService:
                 updated_at=now,
                 expires_at=now + timedelta(seconds=self._ttl_seconds),
             )
+            if not action.business_key and action.write_action == "save":
+                action = action.model_copy(
+                    update={"business_key": f"CREATE-{action.approval_id[:8]}"}
+                )
             self._store.save(action)
             self._emit_audit(action, "approval.requested", requester, "success")
             return action

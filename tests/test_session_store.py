@@ -27,7 +27,7 @@ def _memory_with_data(session_id: str = "sess-1") -> MemoryStore:
             "rows": [{"FBillNo": "SO000001"}],
         },
     )
-    memory.add_raw("assistant", "共 1 张订单")
+    memory.add_raw("assistant", "共 1 张订单", trace_id="trace-001")
     memory.add_raw("user", "第二笔呢")
     memory.add_raw("assistant", "只有一笔")
     memory.add_summary(
@@ -66,6 +66,8 @@ def test_roundtrip_restores_three_layers(tmp_path: Path) -> None:
     assert loaded.session_id == "sess-1"
     assert loaded.raw_rounds == 2
     assert loaded.raw_messages() == original.raw_messages()
+    # Trace 链接随 assistant 消息持久化（控制台历史「查看 Trace」按钮）
+    assert loaded.raw_messages()[2].trace_id == "trace-001"
     # 工具消息 content 为空时靠 structured_result 还原
     assert loaded.raw_messages()[1].content == ""
     assert loaded.raw_messages()[1].structured_result["rows"] == [{"FBillNo": "SO000001"}]

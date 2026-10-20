@@ -287,6 +287,12 @@ def _validate_action(action: str) -> WriteAction:
 
 
 def _as_mapping(value: Any) -> dict[str, Any]:
+    # 写工具返回 ActionResult（Pydantic 模型）：转 dict 后才能进账本/审计
+    dump = getattr(value, "model_dump", None)
+    if callable(dump):
+        dumped = dump()
+        if isinstance(dumped, Mapping):
+            return dict(dumped)
     if isinstance(value, Mapping):
         return dict(value)
     if value is None:

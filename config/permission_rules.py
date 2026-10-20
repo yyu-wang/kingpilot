@@ -35,6 +35,7 @@ FORM_DOMAIN_MAP: dict[str, DataDomain] = {
     "PUR_PurchaseOrder": DataDomain.PURCHASE,
     "BD_Supplier": DataDomain.PURCHASE,
     "STK_Inventory": DataDomain.INVENTORY,
+    "STK_InStock": DataDomain.INVENTORY,  # 采购入库单
     "GL_Voucher": DataDomain.FINANCE,
     "AP_Bill": DataDomain.FINANCE,
     "AR_Bill": DataDomain.FINANCE,

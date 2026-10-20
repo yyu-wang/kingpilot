@@ -175,6 +175,16 @@ class FilterGuard:
                 detail={"tool": context.tool_name, "error_count": len(exc.errors())},
             )
 
+        if tool.tool_type != "query":
+            # 写/动作工具不产生 FilterString，没有注入面（参数已由 Guard 1/5 校验）
+            return GuardResult.allow(
+                detail={
+                    "tool": context.tool_name,
+                    "tool_type": tool.tool_type,
+                    "skipped": True,
+                }
+            )
+
         if tool.is_local:
             # 本地工具不产生 FilterString（无注入面），Schema 已由 Guard 1 校验
             return GuardResult.allow(

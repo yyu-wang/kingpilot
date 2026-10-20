@@ -33,7 +33,6 @@ from governance.approval import ApprovalService, FileApprovalStore
 from governance.approval_executor import (
     ApprovalExecution,
     ApprovalExecutor,
-    NoopSnapshotProvider,
     RegistryToolExecutor,
 )
 from governance.approval_gateway import ApprovalGatewayImpl
@@ -47,6 +46,7 @@ from infrastructure.secrets import SecretProvider
 from infrastructure.tenancy import tenant_paths, tenant_scope
 from kingdee.client import KingdeeClient
 from kingdee.idempotency import IdempotencyService
+from kingdee.snapshot import KingdeeSnapshotProvider
 from kingdee.write_coordinator import WriteCoordinator
 from ledger.write_ledger import SqliteWriteLedgerStore, WriteLedger
 from models.audit import AuditEvent
@@ -195,7 +195,7 @@ class AppDeps:
             trace_store=trace_store,
             writer=writer,
             executor=RegistryToolExecutor(self.registry, self.client),
-            snapshots=NoopSnapshotProvider(),
+            snapshots=KingdeeSnapshotProvider(self.client),
             ledger=ledger,
         )
         dashboard = DashboardService(

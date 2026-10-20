@@ -14,6 +14,7 @@ from kingdee.endpoints.base import (
     EndpointParams,
     FieldDescriptor,
     QueryToolBinding,
+    fmt_number,
     quote_eq,
     validate_document_status,
 )
@@ -44,6 +45,20 @@ _FIELDS: tuple[FieldDescriptor, ...] = (
     FieldDescriptor(
         name="FAmount", data_type="number", filterable=True, description="金额合计（表头）"
     ),
+    FieldDescriptor(
+        name="FMaterialId.FNumber",
+        data_type="related",
+        filterable=True,
+        description="物料编码（沙箱简化为单行）",
+    ),
+    FieldDescriptor(
+        name="FMaterialId.FName",
+        data_type="related",
+        filterable=False,
+        description="物料名称，显示用",
+    ),
+    FieldDescriptor(name="FQty", data_type="number", filterable=True, description="采购数量"),
+    FieldDescriptor(name="FTaxPrice", data_type="number", filterable=True, description="含税单价"),
 )  # INFERRED: 待真环境复核字段名
 
 PURCHASE_ORDER = EndpointDescriptor(
@@ -66,6 +81,14 @@ class PurchaseOrderParams(EndpointParams):
         default="",
         description="单据状态：Z 暂存 / A 创建 / B 审核中 / C 已审核 / D 重新审核",
     )
+    min_amount: float | None = Field(default=None, gt=0, description="金额下限（表头合计）")
+    bill_no: str = Field(default="", description="单据编号精确匹配（如 PO000001）")
+    order_date: str = Field(
+        default="",
+        description="单据日期精确匹配，格式 YYYY-MM-DD（如 2026-01-03）；范围查询暂不支持",
+    )
+    material_number: str = Field(default="", description="物料编码精确匹配（如 MAT001）")
+    min_quantity: float | None = Field(default=None, gt=0, description="采购数量下限")
 
     _check_status = field_validator("document_status")(validate_document_status)
 
@@ -78,6 +101,16 @@ def build_purchase_order_filter(params: KingPilotBaseModel) -> str:
         conditions.append(f"FSupplierID.FNumber = {quote_eq(p.supplier_number)}")
     if p.document_status:
         conditions.append(f"FDocumentStatus = {quote_eq(p.document_status)}")
+    if p.min_amount is not None:
+        conditions.append(f"FAmount >= {fmt_number(p.min_amount)}")
+    if p.bill_no:
+        conditions.append(f"FBillNo = {quote_eq(p.bill_no)}")
+    if p.order_date:
+        conditions.append(f"FDate = {quote_eq(p.order_date)}")
+    if p.material_number:
+        conditions.append(f"FMaterialId.FNumber = {quote_eq(p.material_number)}")
+    if p.min_quantity is not None:
+        conditions.append(f"FQty >= {fmt_number(p.min_quantity)}")
     return " AND ".join(conditions)
 
 

@@ -15,20 +15,35 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from kingdee.endpoints.base import EndpointDescriptor
+from kingdee.endpoints.bd_customer import CUSTOMER
+from kingdee.endpoints.bd_material import BD_MATERIAL
+from kingdee.endpoints.bd_supplier import SUPPLIER
+from kingdee.endpoints.pur_order import PURCHASE_ORDER
 from kingdee.endpoints.sal_order import SAL_ORDER
+from kingdee.endpoints.stk_inbound import PURCHASE_INBOUND
 from kingdee.endpoints.stk_inventory import INVENTORY
 from models.kingdee import JsonScalar
 from sandbox.kingdee_stub.dataset import (
+    CUSTOMER_ROWS,
     ENTRY_FIELD_NAMES,
     INVENTORY_ROWS,
-    ORDERS,
+    MATERIAL_ROWS,
+    SUPPLIER_ROWS,
     SalesOrder,
+    customer_value,
     entry_value,
     has_entry_field,
     header_value,
     inventory_value,
+    material_value,
+    purchase_inbound_value,
+    purchase_order_value,
+    supplier_value,
 )
 from sandbox.kingdee_stub.filter_parser import FilterSyntaxError
+from sandbox.kingdee_stub.inbound_store import purchase_inbound_store
+from sandbox.kingdee_stub.purchase_order_store import purchase_order_store
+from sandbox.kingdee_stub.store import sales_order_store
 
 # ── 行构造 ──
 
@@ -52,7 +67,7 @@ def _build_sal_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
     """销售订单行构造：FieldKeys 含明细字段时一单多行展开。"""
     rows: list[dict[str, JsonScalar]] = []
     expand_entries = has_entry_field(field_keys)
-    for order in ORDERS:
+    for order in sales_order_store.orders():
         if expand_entries:
             rows.extend(_sal_full_row(order, index) for index in range(len(order.entries)))
         else:
@@ -65,6 +80,46 @@ def _build_inventory_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
     return [
         {name: inventory_value(row, name) for name in INVENTORY.selectable_fields}
         for row in INVENTORY_ROWS
+    ]
+
+
+def _build_customer_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
+    """客户行构造（M9-T13 实体预检数据源）。"""
+    return [
+        {name: customer_value(row, name) for name in CUSTOMER.selectable_fields}
+        for row in CUSTOMER_ROWS
+    ]
+
+
+def _build_material_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
+    """物料行构造（M9-T13 实体预检数据源）。"""
+    return [
+        {name: material_value(row, name) for name in BD_MATERIAL.selectable_fields}
+        for row in MATERIAL_ROWS
+    ]
+
+
+def _build_supplier_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
+    """供应商行构造（采购订单查询与实体预检数据源）。"""
+    return [
+        {name: supplier_value(row, name) for name in SUPPLIER.selectable_fields}
+        for row in SUPPLIER_ROWS
+    ]
+
+
+def _build_purchase_order_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
+    """采购订单行构造（读可变库，下单/删除后查询立即可见）。"""
+    return [
+        {name: purchase_order_value(order, name) for name in PURCHASE_ORDER.selectable_fields}
+        for order in purchase_order_store.orders()
+    ]
+
+
+def _build_purchase_inbound_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
+    """采购入库单行构造（读可变库，新建/删除后查询立即可见）。"""
+    return [
+        {name: purchase_inbound_value(row, name) for name in PURCHASE_INBOUND.selectable_fields}
+        for row in purchase_inbound_store.rows()
     ]
 
 
@@ -93,6 +148,36 @@ FORMS: dict[str, FormModel] = {
         field_types={field.name: field.data_type for field in INVENTORY.fields},
         non_sortable=frozenset(),
         build_rows=_build_inventory_rows,
+    ),
+    CUSTOMER.form_id: FormModel(
+        descriptor=CUSTOMER,
+        field_types={field.name: field.data_type for field in CUSTOMER.fields},
+        non_sortable=frozenset({"FID"}),
+        build_rows=_build_customer_rows,
+    ),
+    BD_MATERIAL.form_id: FormModel(
+        descriptor=BD_MATERIAL,
+        field_types={field.name: field.data_type for field in BD_MATERIAL.fields},
+        non_sortable=frozenset({"FID"}),
+        build_rows=_build_material_rows,
+    ),
+    SUPPLIER.form_id: FormModel(
+        descriptor=SUPPLIER,
+        field_types={field.name: field.data_type for field in SUPPLIER.fields},
+        non_sortable=frozenset({"FID"}),
+        build_rows=_build_supplier_rows,
+    ),
+    PURCHASE_ORDER.form_id: FormModel(
+        descriptor=PURCHASE_ORDER,
+        field_types={field.name: field.data_type for field in PURCHASE_ORDER.fields},
+        non_sortable=frozenset(),
+        build_rows=_build_purchase_order_rows,
+    ),
+    PURCHASE_INBOUND.form_id: FormModel(
+        descriptor=PURCHASE_INBOUND,
+        field_types={field.name: field.data_type for field in PURCHASE_INBOUND.fields},
+        non_sortable=frozenset(),
+        build_rows=_build_purchase_inbound_rows,
     ),
 }
 

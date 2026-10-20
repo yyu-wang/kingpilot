@@ -9,7 +9,7 @@
   Guard 校验留给 M4（本层只做形状级 fail-closed 校验）。
 """
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -19,30 +19,38 @@ from agent.knowledge import KB_SEARCH_TOOL, KnowledgeParams, KnowledgeService
 from config.settings import get_settings
 from infrastructure.exceptions import ToolError
 from kingdee.client import KingdeeClient
-from kingdee.endpoints.base import EndpointDescriptor, EndpointParams, QueryToolBinding
+from kingdee.endpoints.base import (
+    EndpointDescriptor,
+    EndpointParams,
+    EntityReference,
+    QueryToolBinding,
+    WriteToolBinding,
+)
 from kingdee.endpoints.bd_customer import CUSTOMER_TOOL
 from kingdee.endpoints.bd_supplier import SUPPLIER_TOOL
 from kingdee.endpoints.pur_order import PURCHASE_ORDER_TOOL
+from kingdee.endpoints.pur_order_write import PURCHASE_ORDER_WRITE_TOOLS
 from kingdee.endpoints.sal_order import SAL_ORDER_TOOL
+from kingdee.endpoints.sal_order_write import SALES_ORDER_WRITE_TOOLS
+from kingdee.endpoints.stk_inbound import PURCHASE_INBOUND_TOOL
+from kingdee.endpoints.stk_inbound_write import PURCHASE_INBOUND_WRITE_TOOLS
 from kingdee.endpoints.stk_inventory import INVENTORY_TOOL
 from models.base import KingPilotBaseModel
-from models.kingdee import BillQueryResult
+from models.kingdee import ActionResult, BillQueryResult
 from models.llm import ToolSpec
 from models.rag import KnowledgeSearchResult
 
-
-@dataclass(frozen=True)
-class EntityReference:
-    """写操作参数 → 业务实体的引用声明（M4-T04 Guard 3 依据）。
-
-    ``parameter`` 是工具参数名（如 ``customer_number``），``entity_type`` 是
-    待预检的实体类型（customer/supplier/order）。Guard 3 只看声明、不猜参数名——
-    新增写工具必须显式声明，否则 fail-closed 拦截。
-    """
-
-    parameter: str
-    entity_type: str
-    allow_name: bool = True  # 是否允许传名称（预检负责换成系统编码）
+__all__ = [
+    "EntityReference",
+    "LocalRunner",
+    "RemoteRunner",
+    "ToolDefinition",
+    "ToolRegistry",
+    "ToolResult",
+    "ToolType",
+    "build_default_registry",
+    "business_amount",
+]
 
 
 # 工具类型：服务端事实，不信任 LLM 自述（提示注入可把写操作标成查询）
@@ -51,8 +59,37 @@ ToolType = Literal["query", "write", "action"]
 # 本地工具执行器：接收已校验参数，返回结构化结果（M9-T09）
 LocalRunner = Callable[[KingPilotBaseModel], Awaitable[Any]]
 
-# 工具执行结果：金蝶查询或本地知识检索
-ToolResult = BillQueryResult | KnowledgeSearchResult
+# 远程写执行器：经 KingdeeClient 调用 DynamicFormService（M9-T13）
+RemoteRunner = Callable[[KingdeeClient, KingPilotBaseModel], Awaitable[Any]]
+
+# 工具执行结果：金蝶查询 / 本地知识检索 / 写操作
+ToolResult = BillQueryResult | KnowledgeSearchResult | ActionResult
+
+
+def business_amount(arguments: Mapping[str, Any]) -> float:
+    """从工具参数提取业务金额。
+
+    写工具的参数不一定叫 ``amount``（创建订单用 ``quantity × tax_price``）；
+    风险评分与金额写规则共用本函数，避免两处各写一套口径。
+    """
+    amount = _as_float(arguments.get("amount"))
+    if amount > 0:
+        return amount
+    return _as_float(arguments.get("quantity")) * _as_float(arguments.get("tax_price"))
+
+
+def _as_float(value: Any) -> float:
+    """数值提取：数值或数字字符串；其它类型按 0（Guard 1 负责拦非法形状）。"""
+    if isinstance(value, bool):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip())
+        except ValueError:
+            return 0.0
+    return 0.0
 
 
 @dataclass(frozen=True)
@@ -72,6 +109,7 @@ class ToolDefinition:
     build_filter: Callable[[KingPilotBaseModel], str] | None = None
     endpoint: EndpointDescriptor | None = None
     runner: LocalRunner | None = None
+    remote_runner: RemoteRunner | None = None
     tool_type: ToolType = "query"
     entity_references: tuple[EntityReference, ...] = ()
     # 业务必填项：可多于 Schema 的 required（如 Schema 允许空串、业务不允许）
@@ -88,6 +126,11 @@ class ToolDefinition:
     def is_local(self) -> bool:
         """是否本地执行器（无金蝶 endpoint，不产生 FilterString）。"""
         return self.runner is not None
+
+    @property
+    def is_write(self) -> bool:
+        """是否写/动作工具（服务端类型判定，不信任 LLM 自述）。"""
+        return self.tool_type != "query"
 
     async def execute(
         self,
@@ -131,6 +174,21 @@ class ToolDefinition:
                     context={"tool": self.spec.name},
                 )
             return result
+
+        if self.remote_runner is not None:
+            if row_filter:
+                # 行级过滤只定义在读查询上；写操作带着行过滤执行语义不明，fail-closed
+                raise ToolError(
+                    f"写操作暂不支持行级过滤: {self.spec.name}",
+                    context={"tool": self.spec.name},
+                )
+            result = await self.remote_runner(client, params)
+            if isinstance(result, (BillQueryResult, KnowledgeSearchResult, ActionResult)):
+                return result
+            raise ToolError(
+                f"写工具返回了不支持的结果类型: {self.spec.name}",
+                context={"tool": self.spec.name},
+            )
 
         if self.endpoint is None or self.build_filter is None:
             raise ToolError(
@@ -202,6 +260,25 @@ def _from_binding(binding: QueryToolBinding) -> ToolDefinition:
     )
 
 
+def _from_write_binding(binding: WriteToolBinding) -> ToolDefinition:
+    """写工具绑定 → ToolDefinition（无 FilterString，执行走 remote_runner）。"""
+    spec = ToolSpec(
+        name=binding.tool_name,
+        description=binding.tool_description,
+        parameters=binding.params_model.model_json_schema(),
+    )
+    return ToolDefinition(
+        spec=spec,
+        params_model=binding.params_model,
+        endpoint=binding.endpoint,
+        remote_runner=binding.runner,
+        tool_type=binding.tool_type,
+        entity_references=binding.entity_references,
+        required_parameters=binding.required_parameters,
+        action=binding.action,
+    )
+
+
 _KNOWLEDGE_TOOL_DESCRIPTION = (
     "查询 KingPilot 内部知识库（操作手册、流程规范、制度说明）。"
     "仅用于“怎么做、流程是什么、有什么规定”类知识问题；"
@@ -210,20 +287,25 @@ _KNOWLEDGE_TOOL_DESCRIPTION = (
 
 
 def build_default_registry(*, knowledge: KnowledgeService | None = None) -> ToolRegistry:
-    """装配默认注册表：5 个金蝶查询工具 + 1 个本地知识检索工具。
-
-    ``knowledge`` 不传时按 Settings 的索引目录构造；索引不存在也注册，
-    调用时返回「知识库没有找到相关文档」，不影响 ERP 查询。
-    """
+    """装配默认注册表：6 个查询工具 + 15 个写工具 + 1 个知识检索工具。"""
     registry = ToolRegistry()
     for binding in (
         SAL_ORDER_TOOL,
         PURCHASE_ORDER_TOOL,
+        PURCHASE_INBOUND_TOOL,
         CUSTOMER_TOOL,
         SUPPLIER_TOOL,
         INVENTORY_TOOL,
     ):
         registry.register(_from_binding(binding))
+
+    write_bindings = (
+        *SALES_ORDER_WRITE_TOOLS,
+        *PURCHASE_ORDER_WRITE_TOOLS,
+        *PURCHASE_INBOUND_WRITE_TOOLS,
+    )
+    for write_binding in write_bindings:
+        registry.register(_from_write_binding(write_binding))
 
     service = knowledge or KnowledgeService(index_dir=get_settings().rag_index_dir)
     registry.register(

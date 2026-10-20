@@ -287,3 +287,174 @@ def test_inventory_query_rejects_non_filterable_field(authed: TestClient) -> Non
     )
 
     assert "FBaseQty" in status.error_message
+
+
+# ── PUR_PurchaseOrder / BD_Supplier 端点（M9 测试数据补全）──
+
+
+def test_purchase_order_query_filters_by_supplier(authed: TestClient) -> None:
+    rows = _query(
+        authed,
+        form_id="PUR_PurchaseOrder",
+        field_keys="FBillNo,FSupplierID.FNumber,FDocumentStatus,FAmount",
+        filter_string="FSupplierID.FNumber = 'SUP001'",
+        limit=0,
+    )
+
+    assert rows
+    assert {row[1] for row in rows} == {"SUP001"}
+    assert "PO000001" in {row[0] for row in rows}
+
+
+def test_purchase_order_query_filters_by_date_amount_and_bill_no(authed: TestClient) -> None:
+    by_date = _query(
+        authed,
+        form_id="PUR_PurchaseOrder",
+        field_keys="FBillNo,FDate,FAmount",
+        filter_string="FDate = '2026-01-08'",
+        limit=0,
+    )
+    assert by_date == [["PO000002", "2026-01-08", "160000.0000000000"]]
+
+    by_amount = _query(
+        authed,
+        form_id="PUR_PurchaseOrder",
+        field_keys="FBillNo,FAmount",
+        filter_string="FAmount > 100000",
+        limit=0,
+    )
+    bill_numbers = {row[0] for row in by_amount}
+    assert "PO000002" in bill_numbers
+    assert "PO000001" not in bill_numbers  # 88000
+
+    by_bill = _query(
+        authed,
+        form_id="PUR_PurchaseOrder",
+        field_keys="FBillNo,FSupplierID.FName",
+        filter_string="FBillNo = 'PO000006'",
+        limit=0,
+    )
+    assert by_bill == [["PO000006", "深圳YY贸易有限公司"]]
+
+
+def test_purchase_order_query_filters_by_material_and_quantity(authed: TestClient) -> None:
+    by_material = _query(
+        authed,
+        form_id="PUR_PurchaseOrder",
+        field_keys="FBillNo,FMaterialId.FNumber,FMaterialId.FName,FQty,FTaxPrice",
+        filter_string="FMaterialId.FNumber = 'MAT001'",
+        limit=0,
+    )
+    assert by_material
+    assert {row[1] for row in by_material} == {"MAT001"}
+    assert ["PO000001", "MAT001", "测试物料001", "88.0000000000", "1000.0000000000"] in by_material
+
+    by_quantity = _query(
+        authed,
+        form_id="PUR_PurchaseOrder",
+        field_keys="FBillNo,FQty",
+        filter_string="FQty >= 100",
+        limit=0,
+    )
+    assert by_quantity
+    assert all(float(str(row[1])) >= 100 for row in by_quantity)
+    assert "PO000001" not in {row[0] for row in by_quantity}  # 数量 88
+
+
+def test_purchase_order_query_covers_all_statuses(authed: TestClient) -> None:
+    rows = _query(
+        authed,
+        form_id="PUR_PurchaseOrder",
+        field_keys="FDocumentStatus",
+        limit=0,
+    )
+
+    assert {row[0] for row in rows} == {"Z", "A", "B", "C", "D"}
+
+
+def test_supplier_query_fuzzy_matches_name(authed: TestClient) -> None:
+    rows = _query(
+        authed,
+        form_id="BD_Supplier",
+        field_keys="FNumber,FName,FShortName",
+        filter_string="FName LIKE '%YY%'",
+        limit=0,
+    )
+
+    assert rows == [["SUP004", "深圳YY贸易有限公司", "深圳YY贸易"]]
+
+
+def test_customer_query_includes_extended_seed(authed: TestClient) -> None:
+    rows = _query(
+        authed,
+        form_id="BD_Customer",
+        field_keys="FNumber,FName",
+        filter_string="FName LIKE '%华南%'",
+        limit=0,
+    )
+
+    assert rows == [["CUS006", "华南贸易有限公司"]]
+
+
+# ── STK_InStock 采购入库单（采购入库流程测试数据）──
+
+
+def _inbound_query(authed: TestClient, filter_string: str) -> list[list[object]]:
+    return _query(
+        authed,
+        form_id="STK_InStock",
+        field_keys="FBillNo,FDate,FSupplierID.FNumber,FStockId.FName,FMaterialId.FNumber,FRealQty,FSrcBillNo,FDocumentStatus",
+        filter_string=filter_string,
+        limit=0,
+    )
+
+
+def test_purchase_inbound_by_source_order(authed: TestClient) -> None:
+    rows = _inbound_query(authed, "FSrcBillNo = 'PO000001'")
+
+    assert rows
+    assert {row[0] for row in rows} == {"CGRK000001"}
+    assert rows[0][2] == "SUP001"
+    assert rows[0][5] == "50.0000000000"
+
+
+def test_purchase_inbound_by_supplier_material_and_warehouse(authed: TestClient) -> None:
+    by_supplier = _inbound_query(authed, "FSupplierID.FNumber = 'SUP001'")
+    assert {"CGRK000001", "CGRK000004", "CGRK000008"}.issubset({row[0] for row in by_supplier})
+
+    by_material = _inbound_query(authed, "FMaterialId.FNumber = 'MAT006'")
+    assert {"CGRK000006", "CGRK000007"}.issubset({row[0] for row in by_material})
+
+    by_warehouse = _inbound_query(authed, "FStockId.FName = '原料仓'")
+    assert by_warehouse
+    assert {row[3] for row in by_warehouse} == {"原料仓"}
+
+
+def test_purchase_inbound_by_status_date_and_quantity(authed: TestClient) -> None:
+    by_status = _inbound_query(authed, "FDocumentStatus = 'C'")
+    assert {row[7] for row in by_status} == {"C"}
+
+    by_date = _inbound_query(authed, "FDate = '2026-01-06'")
+    assert by_date == [
+        [
+            "CGRK000001",
+            "2026-01-06",
+            "SUP001",
+            "成品仓",
+            "MAT001",
+            "50.0000000000",
+            "PO000001",
+            "C",
+        ]
+    ]
+
+    by_qty = _inbound_query(authed, "FRealQty > 10")
+    bill_numbers = {row[0] for row in by_qty}
+    assert "CGRK000001" in bill_numbers  # 50
+    assert "CGRK000004" not in bill_numbers  # 5
+
+
+def test_purchase_inbound_rejects_unknown_field(authed: TestClient) -> None:
+    status = _error_status(authed, FormId="STK_InStock", FieldKeys="FBillAllAmount")
+
+    assert "FBillAllAmount" in status.error_message

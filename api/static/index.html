@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>KingPilot 控制台</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=13">
 </head>
 <body>
   <section id="login-layer" class="login-layer">
@@ -26,7 +26,21 @@
         <span class="muted">控制台</span>
       </div>
       <div class="topbar-actions">
-        <span id="stream-state" class="muted" aria-live="polite"></span>
+        <span id="stream-state" class="stream-state" aria-live="polite"></span>
+        <button
+          id="approval-toggle"
+          type="button"
+          class="ghost"
+          aria-expanded="false"
+          aria-controls="approval-panel"
+        >审批</button>
+        <button
+          id="trace-toggle"
+          type="button"
+          class="ghost"
+          aria-expanded="false"
+          aria-controls="trace-panel"
+        >Trace</button>
         <button id="logout" type="button" class="ghost">登出</button>
       </div>
     </header>
@@ -54,16 +68,40 @@
       </form>
     </section>
 
-    <aside class="trace-panel">
+    <div id="trace-backdrop" class="trace-backdrop" hidden></div>
+    <aside id="trace-panel" class="trace-panel" aria-hidden="true" aria-label="Trace 面板">
       <div class="panel-header">
         <span>Trace</span>
-        <button id="refresh-traces" type="button" class="ghost">↻</button>
+        <div class="panel-actions">
+          <button id="refresh-traces" type="button" class="ghost" aria-label="刷新 Trace">↻</button>
+          <button id="close-traces" type="button" class="ghost" aria-label="关闭 Trace 面板">✕</button>
+        </div>
       </div>
+      <p id="trace-hint" class="trace-hint">点击列表中的 Trace 查看详情</p>
       <div id="trace-list" class="trace-list"></div>
-      <pre id="trace-report" class="trace-report" aria-live="polite"></pre>
+      <section id="trace-detail" class="trace-detail" hidden>
+        <div class="trace-detail-header">
+          <span>详情</span>
+          <button id="close-trace-detail" type="button" class="ghost">收起</button>
+        </div>
+        <pre id="trace-report" class="trace-report" aria-live="polite"></pre>
+      </section>
+    </aside>
+
+    <div id="approval-backdrop" class="trace-backdrop" hidden></div>
+    <aside id="approval-panel" class="trace-panel" aria-hidden="true" aria-label="审批面板">
+      <div class="panel-header">
+        <span>审批</span>
+        <div class="panel-actions">
+          <button id="refresh-approvals" type="button" class="ghost" aria-label="刷新审批">↻</button>
+          <button id="close-approvals" type="button" class="ghost" aria-label="关闭审批面板">✕</button>
+        </div>
+      </div>
+      <p class="trace-hint">待我审批的单据；发起人不能审批自己提交的申请。</p>
+      <div id="approval-list" class="approval-list"></div>
     </aside>
   </main>
 
-  <script src="./app.js" defer></script>
+  <script src="./app.js?v=14" defer></script>
 </body>
 </html>

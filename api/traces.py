@@ -10,6 +10,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 
+from agent.memory import MemoryStore
 from api.deps import get_current_user, get_deps
 from api.errors import ApiError
 from api.schemas import (
@@ -21,7 +22,7 @@ from api.schemas import (
 )
 from infrastructure.exceptions import SessionStoreError, TraceStoreError
 from models.user import UserContext
-from observability.tracing import render_trace_report
+from observability.tracing import TraceStore, render_trace_report
 from safety.datasecurity import redact_text
 from safety.dlp import DlpScanner
 
@@ -37,6 +38,46 @@ def _truncate(text: str, limit: int) -> str:
     return text if len(text) <= limit else f"{text[:limit]}..."
 
 
+def _legacy_trace_links(
+    memory: MemoryStore,
+    trace_store: TraceStore,
+    user: UserContext,
+    session_id: str,
+) -> dict[int, str]:
+    """为旧版本会话（未持久化 trace_id）按回答文本反查 Trace。
+
+    M9-T13 起 assistant 消息会持久化 trace_id；更早的会话文件没有该字段。
+    这里只在同一用户、同一会话内按 ``final_response`` 精确匹配，新消息优先
+    认领新 Trace；匹配不到就不给按钮（宁缺勿错）。
+    """
+    messages = memory.raw_messages()
+    pending = [
+        index
+        for index, message in enumerate(messages)
+        if message.role == "assistant" and not message.trace_id
+    ]
+    if not pending:
+        return {}
+
+    candidates = [
+        info
+        for info in trace_store.list_traces()
+        if info.user_id == user.user_id and info.session_id == session_id and info.final_response
+    ]
+    links: dict[int, str] = {}
+    used: set[str] = set()
+    for index in reversed(pending):  # 新消息优先匹配新 Trace，避免重复回答错位
+        content = messages[index].content
+        for info in candidates:
+            if info.trace_id in used:
+                continue
+            if info.final_response == content:
+                links[index] = info.trace_id
+                used.add(info.trace_id)
+                break
+    return links
+
+
 @router.get("/v1/sessions/{session_id}/messages", response_model=SessionMessagesResponse)
 async def session_messages(
     session_id: str,
@@ -44,7 +85,8 @@ async def session_messages(
     user: Annotated[UserContext, Depends(get_current_user)],
 ) -> SessionMessagesResponse:
     """当前用户的会话历史（只含 user/assistant，统一脱敏）。"""
-    store = get_deps(request).store_for(user.user_id, tenant_id=user.tenant_id)
+    deps = get_deps(request)
+    store = deps.store_for(user.user_id, tenant_id=user.tenant_id)
     try:
         path = store.path_for(session_id)
     except SessionStoreError as exc:
@@ -57,15 +99,27 @@ async def session_messages(
     except SessionStoreError as exc:
         raise ApiError(400, "session_invalid", "会话不存在或已损坏") from exc
 
+    legacy_links = _legacy_trace_links(
+        memory,
+        deps.resources_for(user.tenant_id).trace_store,
+        user,
+        session_id,
+    )
     scanner = DlpScanner()
     messages: list[MessageView] = []
-    for raw in memory.raw_messages():
+    for index, raw in enumerate(memory.raw_messages()):
         if raw.role == "tool":
             continue  # 工具原始结果不进历史接口
         content = redact_text(raw.content)
         if scanner.scan(content).blocked:
             content = _BLOCKED_CONTENT
-        messages.append(MessageView(role=raw.role, content=content))
+        messages.append(
+            MessageView(
+                role=raw.role,
+                content=content,
+                trace_id=raw.trace_id or legacy_links.get(index, ""),
+            )
+        )
     return SessionMessagesResponse(session_id=session_id, messages=messages)
 
 

@@ -170,6 +170,8 @@ class MemoryStore:
         role: RawRole,
         content: str,
         structured_result: dict[str, Any] | None = None,
+        *,
+        trace_id: str = "",
     ) -> RawMessage:
         """追加一条 Layer 1 原文，token_count 写入时自动估算。"""
         message = RawMessage(
@@ -177,6 +179,7 @@ class MemoryStore:
             content=content,
             token_count=estimate_tokens(content),
             structured_result=structured_result or {},
+            trace_id=trace_id,
         )
         self._memory.raw_buffer.append(message)
         return message

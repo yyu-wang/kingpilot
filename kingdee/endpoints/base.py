@@ -15,14 +15,19 @@ Why @dataclass(frozen=True) 而非 Pydantic：规范 3.3 规定内部不可变�
 M4 Guard 2 的职责（避免双重防线互相稀释）。
 """
 
-from collections.abc import Callable
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
 from models.base import KingPilotBaseModel
-from models.kingdee import BillQueryParams
+from models.kingdee import ActionResult, BillQueryParams
+
+if TYPE_CHECKING:
+    from kingdee.client import KingdeeClient
 
 # 字段数据类型。直接决定 M2 提示词：date 的过滤值需带引号（'2026-01-01'），
 # number 不带引号——类型信息缺失会让 LLM 生成语法错误的 FilterString。
@@ -165,3 +170,43 @@ class QueryToolBinding:
     endpoint: EndpointDescriptor
     params_model: type[EndpointParams]
     build_filter: Callable[[KingPilotBaseModel], str]
+
+
+# ── M9-T13：写工具绑定 ──
+
+
+@dataclass(frozen=True)
+class EntityReference:
+    """写操作参数 → 业务实体的引用声明（Guard 3 依据）。
+
+    ``parameter`` 是工具参数名（如 ``customer_number``），``entity_type`` 是
+    待预检的实体类型（customer/supplier/material/order）。Guard 3 只看声明、
+    不猜参数名——新增写工具必须显式声明，否则 fail-closed 拦截。
+    """
+
+    parameter: str
+    entity_type: str
+    allow_name: bool = True  # 是否允许传名称（预检负责换成系统编码）
+
+
+# 远程写执行器：接收已校验参数，经 KingdeeClient 调用 DynamicFormService
+WriteRemoteRunner = Callable[["KingdeeClient", KingPilotBaseModel], Awaitable[ActionResult]]
+
+
+@dataclass(frozen=True)
+class WriteToolBinding:
+    """端点 → 写工具的绑定（agent/tools.py 据此组装 ToolDefinition）。
+
+    ``tool_type`` 区分创建（write，必须声明实体引用）与状态流转（action，
+    单号由 Guard 5 的业务必填项兜底）。
+    """
+
+    tool_name: str
+    tool_description: str
+    endpoint: EndpointDescriptor
+    params_model: type[KingPilotBaseModel]
+    action: str
+    runner: WriteRemoteRunner
+    tool_type: Literal["write", "action"] = "action"
+    entity_references: tuple[EntityReference, ...] = ()
+    required_parameters: tuple[str, ...] = ()

@@ -60,6 +60,7 @@ class ApprovalGatewayImpl:
             risk_score=request.risk.score,
             risk_level=request.risk.level,
             required_approvers=_merge_approvers(request.risk, request.permission),
+            required_approvals=request.required_approvals,
             idempotency_key=f"{request.trace_id}:{digest}",
             write_action=cast(WriteAction, tool.action),
         )

@@ -13,6 +13,7 @@ from fastapi import FastAPI
 
 from agent.llm import LLMProvider
 from agent.tools import ToolRegistry, build_default_registry
+from api.admin import router as admin_router
 from api.approvals import router as approvals_router
 from api.auth import ApiKeyDirectory
 from api.badcases import router as badcases_router
@@ -93,5 +94,6 @@ def create_app(
     app.include_router(approvals_router)
     app.include_router(dashboard_router)
     app.include_router(badcases_router)
+    app.include_router(admin_router)
     mount_console(app)
     return app

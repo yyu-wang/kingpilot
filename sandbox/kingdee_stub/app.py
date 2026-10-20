@@ -21,12 +21,21 @@ import hashlib
 import hmac
 import json
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from sandbox.kingdee_stub.filter_parser import FilterSyntaxError, parse_filter
+from sandbox.kingdee_stub.inbound_store import (
+    PurchaseInboundWriteError,
+    purchase_inbound_store,
+)
+from sandbox.kingdee_stub.purchase_order_store import (
+    PurchaseOrderWriteError,
+    purchase_order_store,
+)
 from sandbox.kingdee_stub.query_engine import (
     FORMS,
     FormModel,
@@ -34,6 +43,7 @@ from sandbox.kingdee_stub.query_engine import (
     apply_order,
     parse_order_string,
 )
+from sandbox.kingdee_stub.store import SalesOrderWriteError, sales_order_store
 
 # ── 仿真凭证（与真实密钥无关的占位值；.env 里切真环境时整块替换）──
 SANDBOX_ACCT_ID = "sandbox_acct"
@@ -47,6 +57,17 @@ SANDBOX_APP_SECRET = "sandbox_secret_not_a_real_credential"  # pragma: allowlist
 SANDBOX_BASE_PATH = "/K3Cloud/Kingdee.BOS.WebApi.ServicesStub"
 LOGIN_PATH = f"{SANDBOX_BASE_PATH}.AuthService.LoginBySign.common.kdsvc"
 QUERY_PATH = f"{SANDBOX_BASE_PATH}.DynamicFormService.ExecuteBillQuery.common.kdsvc"
+SAVE_PATH = f"{SANDBOX_BASE_PATH}.DynamicFormService.Save.common.kdsvc"
+SUBMIT_PATH = f"{SANDBOX_BASE_PATH}.DynamicFormService.Submit.common.kdsvc"
+AUDIT_PATH = f"{SANDBOX_BASE_PATH}.DynamicFormService.Audit.common.kdsvc"
+UNAUDIT_PATH = f"{SANDBOX_BASE_PATH}.DynamicFormService.UnAudit.common.kdsvc"
+DELETE_PATH = f"{SANDBOX_BASE_PATH}.DynamicFormService.Delete.common.kdsvc"
+
+# 支持写操作的 FormId（其余表单只读）
+SALES_ORDER_FORM = "SAL_Order"
+PURCHASE_ORDER_FORM = "PUR_PurchaseOrder"
+PURCHASE_INBOUND_FORM = "STK_InStock"
+_WRITE_FORMS = frozenset({SALES_ORDER_FORM, PURCHASE_ORDER_FORM, PURCHASE_INBOUND_FORM})
 
 SESSION_COOKIE_NAME = "KDSVCSessionId"  # 金蝶会话 Cookie 名（官方实测）
 
@@ -233,3 +254,237 @@ async def execute_bill_query(request: Request) -> JSONResponse:
     field_keys: list[str] = validated["field_keys"]
     projected = [[row.get(key) for key in field_keys] for row in rows]
     return JSONResponse(content=projected, status_code=200)
+
+
+# ── 写操作端点（M9-T13）──
+
+
+def _write_ok(**extra: Any) -> dict[str, Any]:
+    """构造金蝶写操作成功信封。"""
+    result: dict[str, Any] = {
+        "ResponseStatus": {"IsSuccess": True, "Errors": [], "MsgCode": 0},
+    }
+    result.update(extra)
+    return {"Result": result}
+
+
+def _write_error(message: str, msg_code: int = 21) -> JSONResponse:
+    """构造金蝶写操作失败信封（HTTP 200）。"""
+    return JSONResponse(
+        content={
+            "Result": {
+                "ResponseStatus": {
+                    "IsSuccess": False,
+                    "Errors": [{"FieldName": "", "Message": message, "DIndex": 0}],
+                    "MsgCode": msg_code,
+                }
+            }
+        },
+        status_code=200,
+    )
+
+
+class _WriteRequestError(Exception):
+    """写请求形状错误（formId/body/Numbers 等）。"""
+
+    def __init__(self, message: str, *, code: int = 22) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+def _write_body(
+    payload: dict[str, Any] | None,
+) -> tuple[str, dict[str, Any]] | JSONResponse:
+    """解析写请求 ``parameters = [formId, body]``。"""
+    if payload is None:
+        return _write_error("请求体不是合法 JSON", 22)
+    params = payload.get("parameters")
+    if not isinstance(params, list) or len(params) != 2:
+        return _write_error("parameters 必须是 [formId, body]", 22)
+    form_id, body = params[0], params[1]
+    if form_id not in _WRITE_FORMS:
+        return _write_error(f"不支持的表单: {form_id}", 4)
+    if not isinstance(body, dict):
+        return _write_error("body 必须是对象", 22)
+    return str(form_id), body
+
+
+def _number(value: Any) -> str:
+    """从 ``{"FNumber": "CUS001"}`` / ``{"FID": 2001}`` 或裸值中取标识。"""
+    if isinstance(value, dict):
+        value = value.get("FNumber") or value.get("FID")
+    return "" if value is None else str(value).strip().upper()
+
+
+def _stock_name(value: Any) -> str:
+    """仓库字段：``{"FName": "成品仓"}`` 或裸字符串。"""
+    if isinstance(value, dict):
+        value = value.get("FName") or value.get("FNumber")
+    return "" if value is None else str(value).strip()
+
+
+def _bill_no(body: dict[str, Any]) -> str:
+    numbers = body.get("Numbers") or body.get("numbers") or []
+    if isinstance(numbers, str):
+        numbers = [numbers]
+    if not isinstance(numbers, list) or not numbers:
+        raise _WriteRequestError("缺少单据编号 Numbers", code=22)
+    return str(numbers[0]).strip()
+
+
+def _session_ok(request: Request) -> bool:
+    return request.cookies.get(SESSION_COOKIE_NAME) in _sessions
+
+
+@app.post(SAVE_PATH)
+async def save_order(request: Request) -> JSONResponse:
+    """Save：创建暂存销售订单或采购入库单。"""
+    if not _session_ok(request):
+        return _write_error("会话信息丢失，请重新登录", _MSG_SESSION_LOST)
+    parsed = _write_body(await _read_json(request))
+    if isinstance(parsed, JSONResponse):
+        return parsed
+    form_id, body = parsed
+
+    model = body.get("Model", body)
+    if not isinstance(model, dict):
+        return _write_error("Model 必须是对象", 22)
+    if form_id == SALES_ORDER_FORM:
+        return _save_sales_order(model)
+    if form_id == PURCHASE_ORDER_FORM:
+        return _save_purchase_order(model)
+    return _save_purchase_inbound(model)
+
+
+def _save_sales_order(model: dict[str, Any]) -> JSONResponse:
+    try:
+        order = sales_order_store.create(
+            customer_number=_number(model.get("FCustomerID")),
+            material_number=_number(model.get("FMaterialID")),
+            quantity=model.get("FQty"),
+            tax_price=model.get("FTaxPrice"),
+            order_date=str(model.get("FDate") or ""),
+            note=str(model.get("FNote") or ""),
+        )
+    except SalesOrderWriteError as exc:
+        return _write_error(str(exc), exc.code)
+    return JSONResponse(_write_ok(Id=order.fid, Number=order.bill_no), status_code=200)
+
+
+def _save_purchase_order(model: dict[str, Any]) -> JSONResponse:
+    try:
+        order = purchase_order_store.create(
+            supplier_number=_number(model.get("FSupplierID")),
+            material_number=_number(model.get("FMaterialID")),
+            quantity=model.get("FQty"),
+            tax_price=model.get("FTaxPrice"),
+            order_date=str(model.get("FDate") or ""),
+            note=str(model.get("FNote") or ""),
+        )
+    except PurchaseOrderWriteError as exc:
+        return _write_error(str(exc), exc.code)
+    return JSONResponse(_write_ok(Number=order.bill_no), status_code=200)
+
+
+def _save_purchase_inbound(model: dict[str, Any]) -> JSONResponse:
+    try:
+        row = purchase_inbound_store.create(
+            source_bill_no=str(model.get("FSrcBillNo") or ""),
+            supplier_number=_number(model.get("FSupplierID")),
+            material_number=_number(model.get("FMaterialID")),
+            warehouse_name=_stock_name(model.get("FStockId")),
+            quantity=model.get("FRealQty"),
+            tax_price=model.get("FTaxPrice"),
+            inbound_date=str(model.get("FDate") or ""),
+            note=str(model.get("FNote") or ""),
+        )
+    except PurchaseInboundWriteError as exc:
+        return _write_error(str(exc), exc.code)
+    return JSONResponse(_write_ok(Number=row.bill_no), status_code=200)
+
+
+@app.post(SUBMIT_PATH)
+async def submit_order(request: Request) -> JSONResponse:
+    """Submit：Z/A → B。"""
+    return _action(
+        request,
+        await _read_json(request),
+        sales_order_store.submit,
+        purchase_order_store.submit,
+        purchase_inbound_store.submit,
+    )
+
+
+@app.post(AUDIT_PATH)
+async def audit_order(request: Request) -> JSONResponse:
+    """Audit：B → C。"""
+    return _action(
+        request,
+        await _read_json(request),
+        sales_order_store.audit,
+        purchase_order_store.audit,
+        purchase_inbound_store.audit,
+    )
+
+
+@app.post(UNAUDIT_PATH)
+async def unaudit_order(request: Request) -> JSONResponse:
+    """UnAudit：C → A。"""
+    return _action(
+        request,
+        await _read_json(request),
+        sales_order_store.unaudit,
+        purchase_order_store.unaudit,
+        purchase_inbound_store.unaudit,
+    )
+
+
+@app.post(DELETE_PATH)
+async def delete_order(request: Request) -> JSONResponse:
+    """Delete：仅 Z/A。"""
+    return _action(
+        request,
+        await _read_json(request),
+        sales_order_store.delete,
+        purchase_order_store.delete,
+        purchase_inbound_store.delete,
+    )
+
+
+def _action(
+    request: Request,
+    payload: dict[str, Any] | None,
+    sales_operation: Callable[[str], Any],
+    purchase_operation: Callable[[str], Any],
+    inbound_operation: Callable[[str], Any],
+) -> JSONResponse:
+    """提交/审核/反审核/删除的公共处理（按 formId 分派到对应单据库）。"""
+    if not _session_ok(request):
+        return _write_error("会话信息丢失，请重新登录", _MSG_SESSION_LOST)
+    parsed = _write_body(payload)
+    if isinstance(parsed, JSONResponse):
+        return parsed
+    form_id, body = parsed
+    if form_id == SALES_ORDER_FORM:
+        operation = sales_operation
+    elif form_id == PURCHASE_ORDER_FORM:
+        operation = purchase_operation
+    else:
+        operation = inbound_operation
+    try:
+        bill_no = _bill_no(body)
+        result = operation(bill_no)
+    except (
+        SalesOrderWriteError,
+        PurchaseOrderWriteError,
+        PurchaseInboundWriteError,
+        _WriteRequestError,
+    ) as exc:
+        return _write_error(str(exc), exc.code)
+    if result is None:
+        return JSONResponse(_write_ok(Ids=""), status_code=200)
+    extra: dict[str, Any] = {"Number": result.bill_no}
+    fid = getattr(result, "fid", None)
+    if fid is not None:
+        extra["Id"] = fid
+    return JSONResponse(_write_ok(**extra), status_code=200)

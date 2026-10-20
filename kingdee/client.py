@@ -21,7 +21,7 @@ import time
 from collections.abc import Callable, Coroutine
 from enum import StrEnum
 from types import TracebackType
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 import httpx
 
@@ -29,12 +29,26 @@ from config.settings import Settings
 from infrastructure.exceptions import KingdeeAPIError, KingdeeAuthError, KingdeeRateLimitError
 from infrastructure.secrets import SecretProvider
 from kingdee.auth import KingdeeAuth
-from models.kingdee import BillQueryParams, BillQueryResult, extract_response_status, rows_to_dicts
+from models.kingdee import (
+    ActionResult,
+    BillQueryParams,
+    BillQueryResult,
+    extract_response_status,
+    rows_to_dicts,
+)
 
 # 协议与策略常量（规范：禁止魔法数字/字符串）
 _QUERY_PATH = (
     "/K3Cloud/Kingdee.BOS.WebApi.ServicesStub.DynamicFormService.ExecuteBillQuery.common.kdsvc"
 )
+_ACTION_PATHS: dict[str, str] = {
+    "save": "/K3Cloud/Kingdee.BOS.WebApi.ServicesStub.DynamicFormService.Save.common.kdsvc",
+    "submit": "/K3Cloud/Kingdee.BOS.WebApi.ServicesStub.DynamicFormService.Submit.common.kdsvc",
+    "audit": "/K3Cloud/Kingdee.BOS.WebApi.ServicesStub.DynamicFormService.Audit.common.kdsvc",
+    "unaudit": "/K3Cloud/Kingdee.BOS.WebApi.ServicesStub.DynamicFormService.UnAudit.common.kdsvc",
+    "delete": "/K3Cloud/Kingdee.BOS.WebApi.ServicesStub.DynamicFormService.Delete.common.kdsvc",
+}
+KingdeeWriteAction = Literal["save", "submit", "audit", "unaudit", "delete"]
 _BASE_BACKOFF_SECONDS = 0.5
 _MAX_BACKOFF_SECONDS = 8.0
 _RATE_LIMIT_STATUS = 429
@@ -42,6 +56,16 @@ _SESSION_INVALID_STATUS = 401
 # INFERRED: 会话失效信号取自社区实测报错原文（“会话信息丢失，请重新登录”），
 # 真环境联调时核对；若真金蝶改用 HTTP 401 表达，本元组退化为兜底。
 _SESSION_LOSS_KEYWORDS = ("会话", "重新登录", "SessionId")
+
+
+def _write_error_message(status: dict[str, Any]) -> str:
+    """从写操作 ResponseStatus 中提取首条错误消息（不回显密钥）。"""
+    errors = status.get("Errors")
+    if isinstance(errors, list) and errors:
+        first = errors[0]
+        if isinstance(first, dict):
+            return str(first.get("Message") or "未知错误")
+    return f"MsgCode={status.get('MsgCode', '')}"
 
 
 class _Verdict(StrEnum):
@@ -175,6 +199,71 @@ class KingdeeClient:
                 raise KingdeeAPIError(f"金蝶返回 HTTP {response.status_code}", context=context)
             await self._backoff(attempt, response=response)
             attempt += 1
+
+    # ── 内部实现 ──
+
+    async def execute_action(
+        self,
+        action: KingdeeWriteAction,
+        form_id: str,
+        *,
+        model: dict[str, Any] | None = None,
+        bill_no: str = "",
+    ) -> ActionResult:
+        """执行写操作（Save/Submit/Audit/UnAudit/Delete）。
+
+        Why 不自动重试：写操作超时后重放可能重复创建/审核；幂等由上层
+        ``WriteCoordinator`` 的幂等键保证。会话失效只抛错，不自动重放。
+        """
+        path = _ACTION_PATHS.get(action)
+        if path is None:
+            raise KingdeeAPIError(f"不支持的写操作: {action}", context={"action": action})
+        if action == "save":
+            if model is None:
+                raise KingdeeAPIError("Save 缺少 model", context={"action": action})
+            parameters: list[Any] = [form_id, {"Model": model}]
+        else:
+            if not bill_no.strip():
+                raise KingdeeAPIError(f"{action} 缺少单号", context={"action": action})
+            parameters = [form_id, {"Numbers": [bill_no]}]
+
+        url = self._settings.kingdee_server_url.rstrip("/") + path
+        context: dict[str, Any] = {"operation": action, "form_id": form_id}
+        await self._auth.ensure_session()
+        try:
+            response = await self._post_once(url, {"parameters": parameters})
+        except httpx.HTTPError as exc:
+            raise KingdeeAPIError(f"金蝶写操作失败: {type(exc).__name__}", context=context) from exc
+
+        if response.status_code == _SESSION_INVALID_STATUS:
+            self._auth.invalidate()
+            raise KingdeeAuthError("金蝶会话失效，请重新登录后再试", context=context)
+        if response.status_code >= 400:
+            raise KingdeeAPIError(f"金蝶返回 HTTP {response.status_code}", context=context)
+
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise KingdeeAPIError("金蝶写操作响应不是合法 JSON", context=context) from exc
+        result = body.get("Result") if isinstance(body, dict) else None
+        status = result.get("ResponseStatus") if isinstance(result, dict) else None
+        if not isinstance(result, dict) or not isinstance(status, dict):
+            raise KingdeeAPIError("金蝶写操作响应结构不符", context=context)
+        if not bool(status.get("IsSuccess")):
+            message = _write_error_message(status)
+            if any(keyword in message for keyword in _SESSION_LOSS_KEYWORDS):
+                self._auth.invalidate()
+                raise KingdeeAuthError("金蝶会话失效，请重新登录后再试", context=context)
+            raise KingdeeAPIError(f"金蝶写操作被拒: {message}", context=context)
+
+        return ActionResult(
+            success=True,
+            form_id=form_id,
+            bill_no=str(result.get("Number") or bill_no),
+            doc_id=str(result.get("Id") or ""),
+            message="ok",
+            response=body,
+        )
 
     # ── 内部实现 ──
 

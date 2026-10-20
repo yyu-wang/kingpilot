@@ -64,6 +64,17 @@ class EntityPreflightGuard:
                 }
             )
 
+        if tool.tool_type == "action" and not tool.entity_references:
+            # 状态流转类动作（submit/audit/unaudit/delete）只引用单号，
+            # 单号的业务必填与格式由 Guard 5 校验，不做实体预检
+            return GuardResult.allow(
+                detail={
+                    "tool": context.tool_name,
+                    "skipped": True,
+                    "reason": "动作类工具无实体引用，单号由 Guard 5 校验",
+                }
+            )
+
         if not tool.entity_references:
             return GuardResult.block(
                 f"写操作工具 {context.tool_name} 未声明实体引用规则（fail-closed）",

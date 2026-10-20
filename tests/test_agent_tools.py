@@ -30,9 +30,25 @@ _MOCK_ROW = ["SO000001", "2026-01-05", "测试客户001", "C", "150000.000000000
 EXPECTED_TOOL_NAMES = {
     "kingdee_query_sales_order",
     "kingdee_query_purchase_order",
+    "kingdee_query_purchase_inbound",
     "kingdee_query_customer",
     "kingdee_query_supplier",
     "kingdee_query_inventory",
+    "kingdee_create_sales_order",
+    "kingdee_submit_sales_order",
+    "kingdee_audit_sales_order",
+    "kingdee_unaudit_sales_order",
+    "kingdee_delete_sales_order",
+    "kingdee_create_purchase_inbound",
+    "kingdee_submit_purchase_inbound",
+    "kingdee_audit_purchase_inbound",
+    "kingdee_unaudit_purchase_inbound",
+    "kingdee_delete_purchase_inbound",
+    "kingdee_create_purchase_order",
+    "kingdee_submit_purchase_order",
+    "kingdee_audit_purchase_order",
+    "kingdee_unaudit_purchase_order",
+    "kingdee_delete_purchase_order",
     "kb_search",
 }
 
@@ -91,11 +107,11 @@ async def test_execute_wraps_filter_rejection_as_tool_error() -> None:
             await tool.execute(client, {"name": "o'reilly"})
 
 
-def test_default_registry_has_six_tools() -> None:
-    """默认注册表含 5 个 ERP 查询工具 + 1 个本地知识工具。"""
+def test_default_registry_has_twenty_two_tools() -> None:
+    """默认注册表含 6 个查询 + 15 个写工具 + 1 个本地知识工具。"""
     specs = build_default_registry().all_specs()
     assert {spec.name for spec in specs} == EXPECTED_TOOL_NAMES
-    assert len(specs) == 6
+    assert len(specs) == 22
 
 
 def test_get_unknown_tool_carries_known_list() -> None:

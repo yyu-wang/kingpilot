@@ -13,6 +13,8 @@ from kingdee.endpoints import (
     CUSTOMER_TOOL,
     INVENTORY,
     INVENTORY_TOOL,
+    PURCHASE_INBOUND,
+    PURCHASE_INBOUND_TOOL,
     PURCHASE_ORDER,
     PURCHASE_ORDER_TOOL,
     SUPPLIER,
@@ -22,6 +24,10 @@ from kingdee.endpoints import (
 from kingdee.endpoints.bd_customer import CustomerParams, build_customer_filter
 from kingdee.endpoints.pur_order import PurchaseOrderParams, build_purchase_order_filter
 from kingdee.endpoints.sal_order import SalesOrderParams, build_sales_order_filter
+from kingdee.endpoints.stk_inbound import (
+    PurchaseInboundParams,
+    build_purchase_inbound_filter,
+)
 from kingdee.endpoints.stk_inventory import InventoryParams, build_inventory_filter
 
 
@@ -31,6 +37,7 @@ from kingdee.endpoints.stk_inventory import InventoryParams, build_inventory_fil
         pytest.param(CUSTOMER, "BD_Customer", id="customer"),
         pytest.param(SUPPLIER, "BD_Supplier", id="supplier"),
         pytest.param(PURCHASE_ORDER, "PUR_PurchaseOrder", id="purchase_order"),
+        pytest.param(PURCHASE_INBOUND, "STK_InStock", id="purchase_inbound"),
         pytest.param(INVENTORY, "STK_Inventory", id="inventory"),
     ],
 )
@@ -108,10 +115,57 @@ def test_purchase_filter_combined() -> None:
     assert result == "FSupplierID.FNumber = 'SUP001' AND FDocumentStatus = 'B'"
 
 
+def test_purchase_filter_supports_amount_bill_no_and_date() -> None:
+    """采购订单与销售订单同口径：金额下限、单号、日期均可过滤。"""
+    result = build_purchase_order_filter(
+        PurchaseOrderParams(
+            min_amount=50_000,
+            bill_no="PO000002",
+            order_date="2026-01-08",
+        )
+    )
+    assert result == "FAmount >= 50000 AND FBillNo = 'PO000002' AND FDate = '2026-01-08'"
+
+
+def test_purchase_filter_supports_material_and_quantity() -> None:
+    """采购订单可按物料编码与数量下限过滤（新增单物料行字段）。"""
+    result = build_purchase_order_filter(
+        PurchaseOrderParams(material_number="MAT001", min_quantity=10)
+    )
+    assert result == "FMaterialId.FNumber = 'MAT001' AND FQty >= 10"
+
+
 def test_purchase_shares_status_validator() -> None:
     """采购订单与销售订单共用同一状态值域校验。"""
     with pytest.raises(ValidationError, match="单据状态"):
         PurchaseOrderParams(document_status="X")
+
+
+def test_purchase_inbound_filter_full() -> None:
+    """采购入库单：源单号/供应商/物料/仓库/状态/日期/数量全条件组装。"""
+    result = build_purchase_inbound_filter(
+        PurchaseInboundParams(
+            bill_no="CGRK000001",
+            supplier_number="SUP001",
+            material_number="MAT001",
+            warehouse_name="成品仓",
+            document_status="C",
+            order_date="2026-01-06",
+            source_bill_no="PO000001",
+            min_quantity=10,
+        )
+    )
+    assert result == (
+        "FBillNo = 'CGRK000001' AND FSupplierID.FNumber = 'SUP001' "
+        "AND FMaterialId.FNumber = 'MAT001' AND FStockId.FName = '成品仓' "
+        "AND FDocumentStatus = 'C' AND FDate = '2026-01-06' "
+        "AND FSrcBillNo = 'PO000001' AND FRealQty >= 10"
+    )
+
+
+def test_purchase_inbound_shares_status_validator() -> None:
+    with pytest.raises(ValidationError, match="单据状态"):
+        PurchaseInboundParams(document_status="X")
 
 
 def test_inventory_filter_material_number() -> None:
@@ -140,3 +194,5 @@ def test_tool_bindings_are_consistent() -> None:
     assert SUPPLIER_TOOL.endpoint is SUPPLIER
     assert INVENTORY_TOOL.endpoint is INVENTORY
     assert PURCHASE_ORDER_TOOL.endpoint is PURCHASE_ORDER
+    assert PURCHASE_INBOUND_TOOL.endpoint is PURCHASE_INBOUND
+    assert PURCHASE_INBOUND_TOOL.params_model is PurchaseInboundParams

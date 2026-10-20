@@ -317,10 +317,484 @@ STATUS_COVERAGE: frozenset[str] = frozenset(order.document_status for order in O
 ALL_STATUS_VALUES: frozenset[str] = frozenset(_STATUSES)
 
 
+# ── 基础资料（M9-T13：写操作实体预检数据源）──
+
+
+@dataclass(frozen=True)
+class CustomerRow:
+    """客户基础资料行（BD_Customer 的仿真子集）。"""
+
+    fid: str
+    number: str
+    name: str
+    short_name: str
+
+
+@dataclass(frozen=True)
+class MaterialRow:
+    """物料基础资料行（BD_Material 的仿真子集）。"""
+
+    fid: str
+    number: str
+    name: str
+
+
+# FID 取固定值：Guard 3 预检会把编码/名称换成 FID，写端点据此反查编码
+CUSTOMER_ROWS: tuple[CustomerRow, ...] = (
+    CustomerRow(fid="2001", number="CUS001", name="测试客户001", short_name="客户001"),
+    CustomerRow(fid="2002", number="CUS002", name="测试客户002", short_name="客户002"),
+    CustomerRow(fid="2003", number="CUS003", name="测试客户003", short_name="客户003"),
+    CustomerRow(fid="2004", number="CUS004", name="测试客户004", short_name="客户004"),
+    CustomerRow(fid="2005", number="CUS005", name="测试客户005", short_name="客户005"),
+    CustomerRow(fid="2006", number="CUS006", name="华南贸易有限公司", short_name="华南贸易"),
+    CustomerRow(fid="2007", number="CUS007", name="华北制造集团", short_name="华北制造"),
+    CustomerRow(fid="2008", number="CUS008", name="华东零售连锁", short_name="华东零售"),
+)
+
+MATERIAL_ROWS: tuple[MaterialRow, ...] = (
+    MaterialRow(fid="3001", number="MAT001", name="测试物料001"),
+    MaterialRow(fid="3002", number="MAT002", name="测试物料002"),
+    MaterialRow(fid="3003", number="MAT003", name="测试物料003"),
+    MaterialRow(fid="3004", number="MAT004", name="测试物料004"),
+    MaterialRow(fid="3005", number="MAT005", name="测试物料005"),
+    MaterialRow(fid="3006", number="MAT006", name="测试物料006"),
+    MaterialRow(fid="3007", number="MAT007", name="测试物料007"),
+    MaterialRow(fid="3008", number="MAT008", name="测试物料008"),
+)
+
+_CUSTOMER_ACCESSORS: dict[str, Callable[[CustomerRow], JsonScalar]] = {
+    "FID": lambda row: row.fid,
+    "FNumber": lambda row: row.number,
+    "FName": lambda row: row.name,
+    "FShortName": lambda row: row.short_name,
+}
+
+_MATERIAL_ACCESSORS: dict[str, Callable[[MaterialRow], JsonScalar]] = {
+    "FID": lambda row: row.fid,
+    "FNumber": lambda row: row.number,
+    "FName": lambda row: row.name,
+}
+
+
+def customer_value(row: CustomerRow, field_name: str) -> JsonScalar:
+    """取客户字段值；未知字段返回 ``None``（上层已先做白名单校验）。"""
+    accessor = _CUSTOMER_ACCESSORS.get(field_name)
+    return accessor(row) if accessor else None
+
+
+def material_value(row: MaterialRow, field_name: str) -> JsonScalar:
+    """取物料字段值；未知字段返回 ``None``（上层已先做白名单校验）。"""
+    accessor = _MATERIAL_ACCESSORS.get(field_name)
+    return accessor(row) if accessor else None
+
+
+# ── 供应商与采购订单（M9 测试数据补全）──
+
+
+@dataclass(frozen=True)
+class SupplierRow:
+    """供应商基础资料行（BD_Supplier 的仿真子集）。"""
+
+    fid: str
+    number: str
+    name: str
+    short_name: str
+
+
+@dataclass(frozen=True)
+class PurchaseOrder:
+    """采购订单（沙箱简化为单行：表头 + 一个物料行）。"""
+
+    bill_no: str
+    date: str
+    document_status: str
+    supplier_number: str
+    supplier_name: str
+    amount: str
+    material_number: str = ""
+    material_name: str = ""
+    qty: str = "0.0000000000"
+    tax_price: str = "0.0000000000"
+    note: str = ""
+
+
+SUPPLIER_ROWS: tuple[SupplierRow, ...] = (
+    SupplierRow(fid="4001", number="SUP001", name="测试供应商001", short_name="供应商001"),
+    SupplierRow(fid="4002", number="SUP002", name="测试供应商002", short_name="供应商002"),
+    SupplierRow(fid="4003", number="SUP003", name="测试供应商003", short_name="供应商003"),
+    SupplierRow(fid="4004", number="SUP004", name="深圳YY贸易有限公司", short_name="深圳YY贸易"),
+    SupplierRow(fid="4005", number="SUP005", name="测试供应商005", short_name="供应商005"),
+)
+
+_SUPPLIER_ACCESSORS: dict[str, Callable[[SupplierRow], JsonScalar]] = {
+    "FID": lambda row: row.fid,
+    "FNumber": lambda row: row.number,
+    "FName": lambda row: row.name,
+    "FShortName": lambda row: row.short_name,
+}
+
+_PURCHASE_ORDER_ACCESSORS: dict[str, Callable[[PurchaseOrder], JsonScalar]] = {
+    "FBillNo": lambda order: order.bill_no,
+    "FDate": lambda order: order.date,
+    "FDocumentStatus": lambda order: order.document_status,
+    "FSupplierID.FNumber": lambda order: order.supplier_number,
+    "FSupplierID.FName": lambda order: order.supplier_name,
+    "FAmount": lambda order: order.amount,
+    "FMaterialId.FNumber": lambda order: order.material_number,
+    "FMaterialId.FName": lambda order: order.material_name,
+    "FQty": lambda order: order.qty,
+    "FTaxPrice": lambda order: order.tax_price,
+}
+
+
+def supplier_value(row: SupplierRow, field_name: str) -> JsonScalar:
+    """取供应商字段值；未知字段返回 ``None``（上层已先做白名单校验）。"""
+    accessor = _SUPPLIER_ACCESSORS.get(field_name)
+    return accessor(row) if accessor else None
+
+
+def purchase_order_value(order: PurchaseOrder, field_name: str) -> JsonScalar:
+    """取采购订单字段值；未知字段返回 ``None``（上层已先做白名单校验）。"""
+    accessor = _PURCHASE_ORDER_ACCESSORS.get(field_name)
+    return accessor(order) if accessor else None
+
+
+# 具名锚点：覆盖全部单据状态，便于断言精确值
+_NAMED_PURCHASE_ORDERS: tuple[PurchaseOrder, ...] = (
+    PurchaseOrder(
+        "PO000001",
+        "2026-01-03",
+        "C",
+        "SUP001",
+        "测试供应商001",
+        "88000.0000000000",
+        "MAT001",
+        "测试物料001",
+        "88.0000000000",
+        "1000.0000000000",
+    ),
+    PurchaseOrder(
+        "PO000002",
+        "2026-01-08",
+        "C",
+        "SUP002",
+        "测试供应商002",
+        "160000.0000000000",
+        "MAT002",
+        "测试物料002",
+        "160.0000000000",
+        "1000.0000000000",
+    ),
+    PurchaseOrder(
+        "PO000003",
+        "2026-01-12",
+        "B",
+        "SUP003",
+        "测试供应商003",
+        "25000.0000000000",
+        "MAT003",
+        "测试物料003",
+        "25.0000000000",
+        "1000.0000000000",
+    ),
+    PurchaseOrder(
+        "PO000004",
+        "2026-02-01",
+        "Z",
+        "SUP001",
+        "测试供应商001",
+        "5000.0000000000",
+        "MAT004",
+        "测试物料004",
+        "5.0000000000",
+        "1000.0000000000",
+    ),
+    PurchaseOrder(
+        "PO000005",
+        "2026-02-02",
+        "A",
+        "SUP002",
+        "测试供应商002",
+        "12000.0000000000",
+        "MAT005",
+        "测试物料005",
+        "12.0000000000",
+        "1000.0000000000",
+    ),
+    PurchaseOrder(
+        "PO000006",
+        "2026-02-03",
+        "D",
+        "SUP004",
+        "深圳YY贸易有限公司",
+        "3000.0000000000",
+        "MAT006",
+        "测试物料006",
+        "3.0000000000",
+        "1000.0000000000",
+    ),
+    PurchaseOrder(
+        "PO000007",
+        "2026-03-05",
+        "C",
+        "SUP005",
+        "测试供应商005",
+        "45000.0000000000",
+        "MAT006",
+        "测试物料006",
+        "45.0000000000",
+        "1000.0000000000",
+    ),
+    PurchaseOrder(
+        "PO000008",
+        "2026-03-06",
+        "C",
+        "SUP001",
+        "测试供应商001",
+        "9900.0000000000",
+        "MAT008",
+        "测试物料008",
+        "9.0000000000",
+        "1100.0000000000",
+    ),
+)
+
+_PO_SEED = 20261019
+_PO_TOTAL = 40
+
+
+def _generate_purchase_orders() -> tuple[PurchaseOrder, ...]:
+    """固定种子生成其余采购订单（状态/供应商/物料分布可重现）。"""
+    rng = random.Random(_PO_SEED)
+    orders: list[PurchaseOrder] = list(_NAMED_PURCHASE_ORDERS)
+    suppliers = tuple((row.number, row.name) for row in SUPPLIER_ROWS)
+    materials = tuple((row.number, row.name) for row in MATERIAL_ROWS)
+    for index in range(len(_NAMED_PURCHASE_ORDERS), _PO_TOTAL):
+        supplier_number, supplier_name = rng.choice(suppliers)
+        material_number, material_name = rng.choice(materials)
+        qty = rng.randint(1, 100)
+        price = rng.randint(100, 2000)
+        month = rng.randint(4, 12)
+        day = rng.randint(1, 28)
+        orders.append(
+            PurchaseOrder(
+                bill_no=f"PO{index + 1:06d}",
+                date=f"2026-{month:02d}-{day:02d}",
+                document_status=rng.choice(("C", "C", "B", "A", "Z", "D")),
+                supplier_number=supplier_number,
+                supplier_name=supplier_name,
+                amount=f"{qty * price}.0000000000",
+                material_number=material_number,
+                material_name=material_name,
+                qty=f"{qty}.0000000000",
+                tax_price=f"{price}.0000000000",
+            )
+        )
+    return tuple(orders)
+
+
+PURCHASE_ORDERS: tuple[PurchaseOrder, ...] = tuple(
+    sorted(_generate_purchase_orders(), key=lambda order: order.bill_no)
+)
+PURCHASE_STATUS_COVERAGE: frozenset[str] = frozenset(
+    order.document_status for order in PURCHASE_ORDERS
+)
+
+
+# ── 采购入库单（采购入库流程测试数据）──
+
+
+@dataclass(frozen=True)
+class PurchaseInboundRow:
+    """采购入库单行（STK_InStock 的仿真子集）。
+
+    ``source_bill_no`` 回链采购订单，用于验证「订单 → 到货入库」流程。
+    """
+
+    bill_no: str
+    date: str
+    document_status: str
+    supplier_number: str
+    supplier_name: str
+    warehouse_name: str
+    material_number: str
+    material_name: str
+    real_qty: str
+    source_bill_no: str
+    amount: str
+    note: str = ""
+
+
+_NAMED_PURCHASE_INBOUND_ROWS: tuple[PurchaseInboundRow, ...] = (
+    PurchaseInboundRow(
+        "CGRK000001",
+        "2026-01-06",
+        "C",
+        "SUP001",
+        "测试供应商001",
+        "成品仓",
+        "MAT001",
+        "测试物料001",
+        "50.0000000000",
+        "PO000001",
+        "44000.0000000000",
+    ),
+    PurchaseInboundRow(
+        "CGRK000002",
+        "2026-01-10",
+        "C",
+        "SUP002",
+        "测试供应商002",
+        "原料仓",
+        "MAT002",
+        "测试物料002",
+        "30.0000000000",
+        "PO000002",
+        "48000.0000000000",
+    ),
+    PurchaseInboundRow(
+        "CGRK000003",
+        "2026-01-15",
+        "B",
+        "SUP003",
+        "测试供应商003",
+        "成品仓",
+        "MAT003",
+        "测试物料003",
+        "10.0000000000",
+        "PO000003",
+        "8000.0000000000",
+    ),
+    PurchaseInboundRow(
+        "CGRK000004",
+        "2026-02-05",
+        "Z",
+        "SUP001",
+        "测试供应商001",
+        "成品仓",
+        "MAT004",
+        "测试物料004",
+        "5.0000000000",
+        "PO000004",
+        "2500.0000000000",
+    ),
+    PurchaseInboundRow(
+        "CGRK000005",
+        "2026-02-06",
+        "A",
+        "SUP002",
+        "测试供应商002",
+        "半成品仓",
+        "MAT005",
+        "测试物料005",
+        "8.0000000000",
+        "PO000005",
+        "3200.0000000000",
+    ),
+    PurchaseInboundRow(
+        "CGRK000006",
+        "2026-02-10",
+        "C",
+        "SUP004",
+        "深圳YY贸易有限公司",
+        "原料仓",
+        "MAT006",
+        "测试物料006",
+        "20.0000000000",
+        "PO000006",
+        "6000.0000000000",
+    ),
+    PurchaseInboundRow(
+        "CGRK000007",
+        "2026-03-08",
+        "D",
+        "SUP005",
+        "测试供应商005",
+        "成品仓",
+        "MAT006",
+        "测试物料006",
+        "15.0000000000",
+        "PO000007",
+        "7500.0000000000",
+    ),
+    PurchaseInboundRow(
+        "CGRK000008",
+        "2026-03-09",
+        "C",
+        "SUP001",
+        "测试供应商001",
+        "原料仓",
+        "MAT008",
+        "测试物料008",
+        "12.0000000000",
+        "PO000008",
+        "4800.0000000000",
+    ),
+)
+
+_INBOUND_SEED = 20261020
+_INBOUND_TOTAL = 14
+
+
+def _generate_purchase_inbounds() -> tuple[PurchaseInboundRow, ...]:
+    """固定种子补足入库单，保证源采购订单都存在且状态分布可重现。"""
+    rng = random.Random(_INBOUND_SEED)
+    rows: list[PurchaseInboundRow] = list(_NAMED_PURCHASE_INBOUND_ROWS)
+    materials = tuple((row.number, row.name) for row in MATERIAL_ROWS)
+    warehouses = ("成品仓", "原料仓", "半成品仓")
+    # 从第 9 张采购订单开始取源单，避免与具名锚点重复
+    source_orders = PURCHASE_ORDERS[8:]
+    for index in range(len(_NAMED_PURCHASE_INBOUND_ROWS), _INBOUND_TOTAL):
+        source = source_orders[index - len(_NAMED_PURCHASE_INBOUND_ROWS)]
+        material_number, material_name = rng.choice(materials)
+        rows.append(
+            PurchaseInboundRow(
+                bill_no=f"CGRK{index + 1:06d}",
+                date=source.date,
+                document_status=rng.choice(("C", "C", "B", "A", "Z", "D")),
+                supplier_number=source.supplier_number,
+                supplier_name=source.supplier_name,
+                warehouse_name=rng.choice(warehouses),
+                material_number=material_number,
+                material_name=material_name,
+                real_qty=f"{rng.randint(1, 100)}.0000000000",
+                source_bill_no=source.bill_no,
+                amount=f"{rng.randint(1000, 90000)}.0000000000",
+            )
+        )
+    return tuple(rows)
+
+
+PURCHASE_INBOUND_ROWS: tuple[PurchaseInboundRow, ...] = tuple(
+    sorted(_generate_purchase_inbounds(), key=lambda row: row.bill_no)
+)
+PURCHASE_INBOUND_STATUS_COVERAGE: frozenset[str] = frozenset(
+    row.document_status for row in PURCHASE_INBOUND_ROWS
+)
+
+_PURCHASE_INBOUND_ACCESSORS: dict[str, Callable[[PurchaseInboundRow], JsonScalar]] = {
+    "FBillNo": lambda row: row.bill_no,
+    "FDate": lambda row: row.date,
+    "FDocumentStatus": lambda row: row.document_status,
+    "FSupplierID.FNumber": lambda row: row.supplier_number,
+    "FSupplierID.FName": lambda row: row.supplier_name,
+    "FStockId.FName": lambda row: row.warehouse_name,
+    "FMaterialId.FNumber": lambda row: row.material_number,
+    "FMaterialId.FName": lambda row: row.material_name,
+    "FRealQty": lambda row: row.real_qty,
+    "FSrcBillNo": lambda row: row.source_bill_no,
+    "FAmount": lambda row: row.amount,
+}
+
+
+def purchase_inbound_value(row: PurchaseInboundRow, field_name: str) -> JsonScalar:
+    """取采购入库单字段值；未知字段返回 ``None``（上层已先做白名单校验）。"""
+    accessor = _PURCHASE_INBOUND_ACCESSORS.get(field_name)
+    return accessor(row) if accessor else None
+
+
 # ── 即时库存数据集（M2-T04）──
-# Why 只支持 STK_Inventory 而非全部 5 端点：M2-T04 验收第 3 类问题是库存查询；
-# 其余 3 个端点（customer/supplier/purchase_order）字段全部 INFERRED 未验证，
-# 造数据=基于错误字段名造数据，等 T01 真凭证补验后再扩。
+# 字段拼写仍为 INFERRED；M9 测试数据补全后已覆盖销售/采购/客户/供应商/库存五个端点。
 
 
 @dataclass(frozen=True)
@@ -356,4 +830,8 @@ INVENTORY_ROWS: tuple[InventoryRow, ...] = (
     InventoryRow("MAT003", "测试物料003", "成品仓", "8.0000000000"),
     InventoryRow("MAT004", "测试物料004", "半成品仓", "12.0000000000"),
     InventoryRow("MAT005", "测试物料005", "成品仓", "9.0000000000"),
+    InventoryRow("MAT006", "测试物料006", "成品仓", "40.0000000000"),
+    # 零库存物料：验证「物料存在但无库存」与「物料不存在」是两种不同答复
+    InventoryRow("MAT007", "测试物料007", "原料仓", "0.0000000000"),
+    InventoryRow("MAT008", "测试物料008", "半成品仓", "25.0000000000"),
 )

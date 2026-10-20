@@ -46,6 +46,10 @@ RAG_RETRIEVAL_TOP_K = 12  # BM25 候选池
 RAG_ANSWER_TOP_K = 5  # 注入上下文的片段数
 RAG_MAX_CHUNKS_PER_DOC = 2  # 单文档上限，避免一份手册刷屏
 KNOWLEDGE_NO_HIT_MESSAGE = "知识库没有找到相关文档。"
+# 纯聊天/未调用 kb_search 时，模型误用无命中话术的兜底文案
+KNOWLEDGE_NOT_SEARCHED_MESSAGE = (
+    "本次没有检索知识库。请明确说明要查询的业务数据，或要了解的手册/流程问题。"
+)
 
 # ── 索引落盘 ──
 RAG_INDEX_FILENAME = "index.json"

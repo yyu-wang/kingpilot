@@ -24,12 +24,16 @@ class RawMessage:
 
     Why 不存 tool_calls 原文：对话消息由 ``LLMMessage`` 承载；记忆层只保留
     有业务意义的工具返回（``structured_result``），供压缩与答复裁剪引用。
+
+    ``trace_id``：assistant 消息对应的 Trace（控制台历史消息「查看 Trace」用）；
+    旧会话文件没有该字段时按空串处理。
     """
 
     role: RawRole
     content: str
     token_count: int = 0  # 写入时由 estimate_tokens 自动估算（agent/memory.py）
     structured_result: dict[str, Any] = field(default_factory=dict)
+    trace_id: str = ""
 
 
 @dataclass(frozen=True)

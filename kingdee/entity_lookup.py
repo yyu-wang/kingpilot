@@ -13,9 +13,7 @@
 业务编号与名称分别放在 ``number`` / ``display_name`` 里供展示与候选提示。
 
 已知限制：
-- ``material`` 暂不支持：缺少 ``BD_Material`` 端点，``STK_Inventory`` 只覆盖
-  「有库存的物料」，用它判存在会误杀零库存物料。引用 material 的写操作会被
-  Guard 3 fail-closed 拦截，待 M1 补物料端点后接入。
+- ``material`` 由 ``BD_Material`` 端点提供（M9-T13 新增；字段拼写 INFERRED）。
 - ``order`` 仅覆盖销售订单（SAL_Order）；采购订单另立实体类型后再补。
 """
 
@@ -26,6 +24,7 @@ from infrastructure.exceptions import KingdeeError
 from kingdee.client import KingdeeClient
 from kingdee.endpoints.base import EndpointDescriptor, quote_eq, quote_like
 from kingdee.endpoints.bd_customer import CUSTOMER
+from kingdee.endpoints.bd_material import BD_MATERIAL
 from kingdee.endpoints.bd_supplier import SUPPLIER
 from kingdee.endpoints.sal_order import SAL_ORDER
 from models.kingdee import JsonScalar
@@ -77,6 +76,9 @@ _ENTITY_SPECS: dict[str, _EntitySpec] = {
     ),
     "supplier": _EntitySpec(
         endpoint=SUPPLIER, id_field="FID", number_field="FNumber", name_field="FName"
+    ),
+    "material": _EntitySpec(
+        endpoint=BD_MATERIAL, id_field="FID", number_field="FNumber", name_field="FName"
     ),
     # 销售订单无独立名称字段，单据编号即标识
     "order": _EntitySpec(

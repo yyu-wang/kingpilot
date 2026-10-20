@@ -1,8 +1,8 @@
-"""审批网关协议（M9-T05）。
+"""审批网关协议（M9-T05，M9-T13 扩展）。
 
 SafetyLayer 只依赖本协议：
-- 有网关（API 模式）→ dual_approve 创建审批单
-- 无网关（CLI 模式）→ 保持原来的同步双人确认
+- 有网关（API 模式）→ confirm 建 1 票单、dual_approve 建 2 票单
+- 无网关（CLI 模式）→ 保持原来的同步确认
 """
 
 from dataclasses import dataclass
@@ -25,6 +25,7 @@ class ApprovalRequest:
     risk: RiskDecision
     permission: PermissionDecision | None
     summary: str
+    required_approvals: int = 2
 
 
 class ApprovalGateway(Protocol):

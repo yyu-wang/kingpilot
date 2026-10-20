@@ -16,7 +16,7 @@ from config.settings import get_settings
 from kingdee.client import KingdeeClient
 from sandbox import sandbox_settings
 from sandbox.kingdee_stub import app as sandbox_app
-from sandbox.kingdee_stub import reset_sessions
+from sandbox.kingdee_stub import reset_dataset, reset_sessions
 
 _ENV_PREFIX = "KINGPILOT_"
 
@@ -48,6 +48,7 @@ async def sandbox_server() -> AsyncIterator[str]:
     （不请求本 fixture 的用例）不会为它起服务。
     """
     reset_sessions()
+    reset_dataset()
     config = uvicorn.Config(sandbox_app, host="127.0.0.1", port=0, log_level="warning")
     server = uvicorn.Server(config)
     task = asyncio.create_task(server.serve())
@@ -61,6 +62,7 @@ async def sandbox_server() -> AsyncIterator[str]:
     server.should_exit = True
     await task
     reset_sessions()
+    reset_dataset()
 
 
 @pytest.fixture

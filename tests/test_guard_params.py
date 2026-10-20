@@ -55,7 +55,7 @@ def _write_tool(
 _CUSTOMER_REF = EntityReference(parameter="customer_number", entity_type="customer")
 
 _WRITE_TOOL = _write_tool(
-    "kingdee_create_sales_order",
+    "test_create_sales_order",
     required=("customer_number", "note"),
     references=(_CUSTOMER_REF,),
 )
@@ -129,7 +129,7 @@ async def test_unknown_tool_blocked() -> None:
 
 async def test_missing_multiple_required_fields_blocked_at_once() -> None:
     result = await ParamGuard(_registry()).check(
-        _context("kingdee_create_sales_order", {"customer_number": "", "note": "   "})
+        _context("test_create_sales_order", {"customer_number": "", "note": "   "})
     )
 
     assert result.passed is False
@@ -141,7 +141,7 @@ async def test_missing_multiple_required_fields_blocked_at_once() -> None:
 async def test_required_fields_present_pass() -> None:
     result = await ParamGuard(_registry()).check(
         _context(
-            "kingdee_create_sales_order",
+            "test_create_sales_order",
             {"customer_number": "100001", "note": "加急"},
         )
     )
@@ -153,7 +153,7 @@ async def test_required_fields_present_pass() -> None:
 
 async def test_missing_required_none_blocked() -> None:
     """参数完全未提供（None）也属于缺失。"""
-    result = await ParamGuard(_registry()).check(_context("kingdee_create_sales_order", {}))
+    result = await ParamGuard(_registry()).check(_context("test_create_sales_order", {}))
 
     assert result.passed is False
     assert result.detail["missing"] == ["customer_number", "note"]
@@ -161,7 +161,7 @@ async def test_missing_required_none_blocked() -> None:
 
 async def test_empty_container_required_blocked() -> None:
     result = await ParamGuard(_registry()).check(
-        _context("kingdee_create_sales_order", {"customer_number": {}, "note": []})
+        _context("test_create_sales_order", {"customer_number": {}, "note": []})
     )
 
     assert result.passed is False
@@ -174,7 +174,7 @@ async def test_empty_container_required_blocked() -> None:
 async def test_name_reference_blocked() -> None:
     result = await ParamGuard(_registry()).check(
         _context(
-            "kingdee_create_sales_order",
+            "test_create_sales_order",
             {"customer_number": "深圳XX公司", "note": "加急"},
         )
     )
@@ -186,7 +186,7 @@ async def test_name_reference_blocked() -> None:
 
 async def test_numeric_int_id_passes() -> None:
     result = await ParamGuard(_registry()).check(
-        _context("kingdee_create_sales_order", {"customer_number": 100001, "note": "加急"})
+        _context("test_create_sales_order", {"customer_number": 100001, "note": "加急"})
     )
 
     assert result.passed is True
@@ -195,7 +195,7 @@ async def test_numeric_int_id_passes() -> None:
 
 async def test_zero_id_blocked() -> None:
     result = await ParamGuard(_registry()).check(
-        _context("kingdee_create_sales_order", {"customer_number": "0", "note": "加急"})
+        _context("test_create_sales_order", {"customer_number": "0", "note": "加急"})
     )
 
     assert result.passed is False
@@ -205,7 +205,7 @@ async def test_zero_id_blocked() -> None:
 async def test_bool_reference_blocked() -> None:
     """bool 是 int 的子类，但绝不能当作内码。"""
     result = await ParamGuard(_registry()).check(
-        _context("kingdee_create_sales_order", {"customer_number": True, "note": "加急"})
+        _context("test_create_sales_order", {"customer_number": True, "note": "加急"})
     )
 
     assert result.passed is False
@@ -215,7 +215,7 @@ async def test_bool_reference_blocked() -> None:
 async def test_non_scalar_reference_blocked() -> None:
     result = await ParamGuard(_registry()).check(
         _context(
-            "kingdee_create_sales_order",
+            "test_create_sales_order",
             {"customer_number": {"id": 100001}, "note": "加急"},
         )
     )
@@ -248,7 +248,7 @@ async def test_pipeline_applies_entity_updates_before_param_guard() -> None:
 
     result = await pipeline.check(
         _context(
-            "kingdee_create_sales_order",
+            "test_create_sales_order",
             {"customer_number": "深圳XX公司", "note": "加急"},
         )
     )
@@ -265,7 +265,7 @@ async def test_pipeline_without_updates_keeps_arguments() -> None:
     pipeline = GuardPipeline([ParamGuard(_registry())])
     arguments = {"customer_number": "100001", "note": "加急"}
 
-    result = await pipeline.check(_context("kingdee_create_sales_order", arguments))
+    result = await pipeline.check(_context("test_create_sales_order", arguments))
 
     assert result.blocked is False
     assert result.effective_arguments == arguments

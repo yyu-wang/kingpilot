@@ -318,6 +318,8 @@ async def test_phase0_compresses_long_history_before_planning() -> None:
     assert "历史问题7" in assembled  # 保留段（相对第 6 轮）在
     # 本轮写回后最后两条为 user/assistant
     assert memory.raw_messages()[-1].content == "新答复"
+    # assistant 消息带 Trace 链接（控制台历史「查看 Trace」按钮的数据来源）
+    assert memory.raw_messages()[-1].trace_id
 
 
 # ── M3-T04：实体图抽取与锚点注入 ──

@@ -122,7 +122,7 @@ def _tool(
 _CUSTOMER_REF = EntityReference(parameter="customer_number", entity_type="customer")
 
 _WRITE_TOOL = _tool(
-    "kingdee_create_sales_order",
+    "test_create_sales_order",
     "SAL_Order",
     tool_type="write",
     action="save",
@@ -198,7 +198,7 @@ async def test_hitl_cancel_returns_cancelled_response() -> None:
     provider = FakeProvider(
         plan_queue=[
             _plan(
-                "kingdee_create_sales_order",
+                "test_create_sales_order",
                 {"customer_number": "100001", "amount": 50_000},
             )
         ]

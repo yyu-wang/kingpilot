@@ -49,6 +49,18 @@ class LimitGuard:
                 detail={"tool": context.tool_name, "error_count": len(exc.errors())},
             )
 
+        if tool.tool_type != "query" or tool.is_local:
+            # 写/动作工具无分页参数；本地工具（如 kb_search）没有 FilterString。
+            # 必须先判类型再读 limit：写工具的参数模型本来就没有 limit。
+            return GuardResult.allow(
+                detail={
+                    "tool": context.tool_name,
+                    "tool_type": tool.tool_type,
+                    "condition_present": False,
+                    "local": tool.is_local,
+                }
+            )
+
         limit = getattr(params, "limit", None)
         if not isinstance(limit, int) or isinstance(limit, bool):
             return GuardResult.block(
@@ -63,18 +75,6 @@ class LimitGuard:
                     "limit": limit,
                     "max_page_size": _MAX_PAGE_SIZE,
                 },
-            )
-
-        if tool.tool_type != "query" or tool.is_local:
-            # 写/动作工具无查询语义；本地工具（如 kb_search）没有 FilterString
-            return GuardResult.allow(
-                detail={
-                    "tool": context.tool_name,
-                    "tool_type": tool.tool_type,
-                    "limit": limit,
-                    "condition_present": False,
-                    "local": tool.is_local,
-                }
             )
 
         if tool.build_filter is None:

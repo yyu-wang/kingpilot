@@ -1,5 +1,6 @@
 """M9-T03：控制台静态资源、安全头、会话历史与 Trace 接口。"""
 
+import json
 from pathlib import Path
 
 import httpx
@@ -112,9 +113,41 @@ async def test_session_messages_are_redacted_and_owner_only(
     assert owner.status_code == 200
     messages = owner.json()["messages"]
     assert [message["role"] for message in messages] == ["user", "assistant"]
+    # 历史 assistant 消息带 Trace 链接（控制台「查看 Trace」按钮）
+    assistant = next(message for message in messages if message["role"] == "assistant")
+    assert assistant["trace_id"] == created["trace_id"]
     assert "13800138000" not in owner.text
     assert "138****8000" in owner.text
     assert stranger.status_code == 404
+
+
+async def test_legacy_session_messages_backfill_trace_id(
+    tmp_path: Path, sandbox_server: str, client: KingdeeClient
+) -> None:
+    """旧会话文件没有 trace_id 时，按回答文本从 Trace 反查补齐。"""
+    provider = FakeProvider(response_queue=["收到"])
+    settings = _settings(tmp_path, sandbox_server)
+    app = create_app(settings, provider=provider, client=client)
+
+    async with api_client(app) as http:
+        created = await _create_chat(http, message="你好")
+        session_id = str(created["session_id"])
+        path = Path(settings.session_store_dir) / "users" / "alice" / f"{session_id}.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        for item in payload["raw_messages"]:
+            item.pop("trace_id", None)  # 模拟 M9-T13 之前落盘的会话
+        path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+        response = await http.get(
+            f"/v1/sessions/{session_id}/messages",
+            headers={"X-API-Key": _ALICE_KEY},
+        )
+
+    assert response.status_code == 200
+    assistant = next(
+        message for message in response.json()["messages"] if message["role"] == "assistant"
+    )
+    assert assistant["trace_id"] == created["trace_id"]
 
 
 async def test_session_messages_missing_returns_404(

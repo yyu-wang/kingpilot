@@ -81,6 +81,17 @@ class BillQueryResult(KingPilotBaseModel):
         return len(self.rows)
 
 
+class ActionResult(KingPilotBaseModel):
+    """写操作（Save/Submit/Audit/UnAudit/Delete）的类型化结果。"""
+
+    success: bool
+    form_id: str
+    bill_no: str = ""
+    doc_id: str = ""
+    message: str = ""
+    response: dict[str, Any] = Field(default_factory=dict)
+
+
 class LoginResult(KingPilotBaseModel):
     """``LoginBySign`` 响应（官方文档：成功 ``LoginResultType == 1``）。
 

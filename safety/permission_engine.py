@@ -20,7 +20,7 @@ from typing import Any, Literal
 
 from loguru import logger
 
-from agent.tools import ToolDefinition, ToolRegistry
+from agent.tools import ToolDefinition, ToolRegistry, business_amount
 from config.permission_rules import (
     COLUMN_DENY_MAP,
     FORM_DOMAIN_MAP,
@@ -273,7 +273,7 @@ class PermissionEngine:
         arguments: Mapping[str, Any],
     ) -> tuple[WriteRule | None, tuple[str, ...], str]:
         """返回 (拒绝规则, 审批角色列表, 命中规则 ID)；deny 优先于 escalate。"""
-        amount = _as_float(arguments.get("amount"))
+        amount = business_amount(arguments)
         form_id = tool.endpoint.form_id if tool.endpoint is not None else ""
         matched: list[WriteRule] = []
         for rule in self._write_rules:
@@ -406,17 +406,3 @@ def _quote_value(value: str) -> str | None:
         return quote_eq(value)
     except ValueError:
         return None
-
-
-def _as_float(value: Any) -> float:
-    """金额提取：数值或数字字符串；其它类型按 0。"""
-    if isinstance(value, bool):
-        return 0.0
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        try:
-            return float(value.strip())
-        except ValueError:
-            return 0.0
-    return 0.0

@@ -152,13 +152,17 @@ def test_dataset_expected_tools_all_registered() -> None:
         assert q.expected_tool is None or q.expected_tool in registered, q.question_id
 
 
-def test_dataset_covers_each_tool_and_chat() -> None:
-    """5 个查询工具各 ≥3 条正向覆盖，纯聊天 ≥3 条（口径：期望工具分组）。"""
+def test_dataset_covers_each_query_tool_and_chat() -> None:
+    """查询工具各 ≥3 条正向覆盖，纯聊天 ≥3 条（写工具由专门场景测试覆盖）。"""
     counts: dict[str, int] = {}
     for q in QUESTIONS:
         key = q.expected_tool or "chat"
         counts[key] = counts.get(key, 0) + 1
-    registered = {spec.name for spec in build_default_registry().all_specs()}
-    for tool in registered:
+    query_tools = {
+        tool.name
+        for tool in build_default_registry().all_tools()
+        if tool.tool_type == "query" and not tool.is_local
+    }
+    for tool in query_tools:
         assert counts.get(tool, 0) >= 3, f"{tool} 覆盖不足"
     assert counts["chat"] >= 3

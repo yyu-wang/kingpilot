@@ -39,7 +39,7 @@ def _empty_filter(params: KingPilotBaseModel) -> str:
 
 _WRITE_TOOL = ToolDefinition(
     spec=ToolSpec(
-        name="kingdee_create_sales_order",
+        name="test_create_sales_order",
         description="测试用：创建销售订单",
         parameters=_WriteParams.model_json_schema(),
     ),
@@ -68,7 +68,7 @@ _NO_RULES_WRITE_TOOL = ToolDefinition(
 
 _STRICT_ACTION_TOOL = ToolDefinition(
     spec=ToolSpec(
-        name="kingdee_audit_sales_order",
+        name="test_audit_sales_order",
         description="测试用：审核销售订单",
         parameters=_StrictParams.model_json_schema(),
     ),
@@ -171,7 +171,7 @@ async def test_all_entities_exist_pass_with_updates() -> None:
 
     result = await EntityPreflightGuard(_registry(), lookup).check(
         _context(
-            "kingdee_create_sales_order",
+            "test_create_sales_order",
             {"customer_number": "深圳XX公司", "supplier_number": "SUP001"},
         )
     )
@@ -197,7 +197,7 @@ async def test_partial_hallucination_blocked_with_correction_prompt() -> None:
 
     result = await EntityPreflightGuard(_registry(), lookup).check(
         _context(
-            "kingdee_create_sales_order",
+            "test_create_sales_order",
             {"customer_number": "深圳XX公司", "supplier_number": "不存在的供应商"},
         )
     )
@@ -224,7 +224,7 @@ async def test_all_hallucination_blocked_with_user_message() -> None:
 
     result = await EntityPreflightGuard(_registry(), lookup).check(
         _context(
-            "kingdee_create_sales_order",
+            "test_create_sales_order",
             {"customer_number": "编造客户", "supplier_number": "编造供应商"},
         )
     )
@@ -247,7 +247,7 @@ async def test_empty_reference_values_are_skipped() -> None:
 
     result = await EntityPreflightGuard(_registry(), lookup).check(
         _context(
-            "kingdee_create_sales_order",
+            "test_create_sales_order",
             {"customer_number": "  ", "supplier_number": ""},
         )
     )
@@ -261,7 +261,7 @@ async def test_lookup_error_is_fail_closed() -> None:
     lookup = FakeLookup(error=KingdeeAPIError("查询接口不可用"))
 
     result = await EntityPreflightGuard(_registry(), lookup).check(
-        _context("kingdee_create_sales_order", {"customer_number": "CUS001"})
+        _context("test_create_sales_order", {"customer_number": "CUS001"})
     )
 
     assert result.passed is False
@@ -274,7 +274,7 @@ async def test_found_without_canonical_id_is_unresolved() -> None:
     lookup = FakeLookup({("customer", "CUS001"): EntityLookupResult(found=True, canonical_id="")})
 
     result = await EntityPreflightGuard(_registry(), lookup).check(
-        _context("kingdee_create_sales_order", {"customer_number": "CUS001"})
+        _context("test_create_sales_order", {"customer_number": "CUS001"})
     )
 
     assert result.passed is False
@@ -291,7 +291,7 @@ async def test_allow_name_is_passed_to_lookup() -> None:
     )
 
     result = await EntityPreflightGuard(_registry(), lookup).check(
-        _context("kingdee_audit_sales_order", {"order_no": "SO000008"})
+        _context("test_audit_sales_order", {"order_no": "SO000008"})
     )
 
     assert result.passed is True
@@ -306,7 +306,7 @@ async def test_guard_works_inside_pipeline() -> None:
 
     result = await pipeline.check(
         _context(
-            "kingdee_create_sales_order",
+            "test_create_sales_order",
             {"customer_number": "编造客户", "supplier_number": "编造供应商"},
         )
     )

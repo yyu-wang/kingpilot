@@ -160,7 +160,7 @@ textarea {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 360px;
+  grid-template-columns: 240px minmax(0, 1fr);
   grid-template-rows: 56px minmax(0, 1fr);
   height: 100dvh;
   overflow: hidden;
@@ -188,6 +188,43 @@ textarea {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.stream-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stream-state.active::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid #bfdbfe;
+  border-top-color: var(--accent);
+  animation: spin 720ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-soft {
+  50% {
+    opacity: 0.45;
+  }
 }
 
 .panel-header {
@@ -253,12 +290,26 @@ textarea {
 }
 
 .phase-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-height: 34px;
   padding: 8px 18px;
   color: var(--muted);
   font-size: 13px;
   border-bottom: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.72);
+}
+
+.phase-status.loading::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  border-top-color: var(--accent);
+  animation: spin 800ms linear infinite;
 }
 
 .phase-status.error {
@@ -312,6 +363,229 @@ textarea {
   color: #ffffff;
 }
 
+.message-body.message-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  background: var(--panel-muted);
+  border-style: dashed;
+}
+
+.loading-spinner {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  border-top-color: var(--accent);
+  animation: spin 800ms linear infinite;
+}
+
+.message-body.typing::after {
+  content: "▍";
+  margin-left: 1px;
+  color: var(--accent);
+  animation: blink 900ms steps(1) infinite;
+}
+
+/* ── 思考过程 ── */
+
+.process-block {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-muted);
+  overflow: hidden;
+}
+
+.process-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+}
+
+.process-toggle:hover:not(:disabled) {
+  background: #eef2f7;
+  filter: none;
+}
+
+.process-spinner {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  border-top-color: var(--accent);
+  animation: spin 800ms linear infinite;
+}
+
+.process-spinner.done {
+  animation: none;
+  border-color: #a7f3d0;
+  border-top-color: var(--success);
+  background: #ecfdf5;
+}
+
+.process-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.process-chevron {
+  flex: none;
+  font-size: 10px;
+  color: var(--muted);
+  transition: transform 160ms ease;
+}
+
+.process-block.open > .process-toggle .process-chevron,
+.tool-toggle[aria-expanded="true"] .process-chevron {
+  transform: rotate(90deg);
+}
+
+.process-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 4px 10px 8px 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.process-item {
+  position: relative;
+  padding: 4px 0 4px 18px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.process-item::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 11px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+.process-item.running::before {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  animation: pulse-soft 1200ms ease-in-out infinite;
+}
+
+.process-item.success::before {
+  background: var(--success);
+}
+
+.process-item.error::before {
+  background: var(--danger);
+}
+
+.process-item::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 20px;
+  bottom: -4px;
+  width: 1px;
+  background: var(--border);
+}
+
+.process-item:last-child::after {
+  display: none;
+}
+
+.process-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.process-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.process-state {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.process-item-tool {
+  padding: 0;
+}
+
+.tool-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 18px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+}
+
+.tool-toggle:hover:not(:disabled) {
+  background: #eef2f7;
+  filter: none;
+}
+
+.tool-toggle .process-name {
+  flex: 1;
+}
+
+.process-detail {
+  margin: 2px 0 4px 18px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.process-detail dl {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 4px 8px;
+  margin: 0;
+}
+
+.process-detail dt {
+  color: var(--muted);
+}
+
+.process-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.process-detail-hint {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.process-footer {
+  padding: 6px 10px;
+  border-top: 1px dashed var(--border);
+}
+
 .link-button {
   background: transparent;
   color: var(--accent);
@@ -360,24 +634,58 @@ textarea {
   padding: 9px 18px;
 }
 
-/* ── Trace 面板 ── */
+/* ── Trace 抽屉 ── */
+
+.trace-backdrop {
+  position: fixed;
+  inset: 56px 0 0;
+  z-index: 15;
+  background: rgba(15, 23, 42, 0.28);
+}
 
 .trace-panel {
-  grid-row: 2;
-  min-height: 0;
+  position: fixed;
+  top: 56px;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  width: min(420px, 100vw);
   display: flex;
   flex-direction: column;
   background: var(--panel);
   border-left: 1px solid var(--border);
+  box-shadow: -18px 0 40px rgba(15, 23, 42, 0.12);
+  transform: translateX(102%);
+  visibility: hidden;
+  transition: transform 220ms ease, visibility 220ms;
+}
+
+.trace-panel.open {
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trace-hint {
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .trace-list {
-  max-height: 38%;
+  max-height: 42%;
   overflow-y: auto;
   padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
 
@@ -397,6 +705,33 @@ textarea {
 
 .trace-item:hover {
   background: var(--panel-muted);
+}
+
+.trace-item.active {
+  background: var(--accent-soft);
+  border-color: #bfdbfe;
+  border-left: 3px solid #2563eb;
+  padding-left: 7px;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.trace-detail {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.trace-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .trace-report {
@@ -420,26 +755,89 @@ textarea {
   font-size: 12px;
 }
 
+/* ── 审批抽屉 ── */
+
+.approval-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.approval-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--panel-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.approval-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.approval-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--accent-soft);
+  color: #1d4ed8;
+}
+
+.approval-badge.approval-rejected,
+.approval-badge.approval-expired {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.approval-badge.approval-approved {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.approval-summary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.approval-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.approval-actions button {
+  flex: 1;
+}
+
 /* ── 响应式 ── */
 
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 220px minmax(0, 1fr);
-    grid-template-rows: 56px minmax(0, 1fr) auto;
+    grid-template-rows: 56px minmax(0, 1fr);
     height: auto;
     min-height: 100dvh;
-  }
-
-  .trace-panel {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    border-left: 0;
-    border-top: 1px solid var(--border);
-    max-height: 44vh;
-  }
-
-  .trace-list {
-    max-height: 140px;
   }
 }
 
@@ -492,10 +890,10 @@ textarea {
   }
 
   .trace-panel {
-    max-height: none;
+    width: 100vw;
   }
 
   .trace-report {
-    max-height: 50vh;
+    max-height: none;
   }
 }

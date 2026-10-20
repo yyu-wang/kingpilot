@@ -8,7 +8,6 @@ import httpx
 from fastapi import FastAPI
 
 from agent.tools import (
-    EntityReference,
     ToolDefinition,
     ToolRegistry,
     build_default_registry,
@@ -56,10 +55,9 @@ def _write_registry() -> ToolRegistry:
             params_model=SalesOrderParams,
             build_filter=_no_filter,
             endpoint=SAL_ORDER,
-            tool_type="write",
+            tool_type="action",
             action="delete",
             required_parameters=("bill_no",),
-            entity_references=(EntityReference(parameter="bill_no", entity_type="order"),),
         )
     )
     return registry

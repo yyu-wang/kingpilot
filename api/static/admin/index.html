@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KingPilot 管理后台</title>
+  <link rel="icon" href="/console/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./admin.css?v=4">
+</head>
+<body>
+  <section id="login-layer" class="login-layer">
+    <form id="login-form" class="login-card">
+      <h1>KingPilot</h1>
+      <p class="muted">管理后台 · 仅限管理员</p>
+      <label for="api-key">API Key</label>
+      <input id="api-key" type="password" autocomplete="off" spellcheck="false" required>
+      <button type="submit">进入后台</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </form>
+  </section>
+
+  <div id="app-shell" class="app-shell" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <strong>KingPilot</strong>
+        <span class="muted">管理后台</span>
+      </div>
+      <div class="topbar-actions">
+        <span id="chain-badge" class="badge">账本校验中</span>
+        <button id="refresh" type="button" class="ghost">刷新</button>
+        <a class="button ghost" href="/console/">返回控制台</a>
+        <button id="logout" type="button" class="ghost">登出</button>
+      </div>
+    </header>
+
+    <main class="page">
+      <section id="stats" class="stats" aria-label="总览"></section>
+
+      <nav id="tabs" class="tabs" aria-label="数据分类"></nav>
+
+      <section class="toolbar">
+        <input id="search" type="search" placeholder="搜索单号 / 编码 / 名称 / 操作人" aria-label="搜索">
+        <select id="form-filter" aria-label="单据类型" hidden>
+          <option value="">全部单据</option>
+          <option value="SAL_Order">销售订单</option>
+          <option value="PUR_PurchaseOrder">采购订单</option>
+          <option value="STK_InStock">采购入库单</option>
+        </select>
+        <select id="action-filter" aria-label="操作类型" hidden>
+          <option value="">全部操作</option>
+          <option value="save">创建</option>
+          <option value="submit">提交</option>
+          <option value="audit">审核</option>
+          <option value="unaudit">反审核</option>
+          <option value="delete">删除</option>
+        </select>
+        <select id="status-filter" aria-label="执行结果" hidden>
+          <option value="">全部结果</option>
+          <option value="success">成功</option>
+          <option value="failed">失败</option>
+        </select>
+        <button id="apply" type="button">查询</button>
+        <span id="result-hint" class="hint" aria-live="polite"></span>
+      </section>
+
+      <section class="table-wrap">
+        <table id="data-table">
+          <thead id="table-head"></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+        <p id="empty" class="empty" hidden>暂无可展示的数据</p>
+      </section>
+    </main>
+
+    <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+    <aside id="drawer" class="drawer" aria-hidden="true" aria-label="详情">
+      <header class="drawer-header">
+        <span id="drawer-title">详情</span>
+        <button id="drawer-close" type="button" class="ghost" aria-label="关闭详情">✕</button>
+      </header>
+      <div id="drawer-body" class="drawer-body"></div>
+    </aside>
+  </div>
+
+  <script src="./admin.js?v=4" defer></script>
+</body>
+</html>

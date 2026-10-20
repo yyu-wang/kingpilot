@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from agent.tools import ToolDefinition, ToolType
+from agent.tools import ToolDefinition, ToolType, business_amount
 from config.risk_rules import (
     BUSINESS_HOURS_END,
     BUSINESS_HOURS_START,
@@ -150,7 +150,7 @@ def build_risk_context(
         tool_type=tool.tool_type,
         action=tool.action,
         form_id=tool.endpoint.form_id if tool.endpoint is not None else "",
-        amount=_as_float(arguments.get("amount")),
+        amount=business_amount(arguments),
         batch_size=_as_batch_size(arguments.get("batch_size"), default=default_batch),
         user_role=user_context.role,
         user_risk_score=user_context.risk_score,
@@ -184,7 +184,8 @@ def _evaluate_rule(rule: RiskRule, context: RiskContext) -> ScoreItem:
 def _raw_score(rule: RiskRule, context: RiskContext) -> tuple[float, bool, dict[str, Any]]:
     """按规则类型计算原始分（未加权）。"""
     if rule.kind == "write_base":
-        triggered = context.tool_type == "write"
+        # 写与动作类工具都计入基础分（提交/审核/删除同属写路径）
+        triggered = context.tool_type in ("write", "action")
         return (rule.points if triggered else 0.0, triggered, {"tool_type": context.tool_type})
     if rule.kind == "amount":
         triggered = context.amount > 0
@@ -219,20 +220,6 @@ def _raw_score(rule: RiskRule, context: RiskContext) -> tuple[float, bool, dict[
             {"is_business_hours": context.is_business_hours},
         )
     raise ValueError(f"未知风险规则类型: {rule.kind}")
-
-
-def _as_float(value: Any) -> float:
-    """金额提取：数值或数字字符串；其它类型按 0（Guard 1 负责拦非法形状）。"""
-    if isinstance(value, bool):
-        return 0.0
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        try:
-            return float(value.strip())
-        except ValueError:
-            return 0.0
-    return 0.0
 
 
 def _as_batch_size(value: Any, *, default: int) -> int:

@@ -92,6 +92,7 @@ class SessionStore:
                     _load_role(item),
                     str(item.get("content") or ""),
                     structured_result=item.get("structured_result") or {},
+                    trace_id=str(item.get("trace_id") or ""),
                 )
             for item in payload["summaries"]:
                 memory.add_summary(_load_summary(item))
@@ -170,6 +171,7 @@ def _dump_raw(message: RawMessage) -> dict[str, Any]:
         "content": message.content,
         "token_count": message.token_count,
         "structured_result": message.structured_result,
+        "trace_id": message.trace_id,
     }
 
 

@@ -178,24 +178,43 @@ class SafetyLayer:
         risk = max(risks, key=lambda item: item.score)
         permission = _merge_permissions(permissions)
         hitl_decision = self._hitl.route(risk, permission)
-        summary = build_action_summary(calls, risk)
-        if hitl_decision.level == "dual_approve" and self._approval_gateway is not None:
+        # 审批单保存换码后的参数：执行时不能再依赖 LLM 原始输入
+        effective_calls = tuple(
+            ToolCallDecision(
+                tool_name=guarded_call.tool_name,
+                arguments=dict(guarded_call.arguments),
+                rationale=source.rationale,
+            )
+            for source, guarded_call in zip(calls, guarded, strict=True)
+        )
+        summary = build_action_summary(effective_calls, risk)
+        # 审批单一次只承载一个写调用（网关约束）；查询类调用继续走 HITL
+        single_write = len(guarded) == 1 and self._tools.get(guarded[0].tool_name).is_write
+        if (
+            self._approval_gateway is not None
+            and single_write
+            and hitl_decision.level in ("confirm", "dual_approve")
+        ):
+            # confirm = 1 票；dual_approve = 2 票（不同审批人）
+            required_approvals = 1 if hitl_decision.level == "confirm" else 2
             approval_id = await self._approval_gateway.request(
                 ApprovalRequest(
                     trace_id=trace_id,
                     session_id=session_id,
                     user=user,
-                    calls=tuple(calls),
+                    calls=effective_calls,
                     risk=risk,
                     permission=permission,
                     summary=summary,
+                    required_approvals=required_approvals,
                 )
             )
+            mode = "单票审批" if required_approvals == 1 else "双人复核"
             return SafetyVerdict(
                 proceed=False,
                 approval_pending=True,
                 approval_id=approval_id,
-                message=f"已提交审批（{approval_id}），双人复核通过后自动执行。",
+                message=f"已提交{mode}（{approval_id}），审批通过后自动执行。",
                 guard_records=tuple(records),
                 risk=risk,
                 permission=permission,

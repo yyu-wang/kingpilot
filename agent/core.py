@@ -35,6 +35,7 @@ from agent.memory_compressor import maybe_compress
 from agent.reflection import observation_messages, reflect_step, should_reflect
 from agent.rule_engine import RuleEngine
 from agent.tools import ToolRegistry
+from config.rag_rules import KNOWLEDGE_NO_HIT_MESSAGE, KNOWLEDGE_NOT_SEARCHED_MESSAGE
 from config.settings import Settings
 from governance.rag.answer import enforce_citations, render_knowledge_fallback
 from governance.semantic_cache import SemanticCache, build_cache_key, is_cacheable_plan
@@ -596,9 +597,13 @@ class AgentCore:
     # ── Phase 4.5：知识引用强制（M9-T09）──
 
     def _phase4_citation(self, trace: AgentTrace) -> None:
-        """有 kb_search 结果时强制引用：无命中覆盖、引用不合规走原文摘录。"""
+        """有 kb_search 结果时强制引用：无命中覆盖、引用不合规走原文摘录。
+
+        没有 kb_search 时，拦截模型误用「知识库没有找到相关文档」话术（M9-T12）。
+        """
         result = _latest_knowledge_result(trace)
         if result is None:
+            self._guard_knowledge_misuse(trace)
             return
         citation = enforce_citations(trace.final_response, result)
         trace.final_response = citation.content
@@ -608,6 +613,15 @@ class AgentCore:
         trace.citation_fallback = citation.fallback_used
         if citation.no_hit:
             logger.info("知识库无命中，已返回固定兜底文案 | trace_id={}", trace.trace_id)
+
+    def _guard_knowledge_misuse(self, trace: AgentTrace) -> None:
+        """纯聊天未调用 kb_search，却输出无命中话术时替换为澄清提示。"""
+        if KNOWLEDGE_NO_HIT_MESSAGE not in trace.final_response:
+            return
+        trace.final_response = KNOWLEDGE_NOT_SEARCHED_MESSAGE
+        logger.warning(
+            "未调用 kb_search 却输出知识库无命中话术，已替换 | trace_id={}", trace.trace_id
+        )
 
     # ── Phase 5：幻觉检测（M3-T06；纠错闭环归 M4）──
 
@@ -669,7 +683,7 @@ class AgentCore:
                 self._memory.add_raw(
                     "tool", f"工具 {execution.tool_name} 执行失败：{execution.error}"
                 )
-        self._memory.add_raw("assistant", trace.final_response)
+        self._memory.add_raw("assistant", trace.final_response, trace_id=str(trace.trace_id))
 
 
 def render_fallback_response(executions: Sequence[ToolExecution]) -> str:

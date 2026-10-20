@@ -53,6 +53,7 @@ class MessageView(KingPilotBaseModel):
 
     role: Literal["user", "assistant"]
     content: str
+    trace_id: str = ""  # assistant 消息可回看对应 Trace；旧会话为空
 
 
 class SessionMessagesResponse(KingPilotBaseModel):

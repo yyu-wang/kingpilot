@@ -45,6 +45,8 @@ class TraceInfo:
     session_id: str = ""
     hallucination_detected: bool = False
     risk_level: str = ""
+    # 内部字段：控制台为旧会话补齐「查看 Trace」链接时按回答文本反查，不对外输出
+    final_response: str = ""
 
 
 class TraceStore:
@@ -129,6 +131,7 @@ class TraceStore:
                     session_id=trace.session_id,
                     hallucination_detected=trace.hallucination_detected,
                     risk_level=str(trace.risk_assessment.get("level") or ""),
+                    final_response=trace.final_response,
                 )
             )
         return sorted(infos, key=lambda info: info.saved_at, reverse=True)

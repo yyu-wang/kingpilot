@@ -16,6 +16,7 @@ from kingdee.endpoints.bd_customer import CUSTOMER, CUSTOMER_TOOL
 from kingdee.endpoints.bd_supplier import SUPPLIER, SUPPLIER_TOOL
 from kingdee.endpoints.pur_order import PURCHASE_ORDER, PURCHASE_ORDER_TOOL
 from kingdee.endpoints.sal_order import SAL_ORDER, SAL_ORDER_TOOL
+from kingdee.endpoints.stk_inbound import PURCHASE_INBOUND, PURCHASE_INBOUND_TOOL
 from kingdee.endpoints.stk_inventory import INVENTORY, INVENTORY_TOOL
 
 __all__ = [
@@ -23,6 +24,8 @@ __all__ = [
     "CUSTOMER_TOOL",
     "INVENTORY",
     "INVENTORY_TOOL",
+    "PURCHASE_INBOUND",
+    "PURCHASE_INBOUND_TOOL",
     "PURCHASE_ORDER",
     "PURCHASE_ORDER_TOOL",
     "SAL_ORDER",
