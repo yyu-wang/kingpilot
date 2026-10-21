@@ -19,11 +19,15 @@ repos:
     hooks:
       - id: check-added-large-files
         args: ["--maxkb=1024"]   # 单文件 >1MB 直接拦截
+        # 架构报告需要离线渲染，mermaid 为随包分发的第三方压缩库（约 2.5MB）
+        exclude: ^kingpilot-architecture/_shared/js/mermaid\.min\.js$
       - id: check-merge-conflict # 禁止提交冲突标记
       - id: check-toml
       - id: check-yaml
       - id: end-of-file-fixer
+        exclude: ^kingpilot-architecture/_shared/js/mermaid\.min\.js$
       - id: trailing-whitespace
+        exclude: ^kingpilot-architecture/_shared/js/mermaid\.min\.js$
       - id: detect-private-key   # PEM 私钥文件
 
   # ── Ruff：lint（自动修复）+ format ──
@@ -40,5 +44,6 @@ repos:
     hooks:
       - id: detect-secrets
         args: ["--baseline", ".secrets.baseline"]
-        # uv.lock 含大量哈希、基线文件自身含扫描结果，均排除以免误报
-        exclude: ^(uv\.lock|\.secrets\.baseline)$
+        # uv.lock 含大量哈希、基线文件自身含扫描结果，均排除以免误报；
+        # 架构报告内置的 mermaid 压缩包为第三方库，同样排除
+        exclude: ^(uv\.lock|\.secrets\.baseline|kingpilot-architecture/_shared/js/mermaid\.min\.js)$
