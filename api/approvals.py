@@ -15,8 +15,11 @@ from api.schemas import (
     ApprovalView,
 )
 from config.approval_rules import APPROVER_ROLES
+from config.risk_rules import RISK_LEVEL_LABELS
 from infrastructure.exceptions import ApprovalError
+from kingdee.endpoints.labels import tool_label as resolve_tool_label
 from models.approval import ApprovalScope, ApprovalStatus, PendingAction
+from models.base import ROLE_LABELS
 from models.user import UserContext
 
 router = APIRouter()
@@ -37,12 +40,15 @@ def _to_view(action: PendingAction, user: UserContext) -> ApprovalView:
         session_id=action.session_id,
         requester_id=action.requester_id,
         requester_role=str(action.requester_role),
+        requester_role_label=ROLE_LABELS.get(str(action.requester_role), ""),
         tool_name=action.tool_name,
+        tool_label=resolve_tool_label(action.tool_name),
         summary=action.summary,
         form_id=action.form_id,
         business_key=action.business_key,
         risk_score=action.risk_score,
         risk_level=action.risk_level,
+        risk_level_label=RISK_LEVEL_LABELS.get(action.risk_level, ""),
         required_approvers=action.required_approvers,
         required_approvals=action.required_approvals,
         status=action.status,

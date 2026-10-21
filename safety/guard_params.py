@@ -18,6 +18,7 @@ from typing import Any
 
 from agent.tools import ToolRegistry
 from infrastructure.exceptions import ToolError
+from kingdee.endpoints.labels import param_label, tool_label
 from safety.guard import GuardContext, GuardResult
 
 GUARD_NAME = "guard_params"
@@ -40,7 +41,7 @@ class ParamGuard:
             tool = self._tools.get(context.tool_name)
         except ToolError:
             return GuardResult.block(
-                f"工具 {context.tool_name} 未注册，无法校验写操作参数完整性",
+                f"工具「{tool_label(context.tool_name)}」未注册，无法校验写操作参数完整性",
                 detail={"tool": context.tool_name},
             )
 
@@ -55,7 +56,7 @@ class ParamGuard:
 
         if not tool.required_parameters:
             return GuardResult.block(
-                f"写操作工具 {context.tool_name} 未声明业务必填项规则（fail-closed）",
+                f"写操作工具「{tool_label(context.tool_name)}」未声明业务必填项规则（fail-closed）",
                 detail={"tool": context.tool_name, "branch": "missing_rules"},
             )
 
@@ -66,7 +67,7 @@ class ParamGuard:
         ]
         if missing:
             return GuardResult.block(
-                f"写操作缺少业务必填项: {'、'.join(missing)}",
+                f"写操作缺少业务必填项：{'、'.join(param_label(parameter) for parameter in missing)}",
                 detail={
                     "tool": context.tool_name,
                     "missing": missing,
@@ -85,8 +86,13 @@ class ParamGuard:
             and not _is_internal_id(context.arguments.get(reference.parameter))
         ]
         if invalid_ids:
+            invalid_detail = "、".join(
+                f"{param_label(str(item['parameter']))}"
+                f"「{context.arguments.get(item['parameter'])}」"
+                for item in invalid_ids
+            )
             return GuardResult.block(
-                "引用字段必须是内码 Id（正整数），不能是名称或编码",
+                f"引用字段必须是内码 Id（正整数）：{invalid_detail}",
                 detail={"tool": context.tool_name, "invalid_ids": invalid_ids},
             )
 

@@ -377,7 +377,7 @@ async def test_review_missing_entity_returns_user_message() -> None:
     )
 
     assert verdict.blocked is True
-    assert "未找到实体「编造客户」" in verdict.message
+    assert "未找到客户「编造客户」" in verdict.message
 
 
 async def test_review_read_only_does_not_execute() -> None:

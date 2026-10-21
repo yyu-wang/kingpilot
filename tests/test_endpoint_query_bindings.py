@@ -23,7 +23,12 @@ from kingdee.endpoints import (
 )
 from kingdee.endpoints.bd_customer import CustomerParams, build_customer_filter
 from kingdee.endpoints.pur_order import PurchaseOrderParams, build_purchase_order_filter
-from kingdee.endpoints.sal_order import SalesOrderParams, build_sales_order_filter
+from kingdee.endpoints.sal_order import (
+    SAL_ORDER,
+    SalesOrderParams,
+    build_sales_order_field_keys,
+    build_sales_order_filter,
+)
 from kingdee.endpoints.stk_inbound import (
     PurchaseInboundParams,
     build_purchase_inbound_filter,
@@ -82,6 +87,21 @@ def test_sales_filter_bill_no_and_date() -> None:
     assert build_sales_order_filter(SalesOrderParams(order_date="2026-03-05")) == (
         "FDate = '2026-03-05'"
     )
+
+
+def test_sales_field_keys_expand_entries_only_when_requested() -> None:
+    """默认表头字段；include_entries=true 时追加明细字段且全部在白名单内。"""
+    assert build_sales_order_field_keys(SalesOrderParams(bill_no="SO000001")) is None
+
+    field_keys = build_sales_order_field_keys(
+        SalesOrderParams(bill_no="SO000001", include_entries=True)
+    )
+    assert field_keys is not None
+    keys = list(field_keys.split(","))
+    assert set(SAL_ORDER.default_field_keys) <= set(keys)
+    for key in ("FMaterialId.FNumber", "FMaterialId.FName", "FQty", "FTaxPrice"):
+        assert key in keys
+    assert set(keys) <= SAL_ORDER.selectable_fields
 
 
 def test_sales_filter_combined_five_conditions() -> None:

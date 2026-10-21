@@ -19,10 +19,12 @@ from api.schemas import (
     ChatRequest,
     ChatResponse,
     HealthResponse,
+    MeResponse,
     SessionListResponse,
     SessionSummary,
 )
 from infrastructure.exceptions import SessionStoreError
+from models.base import ROLE_LABELS
 from models.user import UserContext
 
 router = APIRouter()
@@ -32,6 +34,17 @@ router = APIRouter()
 async def health() -> HealthResponse:
     """健康检查：无认证、无环境/版本信息。"""
     return HealthResponse()
+
+
+@router.get("/v1/me", response_model=MeResponse)
+async def me(user: Annotated[UserContext, Depends(get_current_user)]) -> MeResponse:
+    """当前登录账号的身份与角色（控制台顶栏展示）。"""
+    return MeResponse(
+        user_id=user.user_id,
+        tenant_id=user.tenant_id,
+        role=user.role,
+        role_label=ROLE_LABELS.get(user.role, user.role),
+    )
 
 
 @router.post("/v1/chat", response_model=ChatResponse)
@@ -100,6 +113,7 @@ async def list_sessions(
                 session_id=info.session_id,
                 rounds=info.rounds,
                 updated_at=info.updated_at,
+                title=info.title,
             )
             for info in infos
         ]
@@ -125,5 +139,6 @@ async def get_session(
                 session_id=info.session_id,
                 rounds=info.rounds,
                 updated_at=info.updated_at,
+                title=info.title,
             )
     raise ApiError(404, "session_not_found", "会话不存在")

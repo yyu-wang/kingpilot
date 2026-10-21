@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>KingPilot 控制台</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=13">
+  <link rel="stylesheet" href="./styles.css?v=14">
 </head>
 <body>
   <section id="login-layer" class="login-layer">
@@ -41,6 +41,13 @@
           aria-expanded="false"
           aria-controls="trace-panel"
         >Trace</button>
+        <div id="account-info" class="account-info" hidden>
+          <span id="account-avatar" class="account-avatar" aria-hidden="true"></span>
+          <span class="account-text">
+            <strong id="account-name" class="account-name"></strong>
+            <span id="account-role" class="account-role"></span>
+          </span>
+        </div>
         <button id="logout" type="button" class="ghost">登出</button>
       </div>
     </header>
@@ -102,6 +109,6 @@
     </aside>
   </main>
 
-  <script src="./app.js?v=14" defer></script>
+  <script src="./app.js?v=15" defer></script>
 </body>
 </html>

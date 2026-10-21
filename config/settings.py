@@ -19,6 +19,13 @@ from typing import Literal
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from config.local_sandbox import (
+    LOCAL_SANDBOX_ACCT_ID,
+    LOCAL_SANDBOX_APP_ID,
+    LOCAL_SANDBOX_APP_SECRET,
+    LOCAL_SANDBOX_URL,
+    LOCAL_SANDBOX_USER,
+)
 from config.model_registry import ModelTier
 
 
@@ -213,6 +220,25 @@ class Settings(BaseSettings):
     def is_prod(self) -> bool:
         """是否生产环境（用于后续分支：是否允许真实写操作等）。"""
         return self.env == "prod"
+
+    def with_local_sandbox_defaults(self) -> "Settings":
+        """dev 环境未配置金蝶凭证时，回落到本地仿真沙箱。
+
+        Why 不在字段默认值里直接填沙箱：生产环境缺少凭证必须 fail-closed。
+        这里只在 ``dev`` 且 ``kingdee_server_url`` 为空时生效；显式配置优先。
+        """
+        if self.env != "dev" or self.kingdee_server_url:
+            return self
+        return self.model_copy(
+            update={
+                "kingdee_server_url": LOCAL_SANDBOX_URL,
+                "kingdee_acct_id": LOCAL_SANDBOX_ACCT_ID,
+                "kingdee_user": LOCAL_SANDBOX_USER,
+                "kingdee_app_id": LOCAL_SANDBOX_APP_ID,
+                "kingdee_app_secret": SecretStr(LOCAL_SANDBOX_APP_SECRET),
+                "kingdee_timeout_seconds": 5.0,
+            }
+        )
 
 
 @lru_cache

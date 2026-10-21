@@ -29,6 +29,7 @@ const TYPING_TOKEN_PATTERN = /[\u4e00-\u9fff]|[A-Za-z0-9_]+|\s+|[^\s]/g;
 
 const state = {
   apiKey: '',
+  me: null,
   sessionId: '',
   sessions: [],
   traces: [],
@@ -46,6 +47,10 @@ const apiKeyInput = document.getElementById('api-key');
 const loginError = document.getElementById('login-error');
 const appShell = document.getElementById('app-shell');
 const logoutButton = document.getElementById('logout');
+const accountInfo = document.getElementById('account-info');
+const accountAvatar = document.getElementById('account-avatar');
+const accountName = document.getElementById('account-name');
+const accountRole = document.getElementById('account-role');
 const streamState = document.getElementById('stream-state');
 const sessionList = document.getElementById('session-list');
 const newSessionButton = document.getElementById('new-session');
@@ -132,8 +137,32 @@ function showApp() {
   messageInput.focus();
 }
 
+function renderAccount(me) {
+  if (!me) {
+    accountInfo.hidden = true;
+    accountInfo.removeAttribute('title');
+    accountAvatar.textContent = '';
+    accountName.textContent = '';
+    accountRole.textContent = '';
+    return;
+  }
+  const roleLabel = me.role_label || me.role;
+  accountInfo.hidden = false;
+  accountInfo.title = `当前账号：${me.user_id} · 租户 ${me.tenant_id} · 角色 ${roleLabel}（${me.role}）`;
+  accountAvatar.textContent = (me.user_id || '?').slice(0, 1).toUpperCase();
+  accountName.textContent = me.user_id;
+  accountRole.textContent = roleLabel;
+}
+
+async function refreshAccount() {
+  const response = await apiFetch('/v1/me');
+  state.me = await response.json();
+  renderAccount(state.me);
+}
+
 function logout() {
   state.apiKey = '';
+  state.me = null;
   state.sessionId = '';
   state.sessions = [];
   state.traces = [];
@@ -142,6 +171,7 @@ function logout() {
   state.pending = null;
   state.finalRender = null;
   clearStoredKey();
+  renderAccount(null);
   messagesEl.replaceChildren();
   sessionList.replaceChildren();
   traceList.replaceChildren();
@@ -164,7 +194,7 @@ async function handleLogin(event) {
   state.apiKey = candidate;
   loginError.textContent = '';
   try {
-    await apiFetch('/v1/sessions');
+    await Promise.all([apiFetch('/v1/sessions'), refreshAccount()]);
     storeKey(candidate);
     showApp();
     await refreshSessions();
@@ -575,7 +605,10 @@ function renderSessions() {
     button.type = 'button';
     button.className =
       'session-item' + (session.session_id === state.sessionId ? ' active' : '');
-    button.textContent = `${session.rounds} 轮 · ${session.session_id}`;
+    // 标题取首条用户提问（后端已截断）；旧会话没有提问时退回会话 ID
+    const title = session.title || session.session_id;
+    button.textContent = `${title} · ${session.rounds} 轮`;
+    button.title = `${title}\n${session.session_id}`;
     button.addEventListener('click', () => selectSession(session.session_id));
     return button;
   });
@@ -766,7 +799,7 @@ function renderApprovalList(approvals) {
     const title = document.createElement('div');
     title.className = 'approval-title';
     const tool = document.createElement('strong');
-    tool.textContent = approval.tool_name;
+    tool.textContent = approval.tool_label || approval.tool_name;
     const badge = document.createElement('span');
     badge.className = `approval-badge approval-${approval.status}`;
     badge.textContent = APPROVAL_STATUS_LABELS[approval.status] || approval.status;
@@ -780,11 +813,14 @@ function renderApprovalList(approvals) {
       card.appendChild(summary);
     }
 
-    approvalMetaRow(card, '发起人', `${approval.requester_id}（${approval.requester_role}）`);
+    const roleLabel = approval.requester_role_label || approval.requester_role;
+    approvalMetaRow(card, '发起人', `${approval.requester_id}（${roleLabel}）`);
     approvalMetaRow(
       card,
       '风险',
-      `${Math.round(approval.risk_score)} 分 · ${approval.risk_level || '未评级'}`,
+      `${Math.round(approval.risk_score)} 分 · ${
+        approval.risk_level_label || approval.risk_level || '未评级'
+      }`,
     );
     const approvedVotes = (approval.decisions || []).filter(
       (item) => item.decision === 'approve',
@@ -800,7 +836,10 @@ function renderApprovalList(approvals) {
       EXECUTION_STATUS_LABELS[approval.execution_status] || approval.execution_status,
     );
     if (approval.business_key) {
-      approvalMetaRow(card, '单号', approval.business_key);
+      const billNo = approval.business_key.startsWith('CREATE-')
+        ? '新建单据，审批通过后回填'
+        : approval.business_key;
+      approvalMetaRow(card, '单号', billNo);
     }
 
     const actions = document.createElement('div');
@@ -1090,7 +1129,7 @@ async function init() {
   state.apiKey = stored;
   showApp();
   try {
-    await refreshSessions();
+    await Promise.all([refreshAccount(), refreshSessions()]);
   } catch {
     state.apiKey = '';
     clearStoredKey();

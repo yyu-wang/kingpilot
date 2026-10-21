@@ -100,7 +100,7 @@ async def test_missing_required_param_blocked() -> None:
 
     assert result.passed is False
     assert "参数校验失败" in result.reason
-    assert "bill_no" in result.reason
+    assert "单据编号" in result.reason
     errors = result.detail["errors"]
     assert errors[0]["field"] == "bill_no"
     assert errors[0]["type"] == "missing"

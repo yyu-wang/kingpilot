@@ -43,6 +43,8 @@ async def test_sessions_are_isolated_between_users(
 
     assert alice_list.status_code == 200
     assert [item["session_id"] for item in alice_list.json()["sessions"]] == [session_id]
+    # 列表标题取首条用户提问，而不是会话 ID
+    assert alice_list.json()["sessions"][0]["title"] == "你好"
     assert bob_list.status_code == 200
     assert bob_list.json()["sessions"] == []
     assert bob_get.status_code == 404

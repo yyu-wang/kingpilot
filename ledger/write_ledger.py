@@ -65,8 +65,10 @@ class SqliteWriteLedgerStore:
     """SQLite append-only 实现（单文件、可备份、可审计）。"""
 
     def __init__(self, db_path: str | Path | None = None) -> None:
-        resolved = get_settings().ledger_db_path if db_path is None else db_path
-        if isinstance(resolved, Path) and str(resolved) != ":memory:":
+        resolved = Path(get_settings().ledger_db_path if db_path is None else db_path).expanduser()
+        if str(resolved) != ":memory:":
+            # 父目录缺失时 SQLite 只报 "unable to open database file"，
+            # 首次部署（~/.kingpilot 尚未创建）必须由这里兜底建目录
             resolved.parent.mkdir(parents=True, exist_ok=True)
         self._connection = sqlite3.connect(str(resolved))
         self._connection.row_factory = sqlite3.Row

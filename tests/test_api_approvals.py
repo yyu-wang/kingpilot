@@ -81,7 +81,12 @@ async def test_inbox_and_mine_scopes(
 
     assert manager.status_code == 200
     assert len(manager.json()["approvals"]) == 1
-    assert manager.json()["approvals"][0]["can_decide"] is True
+    card = manager.json()["approvals"][0]
+    assert card["can_decide"] is True
+    # 未登记的工具名回退原值，风险档位与角色展示中文
+    assert card["tool_label"] == "kingdee_update_sales_order"
+    assert card["risk_level_label"] == "双人复核"
+    assert card["requester_role_label"] == "销售人员"
     assert viewer.status_code == 200
     assert viewer.json()["approvals"] == []
     assert len(mine.json()["approvals"]) == 1

@@ -134,8 +134,10 @@ async def test_missing_multiple_required_fields_blocked_at_once() -> None:
 
     assert result.passed is False
     assert result.detail["missing"] == ["customer_number", "note"]
-    assert "customer_number" in result.reason
-    assert "note" in result.reason
+    # 面向用户的原因用中文参数名，而不是 customer_number / note
+    assert "客户" in result.reason
+    assert "备注" in result.reason
+    assert "customer_number" not in result.reason
 
 
 async def test_required_fields_present_pass() -> None:
@@ -181,6 +183,7 @@ async def test_name_reference_blocked() -> None:
 
     assert result.passed is False
     assert "内码 Id" in result.reason
+    assert "客户「深圳XX公司」" in result.reason
     assert result.detail["invalid_ids"][0]["parameter"] == "customer_number"
 
 

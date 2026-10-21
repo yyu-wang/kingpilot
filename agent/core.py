@@ -19,6 +19,7 @@
 逻辑同源（同款实现），后续若演进为共享私有方法，改动集中在一处。
 """
 
+import re
 import time
 from collections.abc import Sequence
 
@@ -72,6 +73,10 @@ _UNAVAILABLE_MESSAGE = (
 )
 _FALLBACK_MAX_ROWS = 10
 _DLP_BLOCK_CONTENT = "响应包含敏感个人信息，已按数据安全策略阻断发送。请调整查询条件后重试。"
+# 显式查询动词：LLM 空规划时，仅对「查单号」请求做规则补全
+_EXPLICIT_QUERY_VERBS = ("查", "看一下", "列出", "显示")
+# 明确业务编码：没有编码的「查客户联系人」等宽泛请求不自动补全，避免误判
+_EXPLICIT_CODE_RE = re.compile(r"\b(?:SO|CUS|SUP|MAT)\d+\b", re.IGNORECASE)
 
 
 def _default_user_context() -> UserContext:
@@ -244,6 +249,12 @@ class AgentCore:
                     user_input, trace, context_for_user, started, reason=str(exc)
                 )
             self._phase("plan", "success")
+            if not plan.tool_calls:
+                # 无权限的工具不会下发给 LLM，模型只能回「没查到」；这里按
+                # 用户意图反查目标工具，直接给出明确的权限不足提示
+                denied = self._permission_denial_message(user_input, context_for_user)
+                if denied is not None:
+                    return self._finish_denied(trace, started, user_input, denied)
             self._phase("guard", "start")
             verdict = await self._phase2_guard(plan, trace, context_for_user)
             self._phase("guard", "success")
@@ -374,9 +385,47 @@ class AgentCore:
             "reasoning": plan.reasoning,
             "tool_calls": [decision.model_dump() for decision in plan.tool_calls],
         }
+        plan = self._complete_empty_plan(plan, trace, user_context)
         if cache_key and is_cacheable_plan(plan, self._tool_types()):
             self._cache.set(cache_key, plan)
         return plan
+
+    def _complete_empty_plan(
+        self, plan: PlanResult, trace: AgentTrace, user_context: UserContext
+    ) -> PlanResult:
+        """LLM 空规划时，对「动作 + 明确单号」与「查 + 明确业务编码」做确定性补全。
+
+        Why：小模型/本地模型偶尔不调用工具，直接输出无命中话术，导致
+        「查一下销售订单 SO000001」这类明确查询被误判为知识问题；
+        多轮上下文里同样会漏掉写工具，直接编造「已提交审批」——实际没有审批单
+        （经理账号看不到卡片）。写意图优先补全为真实写工具调用，继续走
+        安全审查与审批；创建类参数多，仍交给 LLM。只处理首轮请求。
+        """
+        if plan.tool_calls or trace.tool_executions or trace.reflections:
+            return plan
+        available = {spec.name for spec in self._visible_specs(user_context)}
+        matched = self._rule_engine.match_write_plan(trace.user_input, available_tools=available)
+        if matched is None:
+            if not any(verb in trace.user_input for verb in _EXPLICIT_QUERY_VERBS):
+                return plan
+            if _EXPLICIT_CODE_RE.search(trace.user_input) is None:
+                return plan
+            matched = self._rule_engine.match(trace.user_input, available_tools=available)
+        if matched is None:
+            return plan
+        trace.llm_planning["rule_fallback"] = {
+            "intent": matched.intent,
+            "reason": "llm_plan_empty",
+        }
+        trace.llm_planning["tool_calls"] = [
+            decision.model_dump() for decision in matched.plan.tool_calls
+        ]
+        logger.info(
+            "LLM 空规划，规则引擎补全 | trace_id={} intent={}",
+            trace.trace_id,
+            matched.intent,
+        )
+        return matched.plan
 
     def _cache_key(self, user_input: str, user_context: UserContext) -> str:
         """缓存键：问题 + 可见工具 + 角色/数据域。"""
@@ -399,6 +448,26 @@ class AgentCore:
             return self._safety.visible_tools(user_context)
         return self._tools.all_specs()
 
+    def _permission_denial_message(self, user_input: str, user_context: UserContext) -> str | None:
+        """空规划时反查目标工具：无权限则返回明确拒绝文案。
+
+        无权限的工具在拦截点 1 就被过滤掉，LLM 看不到也不会调用，
+        其结果往往是「没有查询到数据」，甚至直接编造「已创建/已删除」。
+        这里用规则引擎推断用户想查/想写哪类数据，再走权限预检给出准确答复。
+        """
+        if self._safety is None:
+            return None
+        tool_name = self._rule_engine.match_tool_scope(user_input)
+        if tool_name is None:
+            # 写意图：写工具被数据域过滤后 LLM 看不到，可能直接编造「已创建/已删除」
+            tool_name = self._rule_engine.match_write_tool_scope(user_input)
+        if tool_name is None:
+            return None
+        visible = {spec.name for spec in self._visible_specs(user_context)}
+        if tool_name in visible:
+            return None
+        return self._safety.permission_denial(user_context, tool_name)
+
     # ── LLM 不可用：只读降级（M6-T02）──
 
     async def _fallback_from_plan(
@@ -420,6 +489,12 @@ class AgentCore:
             "intent": matched.intent if matched is not None else "",
         }
         if matched is None:
+            # LLM 不可用时同样先判权限：目标工具存在但当前角色不可见时，
+            # 直接说明「权限不足」，不要笼统回「基础查询模式暂未理解」
+            denied = self._permission_denial_message(user_input, user_context)
+            if denied is not None:
+                trace.llm_planning["permission_denied"] = True
+                return self._finish_denied(trace, started, user_input, denied)
             return self._finish_fallback(trace, started, user_input)
 
         self._phase("guard", "start")
@@ -439,6 +514,31 @@ class AgentCore:
             await self._phase3_execute(verdict.calls, trace)
             self._phase("execute", "success")
         return self._finish_fallback(trace, started, user_input)
+
+    def _finish_denied(
+        self,
+        trace: AgentTrace,
+        started: float,
+        user_input: str,
+        message: str,
+    ) -> AgentResponse:
+        """权限预检拒绝：直接返回「权限不足」，不调 LLM、不执行工具。"""
+        trace.final_response = message
+        trace.permission_check = {
+            **trace.permission_check,
+            "allowed": False,
+            "reason": message,
+            "denied_by": "permission_precheck",
+        }
+        self._phase6_finalize(trace, started, user_input)
+        return AgentResponse(
+            content=message,
+            trace_id=trace.trace_id,
+            blocked=True,
+            reason=message,
+            hallucination_warning=False,
+            trace=trace,
+        )
 
     def _finish_fallback(
         self,

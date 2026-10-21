@@ -15,20 +15,24 @@ LLM 不可用时，用正则/关键词把常见查询意图映射为固定查询
 import re
 from collections.abc import Collection
 from dataclasses import dataclass
+from typing import Any
 
 from models.llm import PlanResult, ToolCallDecision
 
 SALES_ORDER_TOOL = "kingdee_query_sales_order"
 PURCHASE_ORDER_TOOL = "kingdee_query_purchase_order"
+PURCHASE_INBOUND_TOOL = "kingdee_query_purchase_inbound"
 CUSTOMER_TOOL = "kingdee_query_customer"
 SUPPLIER_TOOL = "kingdee_query_supplier"
 INVENTORY_TOOL = "kingdee_query_inventory"
 
 _SO_RE = re.compile(r"\b(SO\d+)\b", re.IGNORECASE)
+_PO_RE = re.compile(r"\b(PO\d+)\b", re.IGNORECASE)
+_CGRK_RE = re.compile(r"\b(CGRK\d+)\b", re.IGNORECASE)
 _CUS_RE = re.compile(r"\b(CUS\d+)\b", re.IGNORECASE)
 _SUP_RE = re.compile(r"\b(SUP\d+)\b", re.IGNORECASE)
 _MAT_RE = re.compile(r"\b(MAT\d+)\b", re.IGNORECASE)
-_CODE_LIKE_RE = re.compile(r"^(?:SO|CUS|SUP|MAT)\d+$", re.IGNORECASE)
+_CODE_LIKE_RE = re.compile(r"^(?:SO|PO|CGRK|CUS|SUP|MAT)\d+$", re.IGNORECASE)
 
 _CUSTOMER_NAME_RE = re.compile(
     r"(?:查|查询|查看|看)?\s*客户(?:资料|信息)?[:：\s]*(?P<name>[\u4e00-\u9fa5A-Za-z0-9_]+)"
@@ -64,7 +68,10 @@ _READ_STATUS_WORDS = ("已审核", "未审核", "待审核", "审核中", "重�
 
 # 知识意图关键词（M9-T09）：LLM 宕机时不要把「怎么做/流程/规范」误降级成 ERP 查询
 _KNOWLEDGE_KEYWORDS = ("怎么", "如何", "流程", "规范", "手册", "制度", "步骤", "说明")
-_BUSINESS_CODE_RE = re.compile(r"\b(?:SO|CUS|SUP|MAT)\d+\b", re.IGNORECASE)
+_BUSINESS_CODE_RE = re.compile(r"\b(?:SO|PO|CGRK|CUS|SUP|MAT)\d+\b", re.IGNORECASE)
+
+# 订单明细意图：LLM 宕机/空规划时也要把明细行查出来，而不是只给表头
+_MATERIAL_DETAIL_KEYWORDS = ("物料", "明细", "分录", "数量", "单价")
 
 
 @dataclass(frozen=True)
@@ -119,10 +126,93 @@ class RuleEngine:
 
         return None
 
+    def match_tool_scope(self, user_input: str) -> str | None:
+        """仅推断请求指向的查询工具（不构造过滤参数），供权限预检使用。
+
+        Why 与 ``match`` 分开：权限判定只关心「用户想查哪类数据」，
+        不需要可执行参数——「查一下采购订单」这类无过滤条件的请求
+        也能直接识别出目标数据域并给出权限提示。
+        """
+        text = user_input.strip()
+        if not text or _is_write_intent(text) or _is_knowledge_intent(text):
+            return None
+        if "采购入库" in text or "入库单" in text or _CGRK_RE.search(text):
+            return PURCHASE_INBOUND_TOOL
+        if "采购" in text or _PO_RE.search(text):
+            return PURCHASE_ORDER_TOOL
+        if "销售" in text or "订单" in text or _SO_RE.search(text):
+            return SALES_ORDER_TOOL
+        if "客户" in text:
+            return CUSTOMER_TOOL
+        if "供应商" in text:
+            return SUPPLIER_TOOL
+        if "库存" in text:
+            return INVENTORY_TOOL
+        return None
+
+    def match_write_tool_scope(self, user_input: str) -> str | None:
+        """推断写意图指向的写工具（不看参数），供写权限预检使用。
+
+        写工具被数据域过滤后不会下发给 LLM，模型可能直接编造「已创建/已删除」。
+        这里先按关键词识别目标写工具，再交给权限引擎判断，确保无权限时
+        直接返回「权限不足」，而不是让模型自由发挥。
+        """
+        text = user_input.strip()
+        if not text:
+            return None
+        # 「做入库」「登记入库」不在通用写关键词里，但属于创建入库单的明确意图
+        if not _is_write_intent(text) and not any(
+            keyword in text for keyword in ("做入库", "登记入库")
+        ):
+            return None
+        action = _extract_write_action(text)
+        if action is None:
+            return None
+        for keyword, form in _WRITE_FORM_KEYWORDS:
+            if keyword in text:
+                return f"kingdee_{action}_{form}"
+        return None
+
+    def match_write_plan(
+        self, user_input: str, *, available_tools: Collection[str] | None = None
+    ) -> FallbackPlan | None:
+        """「动作开头 + 明确单号」的状态流转意图 → 写工具调用（零 LLM）。
+
+        Why：多轮上下文里模型可能漏掉写工具、直接回答「已提交审批」，而实际
+        没有审批单（经理账号看不到卡片）。这里只补全参数可确定的状态流转类
+        动作（提交/审核/反审核/删除，仅需 bill_no）；创建类参数多，仍交给 LLM。
+        补全的计划继续走安全审查与审批，不跳过任何护栏。
+        """
+        text = user_input.strip()
+        leading = _LEADING_WRITE_ACTION_RE.match(text)
+        if leading is None:
+            return None
+        action = _WRITE_ACTION_BY_WORD[leading.group("action")]
+        if action not in _BILL_ONLY_ACTIONS:
+            return None
+        bills = [(form, _extract(pattern, text)) for form, pattern in _BILL_NO_PATTERNS]
+        candidates = [(form, bill_no) for form, bill_no in bills if bill_no is not None]
+        if len(candidates) != 1:
+            return None
+        bill_form, bill_no = candidates[0]
+        keyword_form = next(
+            (form for keyword, form in _WRITE_FORM_KEYWORDS if keyword in text),
+            None,
+        )
+        # 「反审核销售订单 PO000001」这类单据类型与单号前缀矛盾的输入不猜
+        if keyword_form is not None and keyword_form != bill_form:
+            return None
+        return _build(
+            f"kingdee_{action}_{bill_form}",
+            {"bill_no": bill_no},
+            f"write_{action}",
+            available_tools,
+        )
+
     def _sales_plan(
         self, text: str, available_tools: Collection[str] | None
     ) -> FallbackPlan | None:
-        arguments: dict[str, str] = {}
+        arguments: dict[str, Any] = {}
         bill_no = _extract(_SO_RE, text)
         if bill_no is not None:
             arguments["bill_no"] = bill_no
@@ -132,6 +222,8 @@ class RuleEngine:
         status = _extract_status(text)
         if status is not None:
             arguments["document_status"] = status
+        if any(keyword in text for keyword in _MATERIAL_DETAIL_KEYWORDS):
+            arguments["include_entries"] = True
         if not arguments:
             return None
         return _build(SALES_ORDER_TOOL, arguments, "sales_order", available_tools)
@@ -139,7 +231,7 @@ class RuleEngine:
     def _purchase_plan(
         self, text: str, available_tools: Collection[str] | None
     ) -> FallbackPlan | None:
-        arguments: dict[str, str] = {}
+        arguments: dict[str, Any] = {}
         supplier_number = _extract(_SUP_RE, text)
         if supplier_number is not None:
             arguments["supplier_number"] = supplier_number
@@ -153,7 +245,7 @@ class RuleEngine:
 
 def _build(
     tool_name: str,
-    arguments: dict[str, str],
+    arguments: dict[str, Any],
     intent: str,
     available_tools: Collection[str] | None,
 ) -> FallbackPlan | None:
@@ -194,6 +286,55 @@ def _extract_status(text: str) -> str | None:
     for keyword, value in _STATUS_KEYWORDS:
         if keyword in text:
             return value
+    return None
+
+
+# 写意图 → 单据类型（顺序重要：「入库」优先于「采购」）
+_WRITE_FORM_KEYWORDS: tuple[tuple[str, str], ...] = (
+    ("入库", "purchase_inbound"),
+    ("采购", "purchase_order"),
+    ("销售", "sales_order"),
+)
+
+# 单号前缀 → 单据类型（用于「动作 + 单号」的确定性补全）
+_BILL_NO_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("purchase_inbound", _CGRK_RE),
+    ("sales_order", _SO_RE),
+    ("purchase_order", _PO_RE),
+)
+
+# 只补全「仅需单号」的状态流转动作；创建类参数多，仍交给 LLM
+_BILL_ONLY_ACTIONS = frozenset({"submit", "audit", "unaudit", "delete"})
+
+# 动作必须出现在句首（允许「请/麻烦/帮我」前缀）：避免把
+# 「SO900001 审核了吗」这类询问误判为写操作
+_LEADING_WRITE_ACTION_RE = re.compile(
+    r"^\s*(?:请|麻烦)?\s*(?:帮我)?\s*(?P<action>反审核|审核|提交|删除|作废)"
+)
+_WRITE_ACTION_BY_WORD: dict[str, str] = {
+    "反审核": "unaudit",
+    "审核": "audit",
+    "提交": "submit",
+    "删除": "delete",
+    "作废": "delete",
+}
+
+
+def _extract_write_action(text: str) -> str | None:
+    """写意图 → 工具名动作段（创建类工具名用 create，不是 action 的 save）。"""
+    if "反审核" in text:
+        return "unaudit"
+    if "审核" in text:
+        return "audit"
+    if "删除" in text or "作废" in text:
+        return "delete"
+    if "提交" in text:
+        return "submit"
+    if any(
+        keyword in text
+        for keyword in ("创建", "新建", "新增", "开一张", "做一张", "做入库", "登记入库")
+    ):
+        return "create"
     return None
 
 

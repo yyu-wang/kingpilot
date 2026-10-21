@@ -18,6 +18,7 @@ from typing import Any
 
 from agent.tools import ToolRegistry
 from infrastructure.exceptions import KingPilotError, ToolError
+from kingdee.endpoints.labels import entity_label, param_label, tool_label
 from kingdee.entity_lookup import EntityLookup
 from safety.guard import GuardContext, GuardResult
 
@@ -51,7 +52,7 @@ class EntityPreflightGuard:
             tool = self._tools.get(context.tool_name)
         except ToolError:
             return GuardResult.block(
-                f"工具 {context.tool_name} 未注册，无法做实体预检",
+                f"工具「{tool_label(context.tool_name)}」未注册，无法做实体预检",
                 detail={"tool": context.tool_name},
             )
 
@@ -77,7 +78,7 @@ class EntityPreflightGuard:
 
         if not tool.entity_references:
             return GuardResult.block(
-                f"写操作工具 {context.tool_name} 未声明实体引用规则（fail-closed）",
+                f"写操作工具「{tool_label(context.tool_name)}」未声明实体引用规则（fail-closed）",
                 detail={"tool": context.tool_name, "branch": "missing_rules"},
             )
 
@@ -96,8 +97,8 @@ class EntityPreflightGuard:
                 )
             except KingPilotError as exc:
                 return GuardResult.block(
-                    "实体预检失败，按拒绝处理: "
-                    f"{reference.entity_type}={identifier!r}（{type(exc).__name__}）",
+                    "实体预检失败："
+                    f"{entity_label(reference.entity_type)}「{identifier}」查询异常，请稍后重试",
                     detail={
                         "tool": context.tool_name,
                         "branch": "lookup_error",
@@ -128,25 +129,27 @@ class EntityPreflightGuard:
             )
 
         hallucinated = [_audit_unresolved(item) for item in unresolved]
+        user_message = _build_user_message(unresolved)
         if resolved:
             return GuardResult.block(
-                "实体预检部分失败：存在无法确认的引用实体",
+                f"实体预检部分失败：{user_message}",
                 detail={
                     "tool": context.tool_name,
                     "branch": "partial",
                     "hallucinated": hallucinated,
                     "resolved": resolved,
+                    "user_message": user_message,
                     "correction_prompt": _build_correction_prompt(unresolved, resolved),
                 },
             )
 
         return GuardResult.block(
-            "实体预检失败：引用的实体均不存在",
+            f"实体预检失败：{user_message}",
             detail={
                 "tool": context.tool_name,
                 "branch": "all_missing",
                 "hallucinated": hallucinated,
-                "user_message": _build_user_message(unresolved),
+                "user_message": user_message,
             },
         )
 
@@ -173,19 +176,26 @@ def _build_correction_prompt(unresolved: list[_Unresolved], resolved: dict[str, 
     """部分幻觉分支的纠错 Prompt（T10 回喂 LLM，不由 Guard 发起调用）。"""
     lines = ["实体预检未通过，请修正以下参数后重新发起工具调用："]
     for item in unresolved:
+        label = param_label(item.parameter)
         candidates = f"（相近：{'、'.join(item.candidates)}）" if item.candidates else ""
-        lines.append(f"- {item.parameter} = {item.identifier!r}：系统中不存在{candidates}")
+        lines.append(
+            f"- {label}（{item.parameter}）= {item.identifier!r}：系统中不存在{candidates}"
+        )
     if resolved:
-        verified = "；".join(f"{param} = {value}" for param, value in resolved.items())
+        verified = "；".join(
+            f"{param_label(parameter)}（{parameter}）= {value}"
+            for parameter, value in resolved.items()
+        )
         lines.append(f"已核实：{verified}")
     lines.append("只能使用系统中存在的实体，不得编造；无法确认时请向用户追问。")
     return "\n".join(lines)
 
 
 def _build_user_message(unresolved: list[_Unresolved]) -> str:
-    """全部幻觉分支的面向用户提示（含相近候选）。"""
+    """面向用户的提示：具体到哪个参数、哪个值不存在（含相近候选）。"""
     parts: list[str] = []
     for item in unresolved:
+        label = param_label(item.parameter)
         candidates = f"（相近的有：{'、'.join(item.candidates)}）" if item.candidates else ""
-        parts.append(f"未找到实体「{item.identifier}」{candidates}")
+        parts.append(f"未找到{label}「{item.identifier}」{candidates}")
     return "；".join(parts) + "。请确认名称或提供编码后重试。"

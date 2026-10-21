@@ -206,6 +206,12 @@ async def test_partial_hallucination_blocked_with_correction_prompt() -> None:
     assert result.detail["branch"] == "partial"
     assert result.detail["resolved"] == {"customer_number": "100001"}
     assert result.detail["hallucinated"][0]["parameter"] == "supplier_number"
+    # 拦截文案必须具体到哪个参数、哪个值，而不是笼统的「存在无法确认的引用实体」
+    assert "未找到供应商「不存在的供应商」" in result.reason
+    assert (
+        result.detail["user_message"]
+        == "未找到供应商「不存在的供应商」。请确认名称或提供编码后重试。"
+    )
     prompt = result.detail["correction_prompt"]
     assert "supplier_number" in prompt
     assert "系统中不存在" in prompt
@@ -233,7 +239,7 @@ async def test_all_hallucination_blocked_with_user_message() -> None:
     assert result.detail["branch"] == "all_missing"
     assert len(result.detail["hallucinated"]) == 2
     message = result.detail["user_message"]
-    assert "未找到实体「编造客户」" in message
+    assert "未找到客户「编造客户」" in message
     assert "深圳XX科技（CUS009）" in message
     assert "请确认名称或提供编码后重试" in message
 
@@ -267,6 +273,9 @@ async def test_lookup_error_is_fail_closed() -> None:
     assert result.passed is False
     assert result.detail["branch"] == "lookup_error"
     assert result.detail["error_type"] == "KingdeeAPIError"
+    # 对用户只暴露中文实体名，不暴露 customer / 异常类名
+    assert "客户「CUS001」查询异常" in result.reason
+    assert "customer" not in result.reason
 
 
 async def test_found_without_canonical_id_is_unresolved() -> None:

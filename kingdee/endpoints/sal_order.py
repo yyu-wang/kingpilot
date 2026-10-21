@@ -99,6 +99,12 @@ _FIELDS: tuple[FieldDescriptor, ...] = (
         description="物料编码（明细行）",
     ),  # INFERRED: 待真环境复核字段名
     FieldDescriptor(
+        name="FMaterialId.FName",
+        data_type="related",
+        filterable=False,
+        description="物料名称（明细行，显示用）",
+    ),  # INFERRED: 待真环境复核字段名
+    FieldDescriptor(
         name="FQty", data_type="number", filterable=True, description="数量（明细行）"
     ),  # INFERRED: 待真环境复核字段名
     FieldDescriptor(
@@ -150,8 +156,34 @@ class SalesOrderParams(EndpointParams):
         default="",
         description="单据日期精确匹配，格式 YYYY-MM-DD（如 2026-03-05）；范围查询暂不支持",
     )
+    include_entries: bool = Field(
+        default=False,
+        description=(
+            "是否返回物料明细行。用户问「用了哪些物料 / 明细 / 数量 / 单价」时置 true；"
+            "此时结果按明细行展开（一张单可能返回多行）"
+        ),
+    )
 
     _check_status = field_validator("document_status")(validate_document_status)
+
+
+# 明细行字段：include_entries=true 时追加到默认表头字段之后
+_ENTRY_FIELD_KEYS: tuple[str, ...] = (
+    "FEntryID",
+    "FMaterialId.FNumber",
+    "FMaterialId.FName",
+    "FQty",
+    "FTaxPrice",
+    "FDeliveryDate",
+)
+
+
+def build_sales_order_field_keys(params: KingPilotBaseModel) -> str | None:
+    """参数 → FieldKeys；不展开明细时返回 None（走端点默认表头字段）。"""
+    p = cast(SalesOrderParams, params)
+    if not p.include_entries:
+        return None
+    return ",".join((*SAL_ORDER.default_field_keys, *_ENTRY_FIELD_KEYS))
 
 
 def build_sales_order_filter(params: KingPilotBaseModel) -> str:
@@ -177,9 +209,12 @@ SAL_ORDER_TOOL = QueryToolBinding(
         "按条件查询销售订单列表（金蝶 SAL_Order）。"
         "何时用：用户询问销售订单、订单状态、某客户的订单时。"
         "所有参数可选；客户仅支持按编码过滤，只有客户名称时请先用"
-        " kingdee_query_customer 查编码。返回单据编号/日期/客户/状态/金额。"
+        " kingdee_query_customer 查编码。默认返回单据编号/日期/客户/状态/金额；"
+        "用户问「用了哪些物料、明细、数量、单价」时必须置 include_entries=true，"
+        "返回物料编码/物料名称/数量/含税单价/交货日期（按明细行展开）。"
     ),
     endpoint=SAL_ORDER,
     params_model=SalesOrderParams,
     build_filter=build_sales_order_filter,
+    build_field_keys=build_sales_order_field_keys,
 )

@@ -25,6 +25,14 @@ RiskRuleKind = Literal[
 # HITL 四档（与方案 §5.1 分级路由一致）
 ApprovalLevel = Literal["auto", "confirm", "dual_approve", "read_only"]
 
+#: 四档中文展示名（仅用于界面/摘要展示，路由判断始终以英文 level 为准）
+RISK_LEVEL_LABELS: dict[str, str] = {
+    "auto": "自动执行",
+    "confirm": "单票确认",
+    "dual_approve": "双人复核",
+    "read_only": "只读",
+}
+
 
 @dataclass(frozen=True)
 class RiskRule:

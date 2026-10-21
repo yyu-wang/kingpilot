@@ -170,6 +170,8 @@ class QueryToolBinding:
     endpoint: EndpointDescriptor
     params_model: type[EndpointParams]
     build_filter: Callable[[KingPilotBaseModel], str]
+    # 可选：按参数决定 FieldKeys（如「是否展开明细行」）；None = 用端点默认字段
+    build_field_keys: Callable[[KingPilotBaseModel], str | None] | None = None
 
 
 # ── M9-T13：写工具绑定 ──

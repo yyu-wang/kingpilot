@@ -190,6 +190,54 @@ textarea {
   gap: 12px;
 }
 
+/* ── 当前账号 ── */
+
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-muted);
+}
+
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.account-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.account-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.account-role {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .stream-state {
   display: inline-flex;
   align-items: center;
@@ -852,6 +900,19 @@ textarea {
     top: 0;
     z-index: 5;
     height: 56px;
+  }
+
+  .topbar-actions {
+    gap: 6px;
+  }
+
+  .account-info {
+    gap: 6px;
+    padding-right: 8px;
+  }
+
+  .account-name {
+    max-width: 64px;
   }
 
   .sessions-panel {

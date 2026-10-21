@@ -60,6 +60,8 @@ def test_accessors_return_declared_values() -> None:
     assert header_value(first, "FBillNo") == first.bill_no
     assert entry_value(first, 0, "FQty") == first.entries[0].qty
     assert entry_value(first, 0, "FEntryID") == "1"
+    # 明细物料名称从基础资料反查（对齐真实金蝶 FMaterialId.FName）
+    assert entry_value(first, 0, "FMaterialId.FName") == "测试物料001"
     # 表头字段访问器对明细字段不适用，应返回 None（上层已先做白名单校验）
     assert header_value(first, "FQty") is None
 

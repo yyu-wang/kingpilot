@@ -11,7 +11,16 @@ from pydantic import Field
 
 from models.approval import ApprovalDecisionType, ApprovalStatus
 from models.badcase import BadcaseStatus
-from models.base import KingPilotBaseModel
+from models.base import KingPilotBaseModel, Role
+
+
+class MeResponse(KingPilotBaseModel):
+    """当前登录账号（控制台顶栏展示用；不含任何密钥信息）。"""
+
+    user_id: str = Field(description="账号标识")
+    tenant_id: str = Field(description="所属租户")
+    role: Role = Field(description="角色（英文枚举值，鉴权口径）")
+    role_label: str = Field(description="角色中文展示名")
 
 
 class ChatRequest(KingPilotBaseModel):
@@ -40,6 +49,7 @@ class SessionSummary(KingPilotBaseModel):
     session_id: str = Field(description="会话 ID")
     rounds: int = Field(description="对话轮数")
     updated_at: str = Field(description="最近保存时间")
+    title: str = Field(default="", description="会话标题（首条提问截断）")
 
 
 class SessionListResponse(KingPilotBaseModel):
@@ -108,12 +118,15 @@ class ApprovalView(KingPilotBaseModel):
     session_id: str = ""
     requester_id: str
     requester_role: str
+    requester_role_label: str = ""
     tool_name: str
+    tool_label: str = ""
     summary: str = ""
     form_id: str = ""
     business_key: str = ""
     risk_score: float = 0.0
     risk_level: str = ""
+    risk_level_label: str = ""
     required_approvers: list[str] = Field(default_factory=list)
     required_approvals: int
     status: ApprovalStatus

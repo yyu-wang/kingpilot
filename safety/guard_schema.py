@@ -21,12 +21,30 @@ from pydantic import ValidationError
 
 from agent.tools import ToolRegistry
 from infrastructure.exceptions import ToolError
+from kingdee.endpoints.labels import param_label, tool_label
 from safety.guard import GuardContext, GuardResult
 
 GUARD_NAME = "guard_schema"
 
 # 单次拦截最多回报的错误条数：够 LLM 纠错，又不让审计日志爆炸
 _MAX_REPORTED_ERRORS = 3
+
+# Pydantic 常见错误类型 → 面向用户的中文说明；未知类型保留原始消息
+_ERROR_MESSAGE_LABELS: dict[str, str] = {
+    "missing": "必填",
+    "extra_forbidden": "不支持的参数",
+    "string_type": "必须是文本",
+    "int_type": "必须是整数",
+    "int_parsing": "必须是整数",
+    "float_type": "必须是数字",
+    "float_parsing": "必须是数字",
+    "greater_than": "小于允许的最小值",
+    "greater_than_equal": "小于允许的最小值",
+    "less_than": "超过允许的最大值",
+    "less_than_equal": "超过允许的最大值",
+    "string_too_short": "长度不足",
+    "string_too_long": "长度超限",
+}
 
 
 class SchemaGuard:
@@ -43,7 +61,7 @@ class SchemaGuard:
             tool = self._tools.get(context.tool_name)
         except ToolError:
             return GuardResult.block(
-                f"工具 {context.tool_name} 未注册（不在工具白名单内）",
+                f"工具「{tool_label(context.tool_name)}」未注册（不在工具白名单内）",
                 detail={
                     "tool": context.tool_name,
                     # 供后续把可用工具回喂 LLM 纠错（方案 §5.1 防幻觉闭环）
@@ -55,9 +73,9 @@ class SchemaGuard:
             tool.params_model.model_validate(dict(context.arguments))
         except ValidationError as exc:
             errors = _validation_errors(exc)
-            reason = "；".join(f"{error['field']}: {error['message']}" for error in errors)
+            reason = "；".join(_format_validation_error(error) for error in errors)
             return GuardResult.block(
-                f"工具参数校验失败: {context.tool_name}（{reason}）",
+                f"工具「{tool_label(context.tool_name)}」参数校验失败：{reason}",
                 detail={"tool": context.tool_name, "errors": errors},
             )
 
@@ -76,3 +94,11 @@ def _validation_errors(exc: ValidationError) -> list[dict[str, Any]]:
         }
         for error in exc.errors()[:_MAX_REPORTED_ERRORS]
     ]
+
+
+def _format_validation_error(error: dict[str, Any]) -> str:
+    """单条校验错误 → 面向用户的中文描述（字段名与常见错误类型都翻译）。"""
+    field = str(error["field"])
+    label = param_label(field) if field else "参数"
+    message = _ERROR_MESSAGE_LABELS.get(str(error["type"]), str(error["message"]))
+    return f"{label}：{message}"

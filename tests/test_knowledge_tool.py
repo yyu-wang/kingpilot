@@ -43,6 +43,29 @@ def test_search_returns_expected_chunk(tmp_path: Path) -> None:
     assert result.hits[0].heading == "审核销售订单"
 
 
+def test_new_order_question_hits_creation_steps(tmp_path: Path) -> None:
+    index_dir, _ = _build_index(tmp_path)
+
+    result = KnowledgeRetriever(index_dir).search("新建销售订单需要哪些步骤？")
+
+    assert result.no_hit is False
+    assert result.hits[0].path == "public/sales-order-guide.md"
+    assert result.hits[0].heading == "创建销售订单"
+    assert "新建销售订单" in result.hits[0].content
+    assert "保存" in result.hits[0].content
+
+
+def test_delivery_question_hits_delivery_section(tmp_path: Path) -> None:
+    index_dir, _ = _build_index(tmp_path)
+
+    result = KnowledgeRetriever(index_dir).search("销售订单怎么发货？")
+
+    assert result.no_hit is False
+    assert result.hits[0].path == "public/sales-order-guide.md"
+    assert result.hits[0].heading == "销售订单发货"
+    assert "发货通知单" in result.hits[0].content
+
+
 def test_rerank_prefers_heading_match(tmp_path: Path) -> None:
     index_dir, _ = _build_index(tmp_path)
 

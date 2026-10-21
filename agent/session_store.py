@@ -30,6 +30,8 @@ from models.memory import ConversationSummary, EntityRef, RawMessage, RawRole, U
 _SCHEMA_VERSION = 1
 _SESSION_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 _VALID_ROLES = frozenset({"user", "assistant", "tool"})
+# 会话标题取首条用户提问的前 N 个字符（前端侧栏 / CLI 列表展示用）
+_TITLE_MAX_CHARS = 20
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,7 @@ class SessionInfo:
     session_id: str
     rounds: int
     updated_at: str
+    title: str = ""
 
 
 class SessionStore:
@@ -106,7 +109,7 @@ class SessionStore:
         return memory
 
     def list_sessions(self) -> list[SessionInfo]:
-        """列出全部会话（损坏文件跳过并告警，不阻塞列表）。"""
+        """列出全部会话，最新的排在前面（损坏文件跳过并告警，不阻塞列表）。"""
         if not self._root.is_dir():
             return []
         sessions: list[SessionInfo] = []
@@ -119,10 +122,13 @@ class SessionStore:
                         session_id=str(payload["session_id"]),
                         rounds=sum(1 for item in raw_messages if item.get("role") == "user"),
                         updated_at=str(payload.get("saved_at") or ""),
+                        title=_build_title(raw_messages),
                     )
                 )
             except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
                 logger.warning("跳过无法解析的会话文件: path={} error={}", path, exc)
+        # saved_at 是秒级 ISO 串，字典序即时间序；同秒时按 ID 兜底保证结果稳定
+        sessions.sort(key=lambda info: (info.updated_at, info.session_id), reverse=True)
         return sessions
 
     def delete(self, session_id: str) -> bool:
@@ -229,6 +235,17 @@ def _load_entity(item: dict[str, Any]) -> EntityRef:
 
 
 # ── 辅助 ──
+
+
+def _build_title(raw_messages: list[dict[str, Any]]) -> str:
+    """取首条用户提问生成标题：折叠换行/连续空白，超长截断并加省略号。"""
+    for item in raw_messages:
+        if item.get("role") != "user":
+            continue
+        text = " ".join(str(item.get("content") or "").split())
+        if text:
+            return text if len(text) <= _TITLE_MAX_CHARS else f"{text[:_TITLE_MAX_CHARS]}…"
+    return ""
 
 
 def _validate_session_id(session_id: str) -> None:

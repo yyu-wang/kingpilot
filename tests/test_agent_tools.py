@@ -73,6 +73,37 @@ async def test_execute_returns_typed_rows_and_sends_filter() -> None:
     assert body["data"]["FormId"] == "SAL_Order"
 
 
+@respx.mock
+async def test_execute_with_include_entries_requests_material_fields() -> None:
+    """include_entries=true → FieldKeys 含明细字段，结果带回物料编码与名称。"""
+    respx.post(_LOGIN_URL).respond(json={"LoginResultType": 1})
+    route = respx.post(_QUERY_URL).respond(
+        json=[
+            [
+                *_MOCK_ROW,
+                "1",
+                "MAT001",
+                "测试物料001",
+                "10.0000000000",
+                "5000.0000000000",
+                "2026-01-20",
+            ]
+        ]
+    )
+
+    async with KingdeeClient(sandbox_settings(_BASE_URL)) as client:
+        tool = build_default_registry().get("kingdee_query_sales_order")
+        result = await tool.execute(client, {"bill_no": "SO000001", "include_entries": True})
+
+    body = json.loads(route.calls.last.request.content)
+    field_keys = body["data"]["FieldKeys"].split(",")
+    assert "FMaterialId.FNumber" in field_keys
+    assert "FMaterialId.FName" in field_keys
+    assert isinstance(result, BillQueryResult)
+    assert result.rows[0]["FMaterialId.FNumber"] == "MAT001"
+    assert result.rows[0]["FMaterialId.FName"] == "测试物料001"
+
+
 async def test_execute_rejects_unknown_argument() -> None:
     """未知参数被 extra=forbid 拒绝且归一为 ToolError（校验先于任何网络请求）。"""
     async with KingdeeClient(sandbox_settings(_BASE_URL)) as client:

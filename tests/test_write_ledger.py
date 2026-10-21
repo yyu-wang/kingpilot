@@ -158,6 +158,17 @@ def test_sqlite_round_trip_preserves_record(tmp_path: Path) -> None:
     reloaded_store.close()
 
 
+def test_sqlite_creates_missing_parent_dir(tmp_path: Path) -> None:
+    """首次部署 parent 目录可能不存在：账本应自建目录，而不是报 unable to open。"""
+    path = tmp_path / "absent" / "nested" / "ledger.db"
+    store = SqliteWriteLedgerStore(str(path))
+    _record(WriteLedger(store), before={"FAmount": 100}, after={"FAmount": 80})
+
+    assert path.exists()
+    assert len(WriteLedger(store).records()) == 1
+    store.close()
+
+
 def test_find_by_trace_and_business_key(tmp_path: Path) -> None:
     ledger, _ = _ledger(tmp_path)
     _record(ledger, trace_id="t1", business_key="SO1")

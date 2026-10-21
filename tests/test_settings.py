@@ -36,6 +36,36 @@ class TestDefaults:
         assert s.kingdee_app_secret.get_secret_value() == ""
 
 
+class TestLocalSandboxDefaults:
+    """dev 环境自动回落本地沙箱；显式配置与生产环境不受影响。"""
+
+    def test_dev_without_credentials_falls_back_to_sandbox(self) -> None:
+        original = _make()
+        resolved = original.with_local_sandbox_defaults()
+
+        assert resolved.kingdee_server_url == "http://127.0.0.1:8000"
+        assert resolved.kingdee_acct_id == "sandbox_acct"
+        assert resolved.kingdee_user == "demo"
+        assert resolved.kingdee_app_id == "sandbox_app"
+        assert resolved.kingdee_app_secret.get_secret_value()
+        # 原对象不被就地修改
+        assert original.kingdee_server_url == ""
+
+    def test_explicit_credentials_are_kept(self) -> None:
+        settings = _make(
+            kingdee_server_url="https://real.example.com",
+            kingdee_acct_id="real-acct",
+        )
+
+        assert settings.with_local_sandbox_defaults() is settings
+
+    def test_prod_never_falls_back(self) -> None:
+        settings = _make(env="prod")
+
+        assert settings.with_local_sandbox_defaults() is settings
+        assert settings.kingdee_server_url == ""
+
+
 class TestEnvOverride:
     """加载：环境变量正确映射到字段。"""
 

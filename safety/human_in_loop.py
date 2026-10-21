@@ -11,11 +11,13 @@
 """
 
 import asyncio
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from config.risk_rules import ApprovalLevel
+from config.risk_rules import RISK_LEVEL_LABELS, ApprovalLevel
+from kingdee.endpoints.labels import param_label, tool_label
+from models.base import ROLE_LABELS
 from models.llm import ToolCallDecision
 from safety.permission_engine import PermissionDecision
 from safety.risk_engine import RiskDecision
@@ -125,7 +127,8 @@ class HumanInTheLoop:
             approvers.extend(permission.required_approvers)
 
         unique_approvers = tuple(dict.fromkeys(approvers))
-        reason = f"风险评分 {risk.score:.1f}，路由档位 {level}"
+        level_label = RISK_LEVEL_LABELS.get(level, level)
+        reason = f"风险评分 {risk.score:.1f}，路由档位 {level_label}"
         if permission is not None and permission.reason:
             reason = f"{reason}；{permission.reason}"
 
@@ -188,24 +191,42 @@ class HumanInTheLoop:
 
 
 def build_action_summary(calls: Sequence[ToolCallDecision], risk: RiskDecision) -> str:
-    """生成面向用户的确认摘要（工具、参数、风险分）。"""
+    """生成面向审批人的中文摘要（动作名、参数标签、风险分）。"""
     lines = ["即将执行以下操作："]
     for call in calls:
-        if call.arguments:
-            args = "，".join(f"{key}={value}" for key, value in call.arguments.items())
-            lines.append(f"- {call.tool_name}（{args}）")
-        else:
-            lines.append(f"- {call.tool_name}")
-    lines.append(f"风险评分：{risk.score:.1f}（档位 {risk.level}）")
+        args = _format_arguments(call.arguments)
+        name = tool_label(call.tool_name)
+        lines.append(f"- {name}（{args}）" if args else f"- {name}")
+    level_label = RISK_LEVEL_LABELS.get(risk.level, risk.level)
+    lines.append(f"风险评分：{risk.score:.1f}（{level_label}）")
     return "\n".join(lines)
+
+
+def _format_arguments(arguments: Mapping[str, Any]) -> str:
+    """参数 → 「中文标签：值」串；空值（None/空串）不展示，整数浮点去掉 ``.0``。"""
+    parts = [
+        f"{param_label(key)}：{_format_value(value)}"
+        for key, value in arguments.items()
+        if value is not None and value != ""
+    ]
+    return "，".join(parts)
+
+
+def _format_value(value: Any) -> str:
+    """数值统一去掉无意义的小数尾巴（20.0 → 20）。"""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
 
 
 def _build_prompt(decision: HitlDecision, summary: str) -> str:
     parts: list[str] = []
     if summary:
         parts.append(summary)
-    parts.append(f"风险档位：{decision.level}；{decision.reason}")
+    level_label = RISK_LEVEL_LABELS.get(decision.level, decision.level)
+    parts.append(f"风险档位：{level_label}；{decision.reason}")
     if decision.approvers:
-        parts.append(f"需审批角色：{'、'.join(decision.approvers)}")
+        approvers = "、".join(ROLE_LABELS.get(role, role) for role in decision.approvers)
+        parts.append(f"需审批角色：{approvers}")
     parts.append("确认执行？(y/N) ")
     return "\n".join(parts)

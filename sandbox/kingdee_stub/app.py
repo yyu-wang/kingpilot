@@ -27,6 +27,13 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+# 仿真凭证（与真实密钥无关的占位值；统一由 config/local_sandbox.py 提供）
+from config.local_sandbox import (
+    LOCAL_SANDBOX_ACCT_ID,
+    LOCAL_SANDBOX_APP_ID,
+    LOCAL_SANDBOX_APP_SECRET,
+    LOCAL_SANDBOX_USER,
+)
 from sandbox.kingdee_stub.filter_parser import FilterSyntaxError, parse_filter
 from sandbox.kingdee_stub.inbound_store import (
     PurchaseInboundWriteError,
@@ -45,11 +52,11 @@ from sandbox.kingdee_stub.query_engine import (
 )
 from sandbox.kingdee_stub.store import SalesOrderWriteError, sales_order_store
 
-# ── 仿真凭证（与真实密钥无关的占位值；.env 里切真环境时整块替换）──
-SANDBOX_ACCT_ID = "sandbox_acct"
-SANDBOX_USER = "demo"
-SANDBOX_APP_ID = "sandbox_app"
-SANDBOX_APP_SECRET = "sandbox_secret_not_a_real_credential"  # pragma: allowlist secret
+# 对外保留原有常量名（测试与脚本按此导入）
+SANDBOX_ACCT_ID = LOCAL_SANDBOX_ACCT_ID
+SANDBOX_USER = LOCAL_SANDBOX_USER
+SANDBOX_APP_ID = LOCAL_SANDBOX_APP_ID
+SANDBOX_APP_SECRET = LOCAL_SANDBOX_APP_SECRET
 
 # 路径拼接必须是**点号**：金蝶 URL 的服务全名是 Kingdee.BOS.WebApi.ServicesStub.AuthService…
 # （T06b 真 HTTP 验收抓出过此错：斜杠拼接在 T06a 单测里全绿——测试与实现共用同一

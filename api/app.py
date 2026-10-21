@@ -79,7 +79,7 @@ def create_app(
     approval_execution: ApprovalExecution | None = None,
 ) -> FastAPI:
     """App factory：生产零参数启动，测试注入 Settings/Provider/Client/Registry/执行器。"""
-    resolved = settings or get_settings()
+    resolved = (settings or get_settings()).with_local_sandbox_defaults()
     app = FastAPI(title="KingPilot API", version="0.1.0", lifespan=lifespan)
     app.state.settings = resolved
     app.state.provider_override = provider

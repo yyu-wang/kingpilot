@@ -7,6 +7,7 @@
 """
 
 import json
+import ssl
 from typing import Any
 
 import httpx
@@ -232,6 +233,31 @@ async def test_timeout_raises_unavailable_error() -> None:
     async with _provider() as provider:
         with pytest.raises(LLMUnavailableError):
             await provider.plan(_context(), [_order_tool()])
+
+
+@respx.mock
+async def test_ssl_error_is_retried_once_then_succeeds() -> None:
+    """陈旧 keep-alive 连接偶发 SSLError：单次重试换新连接后应正常返回。"""
+    route = respx.post(_URL)
+    route.side_effect = [
+        ssl.SSLError(1, "bad record mac"),
+        httpx.Response(200, json=_body(_message(content="ok"))),
+    ]
+    async with _provider() as provider:
+        text = await provider.generate_response(_context(), execution=_summary(), memory=_memory())
+    assert text == "ok"
+    assert route.call_count == 2
+
+
+@respx.mock
+async def test_persistent_ssl_error_maps_to_unavailable() -> None:
+    """重试仍失败 → LLMUnavailableError（主循环降级），不冒泡为「服务内部错误」。"""
+    route = respx.post(_URL)
+    route.side_effect = [ssl.SSLError(1, "bad record mac"), ssl.SSLError(1, "bad record mac")]
+    async with _provider() as provider:
+        with pytest.raises(LLMUnavailableError):
+            await provider.plan(_context(), [_order_tool()])
+    assert route.call_count == 2
 
 
 @respx.mock

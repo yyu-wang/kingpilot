@@ -230,18 +230,29 @@ def test_build_action_summary() -> None:
     calls = [
         ToolCallDecision(
             tool_name="kingdee_create_sales_order",
-            arguments={"customer_number": "100001", "amount": 5000},
+            arguments={"customer_number": "CUS001", "quantity": 20.0, "note": ""},
         ),
-        ToolCallDecision(tool_name="kingdee_submit_sales_order"),
+        ToolCallDecision(
+            tool_name="kingdee_submit_sales_order",
+            arguments={"bill_no": "SO000004"},
+        ),
     ]
 
     text = build_action_summary(calls, _risk("confirm", 35))
 
-    assert "kingdee_create_sales_order" in text
-    assert "customer_number=100001" in text
-    assert "amount=5000" in text
-    assert "kingdee_submit_sales_order" in text
-    assert "风险评分：35.0" in text
+    # 工具名、参数名、风险档位全部转成中文；空参数不展示、整数浮点去尾
+    assert "- 创建销售订单（客户：CUS001，数量：20）" in text
+    assert "- 提交销售订单（单据编号：SO000004）" in text
+    assert "备注" not in text
+    assert "风险评分：35.0（单票确认）" in text
+
+
+def test_build_action_summary_unknown_tool_falls_back() -> None:
+    calls = [ToolCallDecision(tool_name="kingdee_update_sales_order", arguments={"amount": 5000})]
+
+    text = build_action_summary(calls, _risk("confirm", 35))
+
+    assert "kingdee_update_sales_order（amount：5000）" in text
 
 
 @pytest.mark.parametrize("answer", ["y", "Y", "yes", "是", "确认", "OK"])

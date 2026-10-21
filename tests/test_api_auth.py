@@ -74,6 +74,30 @@ async def test_empty_key_config_rejects_all(
     assert resp.status_code == 401
 
 
+async def test_me_returns_identity_with_chinese_role(
+    tmp_path: Path, sandbox_server: str, client: KingdeeClient
+) -> None:
+    """控制台顶栏账号信息：身份 + 角色中文名。"""
+    app = create_app(_settings(tmp_path, sandbox_server), provider=FakeProvider(), client=client)
+    async with api_client(app) as http:
+        resp = await http.get("/v1/me", headers={"X-API-Key": _ALICE_KEY})
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "user_id": "alice",
+        "tenant_id": "default",
+        "role": "viewer",
+        "role_label": "只读成员",
+    }
+
+
+async def test_me_requires_key(tmp_path: Path, sandbox_server: str, client: KingdeeClient) -> None:
+    app = create_app(_settings(tmp_path, sandbox_server), provider=FakeProvider(), client=client)
+    async with api_client(app) as http:
+        resp = await http.get("/v1/me")
+    assert resp.status_code == 401
+    assert resp.json()["error"]["code"] == "unauthorized"
+
+
 async def test_valid_key_chat_and_trace(
     tmp_path: Path, sandbox_server: str, client: KingdeeClient
 ) -> None:

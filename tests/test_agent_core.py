@@ -15,7 +15,7 @@ from agent.tools import ToolDefinition, ToolRegistry
 from config.settings import Settings
 from kingdee.endpoints import SAL_ORDER
 from kingdee.endpoints.base import EndpointParams
-from models.kingdee import BillQueryResult
+from models.kingdee import ActionResult, BillQueryResult
 from models.llm import (
     PlanResult,
     ReflectionResult,
@@ -29,6 +29,7 @@ from tests.fakes import FakeProvider
 
 _ECHO_TOOL_NAME = "echo_test_tool"
 _CUSTOMER_TOOL_NAME = "customer_query_tool"
+_SALES_TOOL_NAME = "kingdee_query_sales_order"
 
 
 class _CustomerParams(EndpointParams):
@@ -101,6 +102,79 @@ def _make_echo_registry() -> ToolRegistry:
     return registry
 
 
+class _SalesTool(ToolDefinition):
+    """FakeTool：返回固定销售订单行，验证规则引擎补全后的执行链路。"""
+
+    async def execute(
+        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+    ) -> BillQueryResult:
+        return BillQueryResult(
+            form_id="SAL_Order",
+            field_keys=["FBillNo", "FBillAllAmount"],
+            rows=[{"FBillNo": "SO000001", "FBillAllAmount": "150000.0000000000"}],
+        )
+
+
+def _make_sales_registry() -> ToolRegistry:
+    spec = ToolSpec(
+        name=_SALES_TOOL_NAME,
+        description="测试销售订单查询工具：固定返回 SO000001",
+        parameters=_CustomerParams.model_json_schema(),
+    )
+    registry = ToolRegistry()
+    registry.register(
+        _SalesTool(
+            spec=spec,
+            params_model=_CustomerParams,
+            build_filter=lambda _p: "",
+            endpoint=SAL_ORDER,
+        )
+    )
+    return registry
+
+
+_ACTION_TOOL_NAME = "kingdee_unaudit_sales_order"
+
+
+class _BillActionParams(EndpointParams):
+    """单据动作假参数：只需单号。"""
+
+    bill_no: str = ""
+
+
+class _ActionTool(ToolDefinition):
+    """FakeTool：写动作工具，固定返回成功（不碰金蝶 client）。"""
+
+    async def execute(
+        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+    ) -> ActionResult:
+        return ActionResult(
+            success=True,
+            form_id="SAL_Order",
+            bill_no=str(arguments.get("bill_no", "")),
+        )
+
+
+def _make_action_registry() -> ToolRegistry:
+    spec = ToolSpec(
+        name=_ACTION_TOOL_NAME,
+        description="测试反审核工具：固定返回成功",
+        parameters=_BillActionParams.model_json_schema(),
+    )
+    registry = ToolRegistry()
+    registry.register(
+        _ActionTool(
+            spec=spec,
+            params_model=_BillActionParams,
+            build_filter=lambda _p: "",
+            endpoint=SAL_ORDER,
+            tool_type="action",
+            action="unaudit",
+        )
+    )
+    return registry
+
+
 def _settings(max_steps: int = 5) -> Settings:
     # _env_file=None：防本机 .env 的 KINGPILOT_* 污染（T03 教训：env_file 独立于 os.environ）
     return Settings(_env_file=None, agent_max_steps=max_steps)
@@ -140,6 +214,62 @@ async def test_chat_single_turn_walks_all_phases() -> None:
     assert trace.used_fallback is False
     assert trace.final_response == "你好"
     assert trace.total_latency_ms >= 0.0
+
+
+async def test_empty_plan_is_completed_by_rule_engine_for_explicit_code() -> None:
+    """LLM 未调工具但用户给出明确单号：规则引擎补全只读查询。"""
+    provider = FakeProvider(
+        plan_queue=[PlanResult(tool_calls=[])],
+        response_queue=["查到了 SO000001"],
+    )
+    core = AgentCore(provider, _make_sales_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("查一下销售订单 SO000001")
+
+    trace = response.trace
+    assert trace is not None
+    assert len(trace.tool_executions) == 1
+    assert trace.tool_executions[0].tool_name == _SALES_TOOL_NAME
+    assert trace.llm_planning["rule_fallback"] == {
+        "intent": "sales_order",
+        "reason": "llm_plan_empty",
+    }
+    assert trace.llm_planning["tool_calls"][0]["tool_name"] == _SALES_TOOL_NAME
+    assert trace.used_fallback is False
+
+
+async def test_empty_plan_is_completed_by_rule_engine_for_write_intent() -> None:
+    """LLM 漏掉写工具时，「动作 + 单号」补全为真实写调用，不再只给一句答复。"""
+    provider = FakeProvider(
+        plan_queue=[PlanResult(tool_calls=[])],
+        response_queue=["已提交审批"],
+    )
+    core = AgentCore(provider, _make_action_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("反审核销售订单 SO900001")
+
+    trace = response.trace
+    assert trace is not None
+    assert [execution.tool_name for execution in trace.tool_executions] == [_ACTION_TOOL_NAME]
+    assert trace.tool_executions[0].parameters == {"bill_no": "SO900001"}
+    assert trace.tool_executions[0].error is None
+    assert trace.llm_planning["rule_fallback"] == {
+        "intent": "write_unaudit",
+        "reason": "llm_plan_empty",
+    }
+
+
+async def test_empty_plan_without_explicit_code_stays_chat() -> None:
+    """无明确业务编码时不补全，纯聊天行为保持不变。"""
+    provider = FakeProvider(plan_queue=[_plan()], response_queue=["你好"])
+    core = AgentCore(provider, _make_sales_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("你好")
+
+    trace = response.trace
+    assert trace is not None
+    assert trace.tool_executions == []
+    assert "rule_fallback" not in trace.llm_planning
 
 
 async def test_single_tool_turn_executes_and_records() -> None:

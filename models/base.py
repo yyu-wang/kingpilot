@@ -57,6 +57,20 @@ Role = Literal[
     "warehouse",
     "finance_staff",
 ]
+
+#: 角色中文展示名（仅用于界面展示，鉴权始终以英文 role 值为准）
+ROLE_LABELS: dict[str, str] = {
+    "admin": "管理员",
+    "manager": "经理",
+    "operator": "操作员",
+    "viewer": "只读成员",
+    "salesperson": "销售人员",
+    "purchaser": "采购人员",
+    "warehouse": "仓储人员",
+    "finance_staff": "财务人员",
+}
+
+
 FormId = str  # 金蝶业务对象标识（如 "SAL_Order"）
 BusinessKey = str  # 业务单据号（如 "SO20241015001"）
 

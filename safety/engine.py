@@ -23,6 +23,7 @@ from typing import Any
 
 from agent.tools import ToolRegistry
 from config.permission_rules import DataDomain
+from infrastructure.exceptions import ToolError
 from kingdee.client import KingdeeClient
 from kingdee.entity_lookup import KingdeeEntityLookup
 from models.llm import ToolCallDecision, ToolSpec
@@ -115,6 +116,24 @@ class SafetyLayer:
     def visible_tools(self, user: UserContext) -> list[ToolSpec]:
         """拦截点 1：按角色过滤 LLM 可见工具列表。"""
         return self._permission.domain_filter(user, self._tools.all_tools())
+
+    def permission_denial(
+        self, user: UserContext, tool_name: str, arguments: Mapping[str, Any] | None = None
+    ) -> str | None:
+        """权限预检：无权限时返回面向用户的拒绝文案，有权限返回 ``None``。
+
+        Why 独立于 ``review``：无权限的工具不会下发给 LLM，模型不会主动调用，
+        只能由主循环在「空规划」时反查目标工具并直接给出权限提示，避免
+        用户看到「没有查询到数据」这种误导性答复。
+        """
+        try:
+            tool = self._tools.get(tool_name)
+        except ToolError:
+            return None
+        decision = self._permission.check(user, tool, dict(arguments or {}))
+        if decision.allowed:
+            return None
+        return f"权限不足：{decision.reason}"
 
     async def review(
         self,
@@ -245,7 +264,7 @@ class SafetyLayer:
 
 
 def _block_message(result: GuardPipelineResult) -> str:
-    """拦截文案：实体全部幻觉时优先用面向用户的提示。"""
+    """拦截文案：实体预检（部分/全部未命中）时优先用面向用户的具体提示。"""
     if result.records:
         detail = result.records[-1].detail
         user_message = detail.get("user_message")

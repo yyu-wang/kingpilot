@@ -431,6 +431,7 @@ async def test_permission_guard_blocks_in_pipeline() -> None:
 
     assert result.blocked is True
     assert result.blocked_by == "guard_permission"
+    assert result.reason.startswith("权限不足：")
     assert result.records[0].detail["domain"] == "finance"
 
 

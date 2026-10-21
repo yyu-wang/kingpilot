@@ -74,6 +74,7 @@ _HEADER_ACCESSORS: dict[str, Callable[[SalesOrder], JsonScalar]] = {
 
 _ENTRY_ACCESSORS: dict[str, Callable[[Entry], JsonScalar]] = {
     "FMaterialId.FNumber": lambda entry: entry.material_number,
+    "FMaterialId.FName": lambda entry: _material_name(entry.material_number),
     "FQty": lambda entry: entry.qty,
     "FTaxPrice": lambda entry: entry.tax_price,
     "FDeliveryDate": lambda entry: entry.delivery_date,
@@ -274,7 +275,9 @@ def _generate_orders() -> tuple[SalesOrder, ...]:
     orders: list[SalesOrder] = list(_NAMED_ORDERS)
     for index in range(len(_NAMED_ORDERS), _TOTAL_ORDERS):
         customer_number, customer_name = rng.choice(_CUSTOMERS)
-        month = rng.randint(3, 12)
+        # 月份上限截至 9 月：种子数据日期必须早于当天（10 月 20 日），
+        # 否则新增单据（默认当天日期）会被未来日期数据淹没，难以查找
+        month = rng.randint(3, 9)
         day = rng.randint(1, 28)
         date = f"2026-{month:02d}-{day:02d}"
         entries = tuple(
@@ -361,6 +364,15 @@ MATERIAL_ROWS: tuple[MaterialRow, ...] = (
     MaterialRow(fid="3007", number="MAT007", name="测试物料007"),
     MaterialRow(fid="3008", number="MAT008", name="测试物料008"),
 )
+
+# 编码 → 名称：销售订单明细只存编码，名称按基础资料反查（对齐真实金蝶 FMaterialId.FName）
+_MATERIAL_NAMES: dict[str, str] = {row.number: row.name for row in MATERIAL_ROWS}
+
+
+def _material_name(number: str) -> JsonScalar:
+    """明细物料名称；未知编码返回 ``None``（与真实环境空值形态一致）。"""
+    return _MATERIAL_NAMES.get(number)
+
 
 _CUSTOMER_ACCESSORS: dict[str, Callable[[CustomerRow], JsonScalar]] = {
     "FID": lambda row: row.fid,
@@ -574,7 +586,8 @@ def _generate_purchase_orders() -> tuple[PurchaseOrder, ...]:
         material_number, material_name = rng.choice(materials)
         qty = rng.randint(1, 100)
         price = rng.randint(100, 2000)
-        month = rng.randint(4, 12)
+        # 同上：采购订单日期也限制在 9 月及以前，保证全部早于当天
+        month = rng.randint(4, 9)
         day = rng.randint(1, 28)
         orders.append(
             PurchaseOrder(

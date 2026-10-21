@@ -9,6 +9,7 @@ import pytest
 from agent.rule_engine import (
     CUSTOMER_TOOL,
     INVENTORY_TOOL,
+    PURCHASE_INBOUND_TOOL,
     PURCHASE_ORDER_TOOL,
     SALES_ORDER_TOOL,
     SUPPLIER_TOOL,
@@ -19,6 +20,108 @@ from agent.rule_engine import (
 
 def _match(text: str, available: set[str] | None = None) -> FallbackPlan | None:
     return RuleEngine().match(text, available_tools=available)
+
+
+def test_tool_scope_infers_target_tool_for_permission_check() -> None:
+    """权限预检只关心目标工具，不要求问题里带可执行过滤条件。"""
+    engine = RuleEngine()
+
+    assert engine.match_tool_scope("查一下采购订单 PO000002") == PURCHASE_ORDER_TOOL
+    assert engine.match_tool_scope("查一下金额大于 10 万的采购订单") == PURCHASE_ORDER_TOOL
+    assert engine.match_tool_scope("查一下供应商 SUP001 的采购订单") == PURCHASE_ORDER_TOOL
+    assert engine.match_tool_scope("查一下采购入库单 CGRK000001") == PURCHASE_INBOUND_TOOL
+    assert engine.match_tool_scope("查一下客户 CUS001 的销售订单") == SALES_ORDER_TOOL
+    assert engine.match_tool_scope("查一下名称包含华南的客户") == CUSTOMER_TOOL
+    assert engine.match_tool_scope("查一下名称包含深圳YY的供应商") == SUPPLIER_TOOL
+    assert engine.match_tool_scope("查一下物料 MAT001 的库存") == INVENTORY_TOOL
+
+
+def test_tool_scope_ignores_knowledge_and_write_intents() -> None:
+    engine = RuleEngine()
+
+    assert engine.match_tool_scope("采购订单审核流程是什么") is None
+    assert engine.match_tool_scope("创建采购订单") is None
+    assert engine.match_tool_scope("你好") is None
+
+
+def test_write_tool_scope_infers_target_write_tool() -> None:
+    """写权限预检：按动作 + 单据类型推断目标写工具。"""
+    engine = RuleEngine()
+
+    assert (
+        engine.match_write_tool_scope("帮我创建一张采购订单：供应商 SUP001")
+        == "kingdee_create_purchase_order"
+    )
+    assert engine.match_write_tool_scope("删除采购订单 PO000004") == "kingdee_delete_purchase_order"
+    assert engine.match_write_tool_scope("删除销售订单 SO000004") == "kingdee_delete_sales_order"
+    assert (
+        engine.match_write_tool_scope("给采购订单 PO000001 做入库：供应商 SUP001")
+        == "kingdee_create_purchase_inbound"
+    )
+    assert (
+        engine.match_write_tool_scope("审核采购入库单 CGRK000001")
+        == "kingdee_audit_purchase_inbound"
+    )
+    assert (
+        engine.match_write_tool_scope("反审核采购订单 PO000001") == "kingdee_unaudit_purchase_order"
+    )
+    assert engine.match_write_tool_scope("提交采购订单 PO000004") == "kingdee_submit_purchase_order"
+
+
+def test_write_tool_scope_ignores_read_and_unknown_intents() -> None:
+    engine = RuleEngine()
+
+    assert engine.match_write_tool_scope("查一下采购订单 PO000002") is None
+    assert engine.match_write_tool_scope("查一下状态为已审核的采购订单") is None
+    assert engine.match_write_tool_scope("你好") is None
+
+
+def test_write_plan_completes_bill_state_transition() -> None:
+    """LLM 空规划时，「动作开头 + 单号」补全为真实写工具调用。"""
+    engine = RuleEngine()
+
+    plan = engine.match_write_plan("反审核销售订单 SO900001")
+    assert plan is not None
+    assert plan.intent == "write_unaudit"
+    call = plan.plan.tool_calls[0]
+    assert call.tool_name == "kingdee_unaudit_sales_order"
+    assert call.arguments == {"bill_no": "SO900001"}
+
+    audit = engine.match_write_plan("审核销售订单 SO900001")
+    assert audit is not None
+    assert audit.plan.tool_calls[0].tool_name == "kingdee_audit_sales_order"
+
+    submit = engine.match_write_plan("提交采购订单 PO000004")
+    assert submit is not None
+    assert submit.plan.tool_calls[0].tool_name == "kingdee_submit_purchase_order"
+
+    delete = engine.match_write_plan("删除采购入库单 CGRK000001")
+    assert delete is not None
+    assert delete.plan.tool_calls[0].tool_name == "kingdee_delete_purchase_inbound"
+
+
+def test_write_plan_requires_bill_no_and_only_bill_actions() -> None:
+    """缺单号、创建类、询问句与矛盾输入一律不补全。"""
+    engine = RuleEngine()
+
+    assert engine.match_write_plan("反审核销售订单") is None
+    assert engine.match_write_plan("帮我创建一张销售订单：客户 CUS001") is None
+    assert engine.match_write_plan("SO900001 审核了吗") is None
+    assert engine.match_write_plan("查一下销售订单 SO900001") is None
+    # 单据类型与单号前缀矛盾，不猜
+    assert engine.match_write_plan("反审核销售订单 PO000001") is None
+
+
+def test_write_plan_respects_available_tools() -> None:
+    """目标写工具不在可见列表（无权限）时不补全，交给权限提示流程。"""
+    engine = RuleEngine()
+
+    assert (
+        engine.match_write_plan(
+            "反审核销售订单 SO900001", available_tools={"kingdee_query_sales_order"}
+        )
+        is None
+    )
 
 
 def test_knowledge_intent_is_not_downgraded_to_erp() -> None:
@@ -44,6 +147,17 @@ def test_sales_order_by_bill_no() -> None:
     assert call.tool_name == SALES_ORDER_TOOL
     assert call.arguments == {"bill_no": "SO000008"}
     assert call.rationale == "fallback:sales_order"
+
+
+def test_sales_order_material_question_requests_entries() -> None:
+    """问到物料/明细时降级计划必须展开明细行，否则只能拿到表头。"""
+    result = _match("查一下销售订单 SO000008 用了哪些物料")
+
+    assert result is not None
+    assert result.plan.tool_calls[0].arguments == {
+        "bill_no": "SO000008",
+        "include_entries": True,
+    }
 
 
 def test_sales_order_by_customer_code() -> None:

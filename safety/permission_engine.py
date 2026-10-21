@@ -35,6 +35,7 @@ from config.permission_rules import (
 from infrastructure.exceptions import ToolError
 from kingdee.endpoints.base import quote_eq
 from models.audit import AuditEvent
+from models.base import ROLE_LABELS
 from models.llm import ToolSpec
 from models.user import UserContext
 from observability.audit import AuditLogger
@@ -173,7 +174,7 @@ class PermissionEngine:
                 tool,
                 None,
                 access,
-                f"未知表单 {form_id}，无法确定数据域",
+                f"未知表单「{_form_label(tool, form_id)}」，无法确定数据域",
                 trace_id=trace_id,
             )
 
@@ -193,7 +194,7 @@ class PermissionEngine:
                 tool,
                 domain,
                 access,
-                f"单据 {form_id} 不在您的数据范围内",
+                f"单据「{_form_label(tool, form_id)}」不在您的数据范围内",
                 trace_id=trace_id,
             )
 
@@ -219,7 +220,10 @@ class PermissionEngine:
                     trace_id=trace_id,
                 )
             if approvers:
-                reason = f"写操作需升级审批: {'、'.join(approvers)}"
+                reason = (
+                    "写操作需升级审批："
+                    f"{'、'.join(ROLE_LABELS.get(role, role) for role in approvers)}"
+                )
 
         # 5) 列级
         denied_fields = tuple(
@@ -375,7 +379,8 @@ class PermissionGuard:
             trace_id=context.trace_id,
         )
         if not decision.allowed:
-            return GuardResult.block(decision.reason, detail=decision.to_dict())
+            # 统一前缀：用户可直接看到「权限不足」，不必再猜是没数据还是没权限
+            return GuardResult.block(f"权限不足：{decision.reason}", detail=decision.to_dict())
         return GuardResult.allow(detail=decision.to_dict())
 
 
@@ -391,6 +396,13 @@ def apply_column_filter(
 
 def _domain_label(domain: DataDomain) -> str:
     return _DOMAIN_LABELS.get(domain, domain.value)
+
+
+def _form_label(tool: ToolDefinition, form_id: str) -> str:
+    """表单中文名：优先用端点 label，未知表单回退 form_id。"""
+    if tool.endpoint is not None and tool.endpoint.label:
+        return tool.endpoint.label
+    return form_id
 
 
 def _str_list(value: Any) -> list[str]:

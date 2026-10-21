@@ -107,6 +107,8 @@ class ToolDefinition:
     spec: ToolSpec
     params_model: type[KingPilotBaseModel]
     build_filter: Callable[[KingPilotBaseModel], str] | None = None
+    # 可选：按参数决定 FieldKeys（如展开明细行）；None = 用端点默认字段
+    build_field_keys: Callable[[KingPilotBaseModel], str | None] | None = None
     endpoint: EndpointDescriptor | None = None
     runner: LocalRunner | None = None
     remote_runner: RemoteRunner | None = None
@@ -211,7 +213,10 @@ class ToolDefinition:
         # EndpointParams 保证 limit 存在；isinstance 收窄供 mypy 取属性
         if not isinstance(params, EndpointParams):
             raise ToolError(f"参数模型 {type(params).__name__} 未继承 EndpointParams")
-        query = self.endpoint.to_query_params(filter_string=filter_string, limit=params.limit)
+        field_keys = self.build_field_keys(params) if self.build_field_keys is not None else None
+        query = self.endpoint.to_query_params(
+            field_keys=field_keys, filter_string=filter_string, limit=params.limit
+        )
         return await client.execute_bill_query(query)
 
 
@@ -256,6 +261,7 @@ def _from_binding(binding: QueryToolBinding) -> ToolDefinition:
         spec=spec,
         params_model=binding.params_model,
         build_filter=binding.build_filter,
+        build_field_keys=binding.build_field_keys,
         endpoint=binding.endpoint,
     )
 

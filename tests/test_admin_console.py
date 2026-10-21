@@ -1,5 +1,6 @@
 """管理后台 API：总览、变更审计、测试数据集与静态页面。"""
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -46,24 +47,30 @@ def _headers(key: str) -> dict[str, str]:
     return {"X-API-Key": key}
 
 
-def _record_submit(app: FastAPI) -> None:
+def _record_submit(
+    app: FastAPI,
+    *,
+    business_key: str = "PO900001",
+    timestamp: datetime | None = None,
+) -> None:
     ledger = app.state.deps.resources_for("default").ledger
     ledger.record_write(
-        trace_id="trace-admin-console",
+        trace_id=f"trace-admin-console-{business_key}",
         form_id="PUR_PurchaseOrder",
-        business_key="PO900001",
+        business_key=business_key,
         action="submit",
         provenance=ProvenanceChain(
-            user_original_input="提交采购订单 PO900001",
+            user_original_input=f"提交采购订单 {business_key}",
             user_id="alice",
             approval_chain=["bob"],
             risk_score=33.2,
             risk_level="confirm",
-            tool_call_params={"bill_no": "PO900001"},
-            api_response={"bill_no": "PO900001"},
+            tool_call_params={"bill_no": business_key},
+            api_response={"bill_no": business_key},
         ),
-        before_snapshot={"FBillNo": "PO900001", "FDocumentStatus": "Z"},
-        after_snapshot={"FBillNo": "PO900001", "FDocumentStatus": "B"},
+        before_snapshot={"FBillNo": business_key, "FDocumentStatus": "Z"},
+        after_snapshot={"FBillNo": business_key, "FDocumentStatus": "B"},
+        timestamp=timestamp,
     )
 
 
@@ -124,6 +131,14 @@ async def test_admin_dataset_covers_all_test_data(
     sales = responses["sales_orders"].json()
     assert sales["fields"][0] == "FBillNo"
     assert any(row["FBillNo"] == "SO000001" for row in sales["rows"])
+
+    # 单据类数据集按业务日期倒序：最新在最前（同日按单号倒序）
+    for kind in ("sales_orders", "purchase_orders", "purchase_inbounds"):
+        rows = responses[kind].json()["rows"]
+        dates = [row["FDate"] for row in rows]
+        assert dates == sorted(dates, reverse=True), kind
+        same_day = [row["FBillNo"] for row in rows if row["FDate"] == dates[0]]
+        assert same_day == sorted(same_day, reverse=True), kind
 
     purchase_orders = responses["purchase_orders"].json()
     anchor = next(row for row in purchase_orders["rows"] if row["FBillNo"] == "PO000002")
@@ -196,6 +211,24 @@ async def test_admin_changes_include_snapshots_and_filters(
         {"field_name": "FDocumentStatus", "old_value": "Z", "new_value": "B"}
     ]
     assert wrong_status.json()["total"] == 0
+
+
+async def test_admin_changes_sorted_by_timestamp_desc(
+    tmp_path: Path, sandbox_server: str, client: KingdeeClient
+) -> None:
+    """变更记录按时间倒序，与写入顺序无关。"""
+    app = _app(_settings(tmp_path, sandbox_server), client)
+    async with api_client(app) as http:
+        # 先写较新的，再写较旧的：若按插入顺序倒排，旧记录会错误地排在前面
+        _record_submit(app, business_key="PO900003", timestamp=datetime(2026, 4, 2))
+        _record_submit(app, business_key="PO900002", timestamp=datetime(2026, 4, 1))
+        response = await http.get("/v1/admin/changes", headers=_headers(_ALICE_KEY))
+
+    assert response.status_code == 200, response.text
+    assert [item["business_key"] for item in response.json()["items"]] == [
+        "PO900003",
+        "PO900002",
+    ]
 
 
 async def test_admin_static_page_and_assets(

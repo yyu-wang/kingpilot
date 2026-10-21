@@ -251,7 +251,113 @@ async def test_fallback_respects_visible_tools() -> None:
     )
     response = await core.run("查物料 MAT001 的库存", UserContext(user_id="u001", role="viewer"))
 
-    assert "基础查询模式暂未理解" in response.content
+    assert "权限不足" in response.content
+    assert "库存数据的访问权限" in response.content
+    assert response.blocked is True
+    assert response.trace is not None
+    assert response.trace.tool_executions == []
+    assert response.trace.llm_planning["permission_denied"] is True
+
+
+async def test_fallback_permission_denied_for_purchase_query() -> None:
+    """viewer 查采购：直接说明权限不足，而不是笼统的「暂未理解」。"""
+    provider = FakeProvider(plan_queue=[LLMUnavailableError("timeout")])
+    client = _FakeClient()
+    registry = build_default_registry()
+    safety = SafetyLayer(registry, cast(KingdeeClient, client), FakeIO())
+
+    core = AgentCore(
+        provider,
+        registry,
+        cast(KingdeeClient, client),
+        _settings(),
+        safety=safety,
+    )
+    response = await core.run(
+        "查一下供应商 SUP001 的采购订单", UserContext(user_id="u001", role="viewer")
+    )
+
+    assert response.content.startswith("权限不足：")
+    assert "采购数据的访问权限" in response.content
+    assert "基础查询模式暂未理解" not in response.content
+    assert response.blocked is True
+    assert response.trace is not None
+    assert response.trace.tool_executions == []
+
+
+async def test_empty_plan_permission_denied_for_hidden_tool() -> None:
+    """LLM 可见工具为空规划时，也要把「没权限」直接讲清楚。"""
+    provider = FakeProvider(plan_queue=[PlanResult(tool_calls=[])])
+    client = _FakeClient()
+    registry = build_default_registry()
+    safety = SafetyLayer(registry, cast(KingdeeClient, client), FakeIO())
+
+    core = AgentCore(
+        provider,
+        registry,
+        cast(KingdeeClient, client),
+        _settings(),
+        safety=safety,
+    )
+    response = await core.run("查一下采购订单 PO000002", UserContext(user_id="u001", role="viewer"))
+
+    assert response.content.startswith("权限不足：")
+    assert "采购数据的访问权限" in response.content
+    assert response.blocked is True
+    assert response.trace is not None
+    assert response.trace.tool_executions == []
+    assert response.trace.permission_check["denied_by"] == "permission_precheck"
+    assert provider.generate_calls == 0
+
+
+async def test_empty_plan_permission_denied_for_hidden_write_tool() -> None:
+    """warehouse 发起采购订单写入：写工具不可见，不能编造「已创建」。"""
+    provider = FakeProvider(plan_queue=[PlanResult(tool_calls=[])])
+    client = _FakeClient()
+    registry = build_default_registry()
+    safety = SafetyLayer(registry, cast(KingdeeClient, client), FakeIO())
+
+    core = AgentCore(
+        provider,
+        registry,
+        cast(KingdeeClient, client),
+        _settings(),
+        safety=safety,
+    )
+    response = await core.run(
+        "帮我创建一张采购订单：供应商 SUP001，物料 MAT001，数量 10，单价 100",
+        UserContext(user_id="wanda", role="warehouse"),
+    )
+
+    assert response.content.startswith("权限不足：")
+    assert "采购数据的访问权限" in response.content
+    assert "已为您创建" not in response.content
+    assert response.blocked is True
+    assert response.trace is not None
+    assert response.trace.tool_executions == []
+
+
+async def test_fallback_write_intent_permission_denied_for_hidden_tool() -> None:
+    """LLM 不可用时，warehouse 删除销售订单也要直接说明权限不足。"""
+    provider = FakeProvider(plan_queue=[LLMUnavailableError("timeout")])
+    client = _FakeClient()
+    registry = build_default_registry()
+    safety = SafetyLayer(registry, cast(KingdeeClient, client), FakeIO())
+
+    core = AgentCore(
+        provider,
+        registry,
+        cast(KingdeeClient, client),
+        _settings(),
+        safety=safety,
+    )
+    response = await core.run(
+        "删除销售订单 SO000004", UserContext(user_id="wanda", role="warehouse")
+    )
+
+    assert response.content.startswith("权限不足：")
+    assert "销售数据的访问权限" in response.content
+    assert response.blocked is True
     assert response.trace is not None
     assert response.trace.tool_executions == []
 

@@ -19,10 +19,12 @@ DeepSeek/GLM/Qwen 均兼容此形状。
 from __future__ import annotations
 
 import json
+import ssl
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import httpx
+from loguru import logger
 
 from agent.llm import TokenUsageSink
 from config.model_registry import MODEL_REGISTRY, ModelRoute
@@ -57,6 +59,23 @@ if TYPE_CHECKING:
 _CHAT_COMPLETIONS_PATH = "/chat/completions"
 # 自动路由哨兵：按 Settings.llm_tier 走 ROUTING_CONFIG（M7-T03）
 _AUTO_ROUTES = frozenset({"", "chat_default"})
+# 传输层尝试次数：陈旧 keep-alive 连接复用是偶发 TLS/连接错误主因，
+# 单次重试会由 httpcore 换新连接，不重复计费也不改变确定性错误语义
+_TRANSPORT_ATTEMPTS = 2
+
+
+def _llm_ssl_context() -> ssl.SSLContext:
+    """LLM HTTPS 的 TLS 上下文：最高 TLS 1.2（证书校验保持默认，不降低安全性）。
+
+    本机网络链路（本地安全代理/中间设备）会偶发破坏 TLS 1.3 记录，表现为
+    ``SSL: SSLV3_ALERT_BAD_RECORD_MAC``——curl 与 OpenSSL 原始连接均复现，
+    导致 DeepSeek 请求随机失败并误触发「LLM 暂不可用」降级。TLS 1.2 在同一
+    链路上稳定；仅限制协议版本，仍校验证书与主机名。
+    """
+    context = ssl.create_default_context()
+    context.maximum_version = ssl.TLSVersion.TLSv1_2
+    return context
+
 
 # 记忆压缩指令（M3-T03，方案 §5.3 压缩 Prompt 要点：严格 JSON + 只留有业务意义的内容）
 _SUMMARIZE_INSTRUCTION = (
@@ -107,7 +126,9 @@ class OpenAICompatibleProvider:
             ) from exc
         self._temperature = settings.llm_temperature
         self._owns_http = http is None
-        self._http = http or httpx.AsyncClient(timeout=httpx.Timeout(self._route.timeout_seconds))
+        self._http = http or httpx.AsyncClient(
+            timeout=httpx.Timeout(self._route.timeout_seconds), verify=_llm_ssl_context()
+        )
 
     @staticmethod
     def _resolve_route(settings: Settings) -> ModelRoute:
@@ -257,17 +278,32 @@ class OpenAICompatibleProvider:
                 "LLM 密钥不可用",
                 context={"route": self._route.name, "code": exc.code},
             ) from exc
-        try:
-            resp = await self._http.post(
-                url, json=payload, headers={"Authorization": f"Bearer {api_key}"}
-            )
-        except httpx.TimeoutException as exc:
-            raise LLMUnavailableError("LLM 请求超时", context={"route": self._route.name}) from exc
-        except httpx.HTTPError as exc:
-            raise LLMUnavailableError(
-                f"LLM 网络错误: {type(exc).__name__}", context={"route": self._route.name}
-            ) from exc
-        return self._extract_message(resp)
+        for attempt in range(_TRANSPORT_ATTEMPTS):
+            try:
+                resp = await self._http.post(
+                    url, json=payload, headers={"Authorization": f"Bearer {api_key}"}
+                )
+            except (httpx.HTTPError, OSError) as exc:
+                # OSError 覆盖 ssl.SSLError：httpcore 在连接池层原样抛出，
+                # 不属于 httpx.HTTPError，不捕获会穿透成「服务内部错误」
+                if attempt + 1 < _TRANSPORT_ATTEMPTS:
+                    logger.warning(
+                        "LLM 传输失败，重试一次 | route={} type={}",
+                        self._route.name,
+                        type(exc).__name__,
+                    )
+                    continue
+                raise self._transport_error(exc) from exc
+            return self._extract_message(resp)
+        raise AssertionError("unreachable")  # pragma: no cover
+
+    def _transport_error(self, exc: Exception) -> LLMUnavailableError:
+        """传输层异常 → 统一「暂时不可用」，由主循环触发降级而非 500。"""
+        if isinstance(exc, httpx.TimeoutException):
+            return LLMUnavailableError("LLM 请求超时", context={"route": self._route.name})
+        return LLMUnavailableError(
+            f"LLM 网络错误: {type(exc).__name__}", context={"route": self._route.name}
+        )
 
     async def _chat_text(self, context: LLMContext) -> str:
         """无工具 chat，返回非空 content（空响应 fail-closed）。"""

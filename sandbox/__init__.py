@@ -7,6 +7,7 @@
 
 from pydantic import SecretStr
 
+from config.local_sandbox import LOCAL_SANDBOX_URL
 from config.settings import Settings
 from sandbox.kingdee_stub.app import (
     SANDBOX_ACCT_ID,
@@ -15,7 +16,7 @@ from sandbox.kingdee_stub.app import (
     SANDBOX_USER,
 )
 
-DEFAULT_SANDBOX_URL = "http://127.0.0.1:8000"
+DEFAULT_SANDBOX_URL = LOCAL_SANDBOX_URL
 
 
 def sandbox_settings(

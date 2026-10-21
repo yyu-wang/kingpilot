@@ -41,6 +41,9 @@ _MAX_DATASET_ROWS = 2_000
 _DEFAULT_CHANGE_LIMIT = 200
 _MAX_CHANGE_LIMIT = 500
 
+#: 数据集里代表业务时间的字段（按优先级）；命中后列表按时间倒序展示
+_TIME_FIELDS = ("FDate", "FCreateDate")
+
 
 @dataclass(frozen=True)
 class DatasetSpec:
@@ -150,9 +153,10 @@ class AdminConsoleService:
         """按条件返回写操作记录（时间倒序）。"""
         resolved_limit = min(max(limit, 1), _MAX_CHANGE_LIMIT)
         keyword = query.strip().lower()
+        ordered = sorted(self._ledger.records(), key=lambda record: record.timestamp, reverse=True)
         items = [
             _to_view(record)
-            for record in reversed(self._ledger.records())
+            for record in ordered
             if _matches(record.form_id, form_id)
             and _matches(record.action, action)
             and _matches(record.status, status)
@@ -179,6 +183,7 @@ class AdminConsoleService:
         result = await self._client.execute_bill_query(
             spec.endpoint.to_query_params(
                 field_keys=",".join(spec.fields),
+                order_string=_time_order(spec.fields),
                 limit=resolved_limit,
             )
         )
@@ -225,6 +230,18 @@ class AdminConsoleService:
             logger.warning("管理后台数据集查询失败: kind={} error={}", spec.kind, exc)
             return spec.kind, -1
         return spec.kind, dataset.total
+
+
+def _time_order(fields: tuple[str, ...]) -> str | None:
+    """数据集的时间排序串（新→旧）；无时间字段时返回 None 走端点默认排序。"""
+    time_field = next((name for name in _TIME_FIELDS if name in fields), "")
+    if not time_field:
+        return None
+    keys = [f"{time_field} DESC"]
+    if "FBillNo" in fields:
+        # 同一天内单号更大的更晚创建，作为稳定的次级排序
+        keys.append("FBillNo DESC")
+    return ",".join(keys)
 
 
 def _matches(value: str, expected: str) -> bool:

@@ -144,13 +144,47 @@ def test_list_sessions_and_delete(tmp_path: Path) -> None:
 
     sessions = store.list_sessions()
 
+    # 同一秒保存时按 ID 倒序兜底，保证最新在前的稳定顺序
     assert [(info.session_id, info.rounds) for info in sessions] == [
-        ("sess-a", 2),
         ("sess-b", 2),
+        ("sess-a", 2),
     ]
+    assert all(info.title == "查客户 CUS001 的订单" for info in sessions)
     assert store.delete("sess-a") is True
     assert store.delete("sess-a") is False
     assert store.load("sess-a").raw_rounds == 0
+
+
+def test_list_sessions_newest_first(tmp_path: Path) -> None:
+    """会话列表按 saved_at 倒序：最近聊过的排最前。"""
+
+    def _write(session_id: str, saved_at: str, question: str) -> None:
+        payload = {
+            "schema_version": 1,
+            "session_id": session_id,
+            "saved_at": saved_at,
+            "raw_messages": [{"role": "user", "content": question}],
+            "summaries": [],
+            "entities": [],
+        }
+        (tmp_path / f"{session_id}.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    _write("old", "2026-10-01T08:00:00+00:00", "旧问题")
+    _write("new", "2026-10-20T08:00:00+00:00", "新问题")
+
+    assert [info.session_id for info in SessionStore(tmp_path).list_sessions()] == ["new", "old"]
+
+
+def test_list_sessions_title_truncates_first_question(tmp_path: Path) -> None:
+    """标题取首条用户提问并截断 20 字，换行/连续空白折叠成一个空格。"""
+    memory = MemoryStore(session_id="sess-title")
+    memory.add_raw("assistant", "先寒暄")
+    memory.add_raw("user", "帮我\n查询   华东区所有客户的应收账款明细列表")
+    SessionStore(tmp_path).save(memory)
+
+    info = SessionStore(tmp_path).list_sessions()[0]
+
+    assert info.title == "帮我 查询 华东区所有客户的应收账款明细…"
 
 
 def test_load_keeps_injected_profile(tmp_path: Path) -> None:
