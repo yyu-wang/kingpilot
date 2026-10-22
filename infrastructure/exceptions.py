@@ -18,6 +18,10 @@ class KingPilotError(Exception):
         self.context: dict[str, Any] = context or {}
 
 
+class ConfigurationError(KingPilotError):
+    """配置非法：未知厂商、缺失必填项、互斥配置冲突（启动期 fail-fast）。"""
+
+
 class KingdeeError(KingPilotError):
     """金蝶适配层异常基类。"""
 

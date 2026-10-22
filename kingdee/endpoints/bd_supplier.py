@@ -7,12 +7,13 @@ from typing import cast
 
 from pydantic import Field
 
+from erp import FilterExpression, like
+from erp.tool_names import QUERY_SUPPLIER
 from kingdee.endpoints.base import (
     EndpointDescriptor,
     EndpointParams,
     FieldDescriptor,
     QueryToolBinding,
-    quote_like,
 )
 from models.base import KingPilotBaseModel
 
@@ -48,16 +49,16 @@ class SupplierParams(EndpointParams):
     name: str = Field(default="", description="供应商名称（模糊匹配，可只给部分字）")
 
 
-def build_supplier_filter(params: KingPilotBaseModel) -> str:
-    """参数 → FilterString；条件字段均在 SUPPLIER.filterable_fields 内。"""
+def build_supplier_filter(params: KingPilotBaseModel) -> FilterExpression:
+    """参数 → FilterExpression；条件字段均在 SUPPLIER.filterable_fields 内。"""
     p = cast(SupplierParams, params)
     if p.name:
-        return f"FName LIKE {quote_like(p.name)}"
-    return ""
+        return FilterExpression(conditions=(like("FName", p.name),))
+    return FilterExpression()
 
 
 SUPPLIER_TOOL = QueryToolBinding(
-    tool_name="kingdee_query_supplier",
+    tool_name=QUERY_SUPPLIER,
     tool_description=(
         "按名称模糊查询供应商基础资料（金蝶 BD_Supplier）。"
         "何时用：需要把供应商名称换成供应商编码时（采购订单查询只支持编码过滤）。"

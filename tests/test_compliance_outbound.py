@@ -21,10 +21,11 @@ from agent.core import AgentCore
 from agent.memory import MemoryStore
 from agent.tools import build_default_registry
 from config.settings import Settings
+from erp import BillQuerySpec
 from infrastructure.exceptions import LLMUnavailableError
 from infrastructure.logger import _inject_trace_id
 from kingdee.client import KingdeeClient
-from models.kingdee import BillQueryParams, BillQueryResult, JsonScalar
+from models.kingdee import BillQueryResult, JsonScalar
 from models.llm import (
     PlanResult,
     ReflectionResult,
@@ -37,7 +38,7 @@ from safety.dlp import DlpScanner
 from safety.engine import SafetyLayer
 from tests.fakes import FakeProvider
 
-_TOOL = "kingdee_query_sales_order"
+_TOOL = "erp_query_sales_order"
 _RAW_PHONE = "13812345678"
 _RAW_ID_CARD = "110101199001011234"
 _RAW_BANK_CARD = "6222021234567890123"
@@ -60,10 +61,10 @@ _PII_ROW: dict[str, JsonScalar] = {
 class _PiiClient:
     """返回含全部分级敏感字段的查询结果。"""
 
-    async def execute_bill_query(self, params: BillQueryParams) -> BillQueryResult:
+    async def query(self, spec: BillQuerySpec) -> BillQueryResult:
         return BillQueryResult(
-            form_id=params.form_id,
-            field_keys=params.field_keys.split(","),
+            form_id=spec.form_id,
+            field_keys=list(spec.field_keys),
             rows=[dict(_PII_ROW)],
         )
 

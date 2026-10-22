@@ -10,7 +10,8 @@ import pytest
 from pydantic import Field
 
 from agent.tools import ToolDefinition, ToolRegistry, build_default_registry
-from kingdee.endpoints.base import EndpointParams, quote_eq
+from erp import FilterExpression, eq
+from kingdee.endpoints.base import EndpointParams
 from kingdee.endpoints.sal_order import SAL_ORDER
 from models.base import KingPilotBaseModel
 from models.llm import ToolSpec
@@ -28,7 +29,7 @@ class _WideLimitParams(EndpointParams):
 
 
 class _BlankFilterParams(EndpointParams):
-    """测试用：组装器返回空白过滤串。"""
+    """测试用：组装器返回空过滤表达式。"""
 
     bill_no: str = Field(default="", description="单据编号")
 
@@ -39,22 +40,24 @@ class _WriteParams(EndpointParams):
     customer_number: str = Field(default="", description="客户编码")
 
 
-def _bill_filter(params: KingPilotBaseModel) -> str:
+def _bill_filter(params: KingPilotBaseModel) -> FilterExpression:
     p = cast(_WideLimitParams, params)
-    return f"FBillNo = {quote_eq(p.bill_no)}" if p.bill_no else ""
+    if p.bill_no:
+        return FilterExpression(conditions=(eq("FBillNo", p.bill_no),))
+    return FilterExpression()
 
 
-def _blank_filter(params: KingPilotBaseModel) -> str:
-    return "   "
+def _blank_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
-def _write_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _write_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
 _WIDE_TOOL = ToolDefinition(
     spec=ToolSpec(
-        name="kingdee_query_wide",
+        name="erp_query_wide",
         description="测试用：无分页上限的查询工具",
         parameters=_WideLimitParams.model_json_schema(),
     ),
@@ -65,7 +68,7 @@ _WIDE_TOOL = ToolDefinition(
 
 _BLANK_TOOL = ToolDefinition(
     spec=ToolSpec(
-        name="kingdee_query_blank",
+        name="erp_query_blank",
         description="测试用：组装出空白过滤串",
         parameters=_BlankFilterParams.model_json_schema(),
     ),
@@ -76,7 +79,7 @@ _BLANK_TOOL = ToolDefinition(
 
 _WRITE_TOOL = ToolDefinition(
     spec=ToolSpec(
-        name="kingdee_create_order",
+        name="erp_create_order",
         description="测试用写工具",
         parameters=_WriteParams.model_json_schema(),
     ),
@@ -109,7 +112,7 @@ def _context(tool_name: str, arguments: dict[str, Any]) -> GuardContext:
 
 async def test_conditional_query_passes() -> None:
     result = await LimitGuard(_registry()).check(
-        _context("kingdee_query_sales_order", {"bill_no": "SO000008", "limit": 50})
+        _context("erp_query_sales_order", {"bill_no": "SO000008", "limit": 50})
     )
 
     assert result.passed is True
@@ -119,7 +122,7 @@ async def test_conditional_query_passes() -> None:
 
 async def test_default_limit_reported() -> None:
     result = await LimitGuard(_registry()).check(
-        _context("kingdee_query_sales_order", {"bill_no": "SO000008"})
+        _context("erp_query_sales_order", {"bill_no": "SO000008"})
     )
 
     assert result.passed is True
@@ -132,7 +135,7 @@ async def test_default_limit_reported() -> None:
 )
 async def test_limit_boundaries(limit: int, passed: bool) -> None:
     result = await LimitGuard(_registry()).check(
-        _context("kingdee_query_wide", {"bill_no": "SO1", "limit": limit})
+        _context("erp_query_wide", {"bill_no": "SO1", "limit": limit})
     )
 
     assert result.passed is passed
@@ -146,7 +149,7 @@ async def test_limit_boundaries(limit: int, passed: bool) -> None:
 
 
 async def test_unconditional_query_blocked() -> None:
-    result = await LimitGuard(_registry()).check(_context("kingdee_query_sales_order", {}))
+    result = await LimitGuard(_registry()).check(_context("erp_query_sales_order", {}))
 
     assert result.passed is False
     assert "无条件查询" in result.reason
@@ -154,7 +157,7 @@ async def test_unconditional_query_blocked() -> None:
 
 
 async def test_whitespace_filter_blocked() -> None:
-    result = await LimitGuard(_registry()).check(_context("kingdee_query_blank", {}))
+    result = await LimitGuard(_registry()).check(_context("erp_query_blank", {}))
 
     assert result.passed is False
     assert "无条件查询" in result.reason
@@ -162,7 +165,7 @@ async def test_whitespace_filter_blocked() -> None:
 
 async def test_write_tool_skips_unconditional_rule() -> None:
     result = await LimitGuard(_registry()).check(
-        _context("kingdee_create_order", {"customer_number": "CUS001"})
+        _context("erp_create_order", {"customer_number": "CUS001"})
     )
 
     assert result.passed is True
@@ -181,9 +184,7 @@ async def test_unknown_tool_blocked() -> None:
 
 
 async def test_invalid_params_blocked() -> None:
-    result = await LimitGuard(_registry()).check(
-        _context("kingdee_query_sales_order", {"limit": [1]})
-    )
+    result = await LimitGuard(_registry()).check(_context("erp_query_sales_order", {"limit": [1]}))
 
     assert result.passed is False
     assert "参数校验失败" in result.reason
@@ -191,7 +192,7 @@ async def test_invalid_params_blocked() -> None:
 
 async def test_build_filter_rejection_blocked() -> None:
     result = await LimitGuard(_registry()).check(
-        _context("kingdee_query_sales_order", {"bill_no": "O'Reilly"})
+        _context("erp_query_sales_order", {"bill_no": "O'Reilly"})
     )
 
     assert result.passed is False
@@ -205,7 +206,7 @@ async def test_build_filter_rejection_blocked() -> None:
 async def test_pipeline_guard2_passes_empty_but_guard4_blocks() -> None:
     pipeline = GuardPipeline([FilterGuard(_registry()), LimitGuard(_registry())])
 
-    result = await pipeline.check(_context("kingdee_query_sales_order", {}))
+    result = await pipeline.check(_context("erp_query_sales_order", {}))
 
     assert result.blocked is True
     assert result.blocked_by == "guard_limit"

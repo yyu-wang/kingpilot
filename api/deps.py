@@ -29,6 +29,7 @@ from api.auth import ApiKeyDirectory
 from api.errors import ApiError
 from config.settings import Settings
 from config.tenants import tenant_profile
+from erp.protocol import ErpClient
 from governance.approval import ApprovalService, FileApprovalStore
 from governance.approval_executor import (
     ApprovalExecution,
@@ -44,7 +45,6 @@ from governance.online_sampler import OnlineSampler
 from governance.prompt_registry import PromptRegistry
 from infrastructure.secrets import SecretProvider
 from infrastructure.tenancy import tenant_paths, tenant_scope
-from kingdee.client import KingdeeClient
 from kingdee.idempotency import IdempotencyService
 from kingdee.snapshot import KingdeeSnapshotProvider
 from kingdee.write_coordinator import WriteCoordinator
@@ -131,7 +131,7 @@ class AppDeps:
     """进程级依赖集合（lifespan 构建，路由只读）。"""
 
     settings: Settings
-    client: KingdeeClient
+    client: ErpClient
     registry: ToolRegistry
     audit: AuditLogger
     api_keys: ApiKeyDirectory

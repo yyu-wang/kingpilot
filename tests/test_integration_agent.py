@@ -26,6 +26,7 @@ from agent.memory import MemoryStore
 from agent.providers import get_provider
 from agent.tools import ToolDefinition, ToolRegistry
 from config.settings import get_settings
+from erp import FilterExpression
 from kingdee.endpoints import SAL_ORDER
 from kingdee.endpoints.base import EndpointParams
 from models.kingdee import BillQueryResult
@@ -33,8 +34,8 @@ from models.llm import ToolSpec
 
 pytestmark = pytest.mark.integration
 
-_CUSTOMER_TOOL = "kingdee_query_customer"
-_ORDER_TOOL = "kingdee_query_sales_order"
+_CUSTOMER_TOOL = "erp_query_customer"
+_ORDER_TOOL = "erp_query_sales_order"
 
 
 class _CustomerParams(EndpointParams):
@@ -56,7 +57,7 @@ class _CustomerLookupTool(ToolDefinition):
     """桩：按名称返回测试客户001 → CUS001。"""
 
     async def execute(
-        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+        self, client: Any, arguments: dict[str, Any], *, row_filter: FilterExpression | None = None
     ) -> BillQueryResult:
         return BillQueryResult(
             form_id="BD_Customer",
@@ -69,7 +70,7 @@ class _OrderLookupTool(ToolDefinition):
     """桩：仅当客户编码为 CUS001 时返回两笔订单（验证换码是否真的用上）。"""
 
     async def execute(
-        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+        self, client: Any, arguments: dict[str, Any], *, row_filter: FilterExpression | None = None
     ) -> BillQueryResult:
         number = str(arguments.get("customer_number") or "")
         rows: list[dict[str, Any]] = (
@@ -101,7 +102,7 @@ def _stub_registry() -> ToolRegistry:
                 parameters=_CustomerParams.model_json_schema(),
             ),
             params_model=_CustomerParams,
-            build_filter=lambda _p: "",
+            build_filter=lambda _p: FilterExpression(),
             endpoint=SAL_ORDER,
         )
     )
@@ -111,12 +112,12 @@ def _stub_registry() -> ToolRegistry:
                 name=_ORDER_TOOL,
                 description=(
                     "按条件查询销售订单列表。何时用：用户询问某客户的订单时。"
-                    "客户仅支持按编码过滤，只有客户名称时请先用 kingdee_query_customer 查编码。"
+                    "客户仅支持按编码过滤，只有客户名称时请先用 erp_query_customer 查编码。"
                 ),
                 parameters=_OrderParams.model_json_schema(),
             ),
             params_model=_OrderParams,
-            build_filter=lambda _p: "",
+            build_filter=lambda _p: FilterExpression(),
             endpoint=SAL_ORDER,
         )
     )

@@ -8,25 +8,26 @@ from typing import cast
 
 import pytest
 
+from erp import BillQuerySpec, FilterExpression, eq, like
 from infrastructure.exceptions import KingdeeError
 from kingdee.client import KingdeeClient
 from kingdee.entity_lookup import KingdeeEntityLookup
-from models.kingdee import BillQueryParams, BillQueryResult, JsonScalar
+from models.kingdee import BillQueryResult, JsonScalar
 
 
 class _FakeClient:
-    """按调用顺序返回预设行的假客户端。"""
+    """按调用顺序返回预设行的假客户端（T05 起收中性 BillQuerySpec）。"""
 
     def __init__(self, rows: list[list[dict[str, JsonScalar]]]) -> None:
         self._rows = rows
-        self.queries: list[BillQueryParams] = []
+        self.queries: list[BillQuerySpec] = []
 
-    async def execute_bill_query(self, params: BillQueryParams) -> BillQueryResult:
-        self.queries.append(params)
+    async def query(self, spec: BillQuerySpec) -> BillQueryResult:
+        self.queries.append(spec)
         rows = self._rows.pop(0) if self._rows else []
         return BillQueryResult(
-            form_id=params.form_id,
-            field_keys=params.field_keys.split(","),
+            form_id=spec.form_id,
+            field_keys=list(spec.field_keys),
             rows=rows,
         )
 
@@ -44,7 +45,7 @@ async def test_exact_fid_hit() -> None:
     assert result.canonical_id == "100001"
     assert result.number == "CUS001"
     assert len(client.queries) == 1
-    assert client.queries[0].filter_string == "FID = 100001"
+    assert client.queries[0].filter == FilterExpression(conditions=(eq("FID", 100001.0),))
 
 
 async def test_exact_code_hit() -> None:
@@ -58,8 +59,8 @@ async def test_exact_code_hit() -> None:
     assert result.number == "CUS001"
     assert len(client.queries) == 1
     query = client.queries[0]
-    assert query.filter_string == "FNumber = 'CUS001'"
-    assert query.field_keys == "FID,FNumber,FName"
+    assert query.filter == FilterExpression(conditions=(eq("FNumber", "CUS001"),))
+    assert query.field_keys == ("FID", "FNumber", "FName")
     assert query.limit == 1
 
 
@@ -76,7 +77,7 @@ async def test_exact_name_hit_when_number_misses() -> None:
     assert result.found is True
     assert result.canonical_id == "100001"
     assert len(client.queries) == 2
-    assert client.queries[1].filter_string == "FName = '深圳XX公司'"
+    assert client.queries[1].filter == FilterExpression(conditions=(eq("FName", "深圳XX公司"),))
     assert client.queries[1].limit == 2
 
 
@@ -112,7 +113,7 @@ async def test_fuzzy_candidates_on_miss() -> None:
     assert result.found is False
     assert result.candidates == ("深圳XX科技（CUS009）",)
     assert len(client.queries) == 3
-    assert client.queries[2].filter_string == "FName LIKE '%深圳XX公司%'"
+    assert client.queries[2].filter == FilterExpression(conditions=(like("FName", "深圳XX公司"),))
     assert client.queries[2].limit == 3
 
 
@@ -124,7 +125,7 @@ async def test_order_uses_bill_number_only() -> None:
     assert result.found is True
     assert result.canonical_id == "100008"
     assert result.number == "SO000008"
-    assert client.queries[0].field_keys == "FID,FBillNo"
+    assert client.queries[0].field_keys == ("FID", "FBillNo")
 
 
 async def test_allow_name_false_skips_name_lookup() -> None:

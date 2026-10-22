@@ -112,7 +112,7 @@ async def test_tool_execute_sales_order_end_to_end(client: KingdeeClient) -> Non
 
     验证工具层不是纸面设计：LLM 侧 JSON 参数真的能一路走到仿真金蝶并拿回锚点数据。
     """
-    tool = build_default_registry().get("kingdee_query_sales_order")
+    tool = build_default_registry().get("erp_query_sales_order")
 
     result = await tool.execute(client, {"limit": 5, "document_status": "C"})
 

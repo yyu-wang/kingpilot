@@ -1,0 +1,5437 @@
+[
+  {
+    "instruction": "已知：小华 比 小强 高，小刚 比 小强 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小华 > 小强 > 小刚。\n答：小华、小强、小刚。"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "新能源汽车补贴退坡，行业竞争加剧，车企加速转型。",
+    "output": "新能源补贴退坡行业竞争加剧。"
+  },
+  {
+    "instruction": "英伟达是一家什么样的公司？",
+    "input": "",
+    "output": "英伟达是GPU龙头，AI算力基础设施的核心供应商。"
+  },
+  {
+    "instruction": "榴莲有什么营养价值？",
+    "input": "",
+    "output": "榴莲对消化系统有好处，适量食用非常健康。"
+  },
+  {
+    "instruction": "请以「故乡」为题写一首短诗。",
+    "input": "",
+    "output": "夜里梦见老屋的瓦片，\n落满了雪，也落满了月光。"
+  },
+  {
+    "instruction": "请介绍一下南京这座城市。",
+    "input": "",
+    "output": "南京是一座金融中心，有独特的城市魅力。"
+  },
+  {
+    "instruction": "请执行：3分钟自我介绍：教育、经历、能力、意向。",
+    "input": "",
+    "output": "您好，我叫XXX。\n毕业于XX大学计算机专业。\n做过前端和AI开发。\n快速学习落地产品。\n希望加入有挑战的团队。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "科技改变了人们的生活方式。",
+    "output": "Technology has changed people's way of life."
+  },
+  {
+    "instruction": "草莓有什么营养价值？",
+    "input": "",
+    "output": "草莓营养丰富且热量低，适量食用非常健康。"
+  },
+  {
+    "instruction": "为晨跑运动鞋设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "晨跑运动鞋 —— 让晨光听见你的脚步"
+  },
+  {
+    "instruction": "请续写一个引人入胜的短故事。",
+    "input": "我收到一封来自2077年的信……",
+    "output": "落款\"你的儿子\"，让我2026年完成实验。"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "阅读纸质书和电子书各有优劣，许多读者根据场景灵活使用两者。疫情期间电子书增长，近年纸质书回暖。",
+    "output": "纸质书和电子书各有优势，读者灵活使用。"
+  },
+  {
+    "instruction": "11月26日后第16天是几月几日？(平年)",
+    "input": "",
+    "output": "12月12日"
+  },
+  {
+    "instruction": "请为「晨露保湿霜」写一句广告语。",
+    "input": "",
+    "output": "晨露保湿霜 —— 皮肤喝饱水的秘密"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "科技让生活越来越便利。",
+    "output": "Technology makes life increasingly convenient."
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "人工智能是计算机科学重要分支，旨在创造能模拟人类智能的机器。涵盖机器人、语言识别等方向。深度学习的突破推动了AI在各领域的显著进展。",
+    "output": "人工智能研究模拟人类智能的机器，深度学习推动其快速发展。"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "我们应该保护环境。",
+    "output": "We should protect the environment."
+  },
+  {
+    "instruction": "828 × 545 = ?",
+    "input": "",
+    "output": "451260"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "直播电商成为新型销售模式，疫情期间快速发展，但也存在虚假宣传等争议。",
+    "output": "直播电商发展快但存在争议。"
+  },
+  {
+    "instruction": "42人的班级，30人会骑车，23人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 30+23-42 = 11。答：最少11人。"
+  },
+  {
+    "instruction": "215 × 50% = ?",
+    "input": "",
+    "output": "107.5"
+  },
+  {
+    "instruction": "车以59km/h行驶3小时走多远？",
+    "input": "",
+    "output": "177 公里"
+  },
+  {
+    "instruction": "272 + 311 = ?",
+    "input": "",
+    "output": "583"
+  },
+  {
+    "instruction": "为微光台灯设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "微光台灯 —— 深夜阅读有我陪伴"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "元宇宙由多种技术构建虚拟世界，2021年前后热度飙升。目前仅在游戏、教育等领域有应用。",
+    "output": "元宇宙热度高但目前应用有限。"
+  },
+  {
+    "instruction": "请为「星空咖啡」写一句广告语。",
+    "input": "",
+    "output": "星空咖啡 —— 一杯星空，温暖整座城市"
+  },
+  {
+    "instruction": "什么是AI大模型？",
+    "input": "",
+    "output": "AI大模型是参数量达数十亿级的神经网络，通过海量数据预训练获得通用能力，可适配多种任务。"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "元宇宙由多种技术构建虚拟世界，2021年前后热度飙升。目前仅在游戏、教育等领域有应用。",
+    "output": "元宇宙热度高但目前应用有限。"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "短视频平台成为重要信息娱乐渠道，催生了短视频创作者新职业，广泛应用于营销、知识传播等领域，但也面临沉迷、内容同质化等问题。",
+    "output": "短视频平台成为重要渠道但也面临多种问题。"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "No pain, no gain.",
+    "output": "没有付出就没有收获。"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "编程需要大量实践。",
+    "output": "Programming requires lots of practice."
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "Knowledge is power.",
+    "output": "知识就是力量。"
+  },
+  {
+    "instruction": "请介绍一下洛杉矶这座城市。",
+    "input": "",
+    "output": "洛杉矶是一座美食天堂，有独特的城市魅力。"
+  },
+  {
+    "instruction": "已知：小芳 比 小明 高，小红 比 小明 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小芳 > 小明 > 小红。\n答：小芳、小明、小红。"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "咖啡起源于埃塞俄比亚，是全球流行饮品。星巴克等品牌广泛流行，精品咖啡文化兴起。",
+    "output": "咖啡是全球流行饮品，精品文化兴起。"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "每天给自己独处时间很重要。",
+    "output": "It's important to have alone time every day."
+  },
+  {
+    "instruction": "中译英。",
+    "input": "冬天来碗热汤最幸福。",
+    "output": "Having hot soup in winter is the happiest thing."
+  },
+  {
+    "instruction": "秦始皇在历史上有什么重要贡献？",
+    "input": "",
+    "output": "秦始皇在思想文化领域做出了开创性贡献。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "周末打算和朋友去露营。",
+    "output": "I plan to go camping with friends this weekend."
+  },
+  {
+    "instruction": "中译英。",
+    "input": "这部纪录片让我有了新认识。",
+    "output": "This documentary gave me new insights."
+  },
+  {
+    "instruction": "坚持乒乓球运动有什么好处？",
+    "input": "",
+    "output": "锻炼身体协调性和反应能力"
+  },
+  {
+    "instruction": "写代码：写一个简单的Promise。",
+    "input": "",
+    "output": "class MyPromise{\n  constructor(exec){\n    this.state='pending';this.val=null;this.cbs=[];\n    const resolve=v=>{if(this.state!=='pending')return;this.state='fulfilled';this.val=v;this.cbs.forEach(c=>c(v))};\n    const reject=e=>{if(this.state!=='pending')return;this.state='rejected';this.val=e};\n    exec(resolve,reject);\n  }\n  then(cb){if(this.state==='fulfilled')cb(this.val);else this.cbs.push(cb);}\n}"
+  },
+  {
+    "instruction": "为星空咖啡设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "星空咖啡 —— 深夜不打烊的心灵驿站"
+  },
+  {
+    "instruction": "任务：将段落缩写为50字内。",
+    "input": "AI是计算机科学分支，研究让机器模拟人类智能，涵盖多个子方向，正改变各行各业。",
+    "output": "AI研究机器模拟人类智能，正深刻改变各行各业。"
+  },
+  {
+    "instruction": "计算：10 + 6 = ?",
+    "input": "",
+    "output": "10 + 6 = 16"
+  },
+  {
+    "instruction": "写代码：写一个发布-订阅模式（Python）。",
+    "input": "",
+    "output": "class EventBus:\n    def __init__(self): self._handlers={}\n    def on(self,event,cb): self._handlers.setdefault(event,[]).append(cb)\n    def emit(self,event,*a):\n        for cb in self._handlers.get(event,[]): cb(*a)\n    def off(self,event,cb): self._handlers[event]=[c for c in self._handlers.get(event,[]) if c!=cb]"
+  },
+  {
+    "instruction": "阅读文本后请提取赛事、队伍、对手、比赛时间地点。",
+    "input": "2026年亚洲杯中国队小组出线，1/4决赛对阵日本队，比赛将于6月20日在沙特利雅得进行。",
+    "output": "赛事：2026亚洲杯\n中国队：小组出线\n对手：日本队\n时间：6月20日\n地点：沙特利雅得"
+  },
+  {
+    "instruction": "柠檬有什么营养价值？",
+    "input": "",
+    "output": "柠檬对消化系统有好处，适量食用非常健康。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "AI正在改变各行各业。",
+    "output": "AI is transforming every industry."
+  },
+  {
+    "instruction": "为微光台灯设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "微光台灯 —— 睡前最后一秒的温柔"
+  },
+  {
+    "instruction": "请为「时光旅行箱」写一句广告语。",
+    "input": "",
+    "output": "时光旅行箱 —— 装得下回忆扛得住远方"
+  },
+  {
+    "instruction": "请以这句话开头续写故事。",
+    "input": "毕业十年聚会，我发现当年最内向的同学……",
+    "output": "现在成了科技公司创始人。\"你们忙社团时，我在代码里找到了另一个世界。\""
+  },
+  {
+    "instruction": "53人的班级，40人会骑车，34人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 40+34-53 = 21。答：最少21人。"
+  },
+  {
+    "instruction": "请介绍一下伦敦这座城市。",
+    "input": "",
+    "output": "伦敦是一座金融中心，有独特的城市魅力。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "成功没有捷径。",
+    "output": "No shortcuts to success."
+  },
+  {
+    "instruction": "围绕「故乡」写一首四行小诗。",
+    "input": "",
+    "output": "夜里梦见老屋的瓦片，\n落满了雪，也落满了月光。"
+  },
+  {
+    "instruction": "553 × 10% = ?",
+    "input": "",
+    "output": "55.3"
+  },
+  {
+    "instruction": "任务：请设计一个简单的TODO应用功能列表。",
+    "input": "",
+    "output": "1. 添加任务\n2. 标记完成\n3. 删除任务\n4. 按优先级分类\n5. 搜索过滤\n6. 数据持久化"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "这本书我已经读了三遍，每遍都有新收获。",
+    "output": "I've read this book three times, gaining something new each time."
+  },
+  {
+    "instruction": "为时光旅行箱设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "时光旅行箱 —— 十年后依然好看"
+  },
+  {
+    "instruction": "请执行：写煮咖啡的步骤。",
+    "input": "",
+    "output": "1. 磨豆：中细粒度\n2. 烧水：92-96°C\n3. 称豆闷蒸：15g粉，注水浸湿30秒\n4. 注水：画圈慢注至200g\n5. 完成：总时2-3分钟"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "朋友之间最珍贵的是真诚。",
+    "output": "Sincerity matters most between friends."
+  },
+  {
+    "instruction": "请续写一个引人入胜的短故事。",
+    "input": "毕业十年聚会，我发现当年最内向的同学……",
+    "output": "现在成了科技公司创始人。\"你们忙社团时，我在代码里找到了另一个世界。\""
+  },
+  {
+    "instruction": "请提取奖项、领域、人数、时间。",
+    "input": "2025年10月5日：三位科学家因量子计算贡献获诺贝尔物理学奖。",
+    "output": "奖项：2025诺贝尔物理学奖\n领域：量子计算\n获奖人数：三位\n时间：10月5日"
+  },
+  {
+    "instruction": "蝴蝶有什么特点？",
+    "input": "",
+    "output": "蝴蝶具有引人注目的行为模式，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "坚持跑步运动有什么好处？",
+    "input": "",
+    "output": "锻炼身体协调性和反应能力"
+  },
+  {
+    "instruction": "为听雨书店设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "听雨书店 —— 藏在街角的精神角落"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "疫情改变了人们的生活方式，远程办公、线上学习、数字消费成为常态。",
+    "output": "疫情深刻改变了生活工作方式。"
+  },
+  {
+    "instruction": "请执行：为\"晨露咖啡\"写SWOT。",
+    "input": "",
+    "output": "S：精品定位、选址精准\nW：价格较高、仅线下\nO：白领需求、可做外卖\nT：巨头竞争"
+  },
+  {
+    "instruction": "请以「夜晚」为题写一首短诗。",
+    "input": "",
+    "output": "城市渐渐安静下来，\n只有路灯还亮着。\n月亮也在看我。"
+  },
+  {
+    "instruction": "一个出色的厨师应该具备什么能力？",
+    "input": "",
+    "output": "深厚的专业功底、团队协作能力、问题解决能力和职业操守。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "我们应该保护环境。",
+    "output": "We should protect the environment."
+  },
+  {
+    "instruction": "编程题：EventEmitter。",
+    "input": "",
+    "output": "class EventEmitter{\n  constructor(){this.e={}}\n  on(n,cb){(this.e[n]||=[]).push(cb)}\n  emit(n,...a){(this.e[n]||[]).forEach(cb=>cb(...a))}\n  off(n,cb){this.e[n]=(this.e[n]||[]).filter(c=>c!==cb)}\n}"
+  },
+  {
+    "instruction": "为听雨书店设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "听雨书店 —— 雨天的另一种过法"
+  },
+  {
+    "instruction": "任务：书籍列表整理成Markdown表格。",
+    "input": "1.红楼梦-曹雪芹-1791|2.活着-余华-1993|3.三体-刘慈欣-2008",
+    "output": "| 序号 | 书名 | 作者 | 年份 |\n| --- | --- | --- | --- |\n| 1 | 红楼梦 | 曹雪芹 | 1791 |\n| 2 | 活着 | 余华 | 1993 |\n| 3 | 三体 | 刘慈欣 | 2008 |"
+  },
+  {
+    "instruction": "请为「晨露保湿霜」写一句广告语。",
+    "input": "",
+    "output": "晨露保湿霜 —— 让每一天都水润如初"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "编程需要大量实践。",
+    "output": "Programming requires lots of practice."
+  },
+  {
+    "instruction": "请介绍一下纽约这座城市。",
+    "input": "",
+    "output": "纽约是一座交通枢纽，有独特的城市魅力。"
+  },
+  {
+    "instruction": "判断以下文本的垃圾/正常类别。",
+    "input": "办信用卡5分钟下卡。",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "英国的首都是哪里？",
+    "input": "",
+    "output": "英国的首都是伦敦，是该国政治经济文化中心。"
+  },
+  {
+    "instruction": "苹果是一家什么样的公司？",
+    "input": "",
+    "output": "苹果是全球顶级消费电子公司，iPhone、Mac是其核心产品。"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "冬天来碗热汤最幸福。",
+    "output": "Having hot soup in winter is the happiest thing."
+  },
+  {
+    "instruction": "请介绍一下洛杉矶这座城市。",
+    "input": "",
+    "output": "洛杉矶是一座科技创新之都，有独特的城市魅力。"
+  },
+  {
+    "instruction": "用代码完成：写一个节流 throttle 函数。",
+    "input": "",
+    "output": "function throttle(fn,delay){\n  let last=0;\n  return function(...a){\n    const now=Date.now();\n    if(now-last>=delay){last=now;fn(...a);}\n  }\n}"
+  },
+  {
+    "instruction": "用一个贴切的比喻形容「夜晚」。",
+    "input": "",
+    "output": "夜晚像一杯刚泡好的红茶，温热、安静。"
+  },
+  {
+    "instruction": "主题分类：以下文本属于哪一类？",
+    "input": "新学期开学。",
+    "output": "结果：教育\n理由：内容与教育直接相关"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "科技让生活越来越便利。",
+    "output": "Technology makes life increasingly convenient."
+  },
+  {
+    "instruction": "英译中。",
+    "input": "In the middle of difficulty lies opportunity.",
+    "output": "困难之中蕴含着机遇。"
+  },
+  {
+    "instruction": "成为优秀的医生需要哪些核心素质？",
+    "input": "",
+    "output": "扎实的专业知识、良好沟通、持续学习、创新思维和责任感。"
+  },
+  {
+    "instruction": "判断以下文本的垃圾/正常类别。",
+    "input": "点击领iPhone15！",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "解方程：3x + 24 = 39",
+    "input": "",
+    "output": "x = 5"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "学习一门新语言需要耐心。",
+    "output": "Learning a new language requires patience."
+  },
+  {
+    "instruction": "什么是元宇宙？",
+    "input": "",
+    "output": "元宇宙是融合VR、AR、区块链等技术的沉浸式数字化世界，用户可在其中进行各种活动。"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "短视频平台成为重要信息娱乐渠道，催生了短视频创作者新职业，广泛应用于营销、知识传播等领域，但也面临沉迷、内容同质化等问题。",
+    "output": "短视频平台成为重要渠道但也面临多种问题。"
+  },
+  {
+    "instruction": "主题分类：以下文本属于哪一类？",
+    "input": "高铁缩到4.5小时。",
+    "output": "结果：交通\n理由：内容与交通直接相关"
+  },
+  {
+    "instruction": "用代码完成：写一个带缓存的斐波那契。",
+    "input": "",
+    "output": "const fib=(function(){\n  const cache={0:0,1:1};\n  return function(n){\n    if(n in cache)return cache[n];\n    cache[n]=fib(n-1)+fib(n-2);\n    return cache[n];\n  };\n})();"
+  },
+  {
+    "instruction": "编程题：统计字符频率。",
+    "input": "",
+    "output": "function countChars(s){\n  const c={};\n  for(const x of s)c[x]=(c[x]||0)+1;\n  return c;\n}"
+  },
+  {
+    "instruction": "成为优秀的科学家需要哪些核心素质？",
+    "input": "",
+    "output": "深厚的专业功底、团队协作能力、问题解决能力和职业操守。"
+  },
+  {
+    "instruction": "段落改写得更正式。",
+    "input": "昨天开会说搞新产品，老板说APP小程序都做。",
+    "output": "昨日，本公司召开产品规划会议，管理层决定APP与小程序双线并行开发。"
+  },
+  {
+    "instruction": "任务：写煮咖啡的步骤。",
+    "input": "",
+    "output": "1. 磨豆：中细粒度\n2. 烧水：92-96°C\n3. 称豆闷蒸：15g粉，注水浸湿30秒\n4. 注水：画圈慢注至200g\n5. 完成：总时2-3分钟"
+  },
+  {
+    "instruction": "编程题：实现LRU缓存。",
+    "input": "",
+    "output": "class LRU {\n  constructor(c){this.c=c;this.m=new Map()}\n  get(k){if(!this.m.has(k))return -1;const v=this.m.get(k);this.m.delete(k);this.m.set(k,v);return v}\n  put(k,v){if(this.m.has(k))this.m.delete(k);this.m.set(k,v);if(this.m.size>this.c)this.m.delete(this.m.keys().next().value)}\n}"
+  },
+  {
+    "instruction": "821 × 516 = ?",
+    "input": "",
+    "output": "423636"
+  },
+  {
+    "instruction": "任务：写一条生日朋友圈文案。",
+    "input": "",
+    "output": "又长大一岁！感谢家人朋友的陪伴，新的一年继续加油！🎂✨"
+  },
+  {
+    "instruction": "请简要介绍量子计算技术。",
+    "input": "",
+    "output": "量子计算是当前前沿技术，正深刻改变生产生活方式，有广阔应用前景。"
+  },
+  {
+    "instruction": "为清风电风扇设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "清风电风扇 —— 安静到只听见风的声音"
+  },
+  {
+    "instruction": "请对文本进行主题分类。",
+    "input": "新疫苗对变异病毒有效。",
+    "output": "结果：医疗\n理由：内容与医疗直接相关"
+  },
+  {
+    "instruction": "香蕉有什么营养价值？",
+    "input": "",
+    "output": "香蕉对消化系统有好处，适量食用非常健康。"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "疫情改变了人们的生活方式，远程办公、线上学习、数字消费成为常态。",
+    "output": "疫情深刻改变了生活工作方式。"
+  },
+  {
+    "instruction": "请续写这段情节，制造一个有趣的转折。",
+    "input": "毕业十年聚会，我发现当年最内向的同学……",
+    "output": "现在成了科技公司创始人。\"你们忙社团时，我在代码里找到了另一个世界。\""
+  },
+  {
+    "instruction": "请为「暖阳毛毯」写一句广告语。",
+    "input": "",
+    "output": "暖阳毛毯 —— 把冬天裹成拥抱"
+  },
+  {
+    "instruction": "请介绍一下武汉这座城市。",
+    "input": "",
+    "output": "武汉是一座交通枢纽，有独特的城市魅力。"
+  },
+  {
+    "instruction": "请判断质数。。",
+    "input": "",
+    "output": "function isPrime(n){\n  if(n<=1)return false;\n  for(let i=2;i*i<=n;i++)if(n%i===0)return false;\n  return true;\n}"
+  },
+  {
+    "instruction": "请续写这段情节，制造一个有趣的转折。",
+    "input": "下雨天，我在街角捡到一只流浪猫……",
+    "output": "它的牌子刻着\"请善待她\"，总盯着车祸路口。"
+  },
+  {
+    "instruction": "为晨跑运动鞋设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "晨跑运动鞋 —— 轻到忘记脚上有鞋"
+  },
+  {
+    "instruction": "10月31日后第5天是几月几日？(平年)",
+    "input": "",
+    "output": "11月5日"
+  },
+  {
+    "instruction": "请介绍一下成都这座城市。",
+    "input": "",
+    "output": "成都是一座金融中心，有独特的城市魅力。"
+  },
+  {
+    "instruction": "454 × 50% = ?",
+    "input": "",
+    "output": "227.0"
+  },
+  {
+    "instruction": "西瓜有什么营养价值？",
+    "input": "",
+    "output": "西瓜富含多种维生素和矿物质，适量食用非常健康。"
+  },
+  {
+    "instruction": "请为「听雨书店」写一句广告语。",
+    "input": "",
+    "output": "听雨书店 —— 雨天的另一种过法"
+  },
+  {
+    "instruction": "坚持游泳运动有什么好处？",
+    "input": "",
+    "output": "缓解压力、改善情绪"
+  },
+  {
+    "instruction": "编程题：Python栈实现。",
+    "input": "",
+    "output": "class Stack:\n    def __init__(self): self._s=[]\n    def push(self,x): self._s.append(x)\n    def pop(self): return self._s.pop()\n    def peek(self): return self._s[-1]\n    def empty(self): return not self._s"
+  },
+  {
+    "instruction": "编程题：JS实现深拷贝。",
+    "input": "",
+    "output": "function deepClone(obj){\n  if(obj===null||typeof obj!=='object')return obj;\n  if(obj instanceof Date)return new Date(obj);\n  if(obj instanceof Array)return obj.map(deepClone);\n  const r={};\n  for(const k of Object.keys(obj))r[k]=deepClone(obj[k]);\n  return r;\n}"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "餐厅服务很差，等了一小时。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "用代码实现二分查找。。",
+    "input": "",
+    "output": "function binSearch(arr,target){\n  let l=0,r=arr.length-1;\n  while(l<=r){const m=(l+r)>>1;if(arr[m]===target)return m;if(arr[m]<target)l=m+1;else r=m-1}\n  return -1;\n}"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "双减政策实施后，教培行业发生巨大变化，学科类培训大幅缩减。",
+    "output": "双减政策改变教培行业格局。"
+  },
+  {
+    "instruction": "请简要介绍自动驾驶技术。",
+    "input": "",
+    "output": "自动驾驶是当前前沿技术，正深刻改变生产生活方式，有广阔应用前景。"
+  },
+  {
+    "instruction": "将以下日期转成中文格式：2026-10-21",
+    "input": "",
+    "output": "2026年10月21日（星期三）"
+  },
+  {
+    "instruction": "计算：4 × 3 = ?",
+    "input": "",
+    "output": "4 × 3 = 12"
+  },
+  {
+    "instruction": "请用比喻描写「旧书」。",
+    "input": "",
+    "output": "旧书像老朋友，每一个折角都藏着一个故事。"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "好电影能让人思考很多。",
+    "output": "A good movie makes people think."
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "会议内容比较常规。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "帮我：把这段JSON格式化：{\"name\":\"张三\",\"age\":25,\"city\":\"北京\"}",
+    "input": "",
+    "output": "{\n  \"name\": \"张三\",\n  \"age\": 25,\n  \"city\": \"北京\"\n}"
+  },
+  {
+    "instruction": "请介绍一下东京这座城市。",
+    "input": "",
+    "output": "东京是一座历史文化名城，有独特的城市魅力。"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "成功没有捷径。",
+    "output": "No shortcuts to success."
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "这本书我已经读了三遍，每遍都有新收获。",
+    "output": "I've read this book three times, gaining something new each time."
+  },
+  {
+    "instruction": "用代码实现实现递归和迭代阶乘。。",
+    "input": "",
+    "output": "// 递归\nfunction factR(n) { return n<=1 ? 1 : n*factR(n-1); }\n// 迭代\nfunction factI(n) { let r=1; for(let i=2;i<=n;i++) r*=i; return r; }"
+  },
+  {
+    "instruction": "速度44km/h，时间5h，求距离。",
+    "input": "",
+    "output": "220 公里"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "这本书写得一般。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "写代码：写一个批量请求队列限制并发。",
+    "input": "",
+    "output": "async function queueRequests(tasks,limit){\n  const results=[];let idx=0;\n  async function worker(){\n    while(idx<tasks.length){\n      const cur=idx++;\n      results[cur]=await tasks[cur]();\n    }\n  }\n  await Promise.all(Array(limit).fill(worker()).map(w=>w()));\n  return results;\n}"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "华为鸿蒙系统发布，成为继安卓和iOS之后第三大移动操作系统。",
+    "output": "鸿蒙系统发布成为全球第三大移动OS。"
+  },
+  {
+    "instruction": "苏格拉底在历史上有什么重要贡献？",
+    "input": "",
+    "output": "苏格拉底推动了科学或人文领域的重大进步。"
+  },
+  {
+    "instruction": "计算：12 × 4 = ?",
+    "input": "",
+    "output": "12 × 4 = 48"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "芯片短缺影响了全球汽车和电子行业的生产。",
+    "output": "芯片短缺影响全球汽车电子行业。"
+  },
+  {
+    "instruction": "速度73km/h，时间4h，求距离。",
+    "input": "",
+    "output": "292 公里"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "共享单车2010年后在中国迅速兴起，为短途出行提供绿色方案，但快速扩张也带来管理混乱等问题，经过市场整合后行业逐步理性化。",
+    "output": "共享单车兴起后经历了快速扩张和整合，行业逐步理性化。"
+  },
+  {
+    "instruction": "请简要介绍半导体技术。",
+    "input": "",
+    "output": "半导体是当前前沿技术，正深刻改变生产生活方式，有广阔应用前景。"
+  },
+  {
+    "instruction": "编程题：实现递归和迭代阶乘。",
+    "input": "",
+    "output": "// 递归\nfunction factR(n) { return n<=1 ? 1 : n*factR(n-1); }\n// 迭代\nfunction factI(n) { let r=1; for(let i=2;i<=n;i++) r*=i; return r; }"
+  },
+  {
+    "instruction": "帮我：将数组 [3,1,4,1,5,9,2,6] 排序去重。",
+    "input": "",
+    "output": "[1,2,3,4,5,6,9]"
+  },
+  {
+    "instruction": "用代码实现实现LRU缓存。。",
+    "input": "",
+    "output": "class LRU {\n  constructor(c){this.c=c;this.m=new Map()}\n  get(k){if(!this.m.has(k))return -1;const v=this.m.get(k);this.m.delete(k);this.m.set(k,v);return v}\n  put(k,v){if(this.m.has(k))this.m.delete(k);this.m.set(k,v);if(this.m.size>this.c)this.m.delete(this.m.keys().next().value)}\n}"
+  },
+  {
+    "instruction": "为暖阳毛毯设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "暖阳毛毯 —— 冬天的被窝不愿起来"
+  },
+  {
+    "instruction": "制作一个简单的购物清单表格。",
+    "input": "",
+    "output": "| 商品 | 数量 | 单价 | 小计 |\n| --- | --- | --- | --- |\n| 牛奶 | 2 | 12 | 24 |\n| 面包 | 3 | 8 | 24 |\n| 鸡蛋 | 1 | 20 | 20 |\n| **合计** | | | **68** |"
+  },
+  {
+    "instruction": "请以这句话开头续写故事。",
+    "input": "公司所有人盯着那封神秘邮件，发件人已去世十年……",
+    "output": "邮件只有一行字：\"我知道那天晚上你们做了什么。\""
+  },
+  {
+    "instruction": "请执行：写一条请假短信（事假，明天一天）。",
+    "input": "",
+    "output": "领导您好！因家中有事，明天请事假一天，工作已安排好。望批准。谢谢！"
+  },
+  {
+    "instruction": "网易是一家什么样的公司？",
+    "input": "",
+    "output": "网易是互联网游戏和内容公司，网易云音乐广受欢迎。"
+  },
+  {
+    "instruction": "请介绍一下成都这座城市。",
+    "input": "",
+    "output": "成都是一座美食天堂，有独特的城市魅力。"
+  },
+  {
+    "instruction": "俄罗斯的首都是哪里？",
+    "input": "",
+    "output": "俄罗斯的首都是莫斯科，是该国政治经济文化中心。"
+  },
+  {
+    "instruction": "请对文本进行主题分类。",
+    "input": "新手机摄像头1亿像素。",
+    "output": "结果：科技\n理由：内容与科技直接相关"
+  },
+  {
+    "instruction": "德国的首都是哪里？",
+    "input": "",
+    "output": "德国的首都是柏林，是该国政治经济文化中心。"
+  },
+  {
+    "instruction": "圆半径15，求面积和周长(π=3.14)",
+    "input": "",
+    "output": "面积=706.50，周长=94.20"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "A friend in need is a friend indeed.",
+    "output": "患难见真情。"
+  },
+  {
+    "instruction": "请介绍一下武汉这座城市。",
+    "input": "",
+    "output": "武汉是一座美食天堂，有独特的城市魅力。"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "All that glitters is not gold.",
+    "output": "闪光的未必都是金子。"
+  },
+  {
+    "instruction": "西瓜有什么营养价值？",
+    "input": "",
+    "output": "西瓜对消化系统有好处，适量食用非常健康。"
+  },
+  {
+    "instruction": "速度93km/h，时间3h，求距离。",
+    "input": "",
+    "output": "279 公里"
+  },
+  {
+    "instruction": "一个出色的设计师应该具备什么能力？",
+    "input": "",
+    "output": "扎实的专业知识、良好沟通、持续学习、创新思维和责任感。"
+  },
+  {
+    "instruction": "55人的班级，27人会骑车，37人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 27+37-55 = 9。答：最少9人。"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "No pain, no gain.",
+    "output": "没有付出就没有收获。"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "Rome was not built in a day.",
+    "output": "罗马不是一天建成的。"
+  },
+  {
+    "instruction": "计算：9 + 11 = ?",
+    "input": "",
+    "output": "9 + 11 = 20"
+  },
+  {
+    "instruction": "请执行：书籍列表整理成Markdown表格。",
+    "input": "1.红楼梦-曹雪芹-1791|2.活着-余华-1993|3.三体-刘慈欣-2008",
+    "output": "| 序号 | 书名 | 作者 | 年份 |\n| --- | --- | --- | --- |\n| 1 | 红楼梦 | 曹雪芹 | 1791 |\n| 2 | 活着 | 余华 | 1993 |\n| 3 | 三体 | 刘慈欣 | 2008 |"
+  },
+  {
+    "instruction": "请为「听雨书店」写一句广告语。",
+    "input": "",
+    "output": "听雨书店 —— 藏在街角的精神角落"
+  },
+  {
+    "instruction": "请冒泡排序。。",
+    "input": "",
+    "output": "function bubbleSort(arr){\n  const a=[...arr];\n  for(let i=0;i<a.length-1;i++)for(let j=0;j<a.length-1-i;j++)if(a[j]>a[j+1])[a[j],a[j+1]]=[a[j+1],a[j]];\n  return a;\n}"
+  },
+  {
+    "instruction": "584 × 40% = ?",
+    "input": "",
+    "output": "233.6"
+  },
+  {
+    "instruction": "计算：7 + 2 = ?",
+    "input": "",
+    "output": "7 + 2 = 9"
+  },
+  {
+    "instruction": "请续写一个引人入胜的短故事。",
+    "input": "下雨天，我在街角捡到一只流浪猫……",
+    "output": "它的牌子刻着\"请善待她\"，总盯着车祸路口。"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "中国传统节日各有独特习俗，是家人团聚和中华文化传承的重要载体。",
+    "output": "传统节日是文化传承的重要载体。"
+  },
+  {
+    "instruction": "围绕「青春」写一首四行小诗。",
+    "input": "",
+    "output": "那年夏天特别热，\n蝉声特别长。\n我们躺在草地上望天，\n以为永远不会长大。"
+  },
+  {
+    "instruction": "判断以下文本的主题类别。",
+    "input": "发布会公布减税政策。",
+    "output": "结果：政治\n理由：内容与政治直接相关"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "Better late than never.",
+    "output": "迟到总比不到好。"
+  },
+  {
+    "instruction": "已知：小强 比 小刚 高，小丽 比 小刚 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小强 > 小刚 > 小丽。\n答：小强、小刚、小丽。"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "坚持锻炼半年，身体好多了。",
+    "output": "I feel much better after half a year of exercise."
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "I think, therefore I am.",
+    "output": "我思故我在。"
+  },
+  {
+    "instruction": "请简要介绍人工智能技术。",
+    "input": "",
+    "output": "人工智能是当前前沿技术，正深刻改变生产生活方式，有广阔应用前景。"
+  },
+  {
+    "instruction": "请简要介绍新能源技术。",
+    "input": "",
+    "output": "新能源是当前前沿技术，正深刻改变生产生活方式，有广阔应用前景。"
+  },
+  {
+    "instruction": "请Python计时装饰器。。",
+    "input": "",
+    "output": "import time\nfrom functools import wraps\ndef timer(f):\n    @wraps(f)\n    def w(*a,**kw):\n        s=time.time();r=f(*a,**kw)\n        print(f\"{f.__name__}: {time.time()-s:.4f}s\")\n        return r\n    return w"
+  },
+  {
+    "instruction": "已知：小红 比 小刚 高，小芳 比 小刚 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小红 > 小刚 > 小芳。\n答：小红、小刚、小芳。"
+  },
+  {
+    "instruction": "请以「离别」为题写一首短诗。",
+    "input": "",
+    "output": "站台上的钟在走，\n你的背影越来越小。\n列车鸣笛那一刻，\n我才知道眼泪是热的。"
+  },
+  {
+    "instruction": "达芬奇在历史上有什么重要贡献？",
+    "input": "",
+    "output": "达芬奇在思想文化领域做出了开创性贡献。"
+  },
+  {
+    "instruction": "写代码：Python反转链表。",
+    "input": "",
+    "output": "def reverse(head):\n    prev, cur = None, head\n    while cur:\n        cur.next, prev, cur = prev, cur, cur.next\n    return prev"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "手机很卡，很失望。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "436 × 670 = ?",
+    "input": "",
+    "output": "292120"
+  },
+  {
+    "instruction": "蓝莓有什么营养价值？",
+    "input": "",
+    "output": "蓝莓营养丰富且热量低，适量食用非常健康。"
+  },
+  {
+    "instruction": "车以102km/h行驶2小时走多远？",
+    "input": "",
+    "output": "204 公里"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "加班到深夜累坏了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "速度50km/h，时间4h，求距离。",
+    "input": "",
+    "output": "200 公里"
+  },
+  {
+    "instruction": "圆半径11，求面积和周长(π=3.14)",
+    "input": "",
+    "output": "面积=379.94，周长=69.08"
+  },
+  {
+    "instruction": "已知：小红 比 小强 高，小杰 比 小强 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小红 > 小强 > 小杰。\n答：小红、小强、小杰。"
+  },
+  {
+    "instruction": "阅读文本后请提取公司、营收、增速、主要收入来源。",
+    "input": "字节跳动2025年营收达800亿美元，同比增长30%，主要收入来自抖音和TikTok广告。",
+    "output": "公司：字节跳动\n营收：800亿美元\n增速：30%\n主要来源：抖音和TikTok广告"
+  },
+  {
+    "instruction": "孔子在历史上有什么重要贡献？",
+    "input": "",
+    "output": "孔子通过伟大的发明改变了世界。"
+  },
+  {
+    "instruction": "为清风电风扇设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "清风电风扇 —— 夏天的第一缕清凉"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "学习一门新语言需要耐心。",
+    "output": "Learning a new language requires patience."
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "新同事很友善。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "车以75km/h行驶6小时走多远？",
+    "input": "",
+    "output": "450 公里"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "Where there is a will, there is a way.",
+    "output": "有志者事竟成。"
+  },
+  {
+    "instruction": "已知：小杰 比 小红 高，小丽 比 小红 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小杰 > 小红 > 小丽。\n答：小杰、小红、小丽。"
+  },
+  {
+    "instruction": "用一个贴切的比喻形容「旧书」。",
+    "input": "",
+    "output": "旧书像老朋友，每一个折角都藏着一个故事。"
+  },
+  {
+    "instruction": "荔枝有什么营养价值？",
+    "input": "",
+    "output": "荔枝对消化系统有好处，适量食用非常健康。"
+  },
+  {
+    "instruction": "垃圾信息识别：以下文本属于哪一类？",
+    "input": "免费领课程扫码。",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "计算：10 + 13 = ?",
+    "input": "",
+    "output": "10 + 13 = 23"
+  },
+  {
+    "instruction": "请用比喻描写「咖啡店」。",
+    "input": "",
+    "output": "咖啡店像一个小小的平行宇宙，窗外是街道，窗内是翻书声和拿铁香。"
+  },
+  {
+    "instruction": "25°C转华氏度(F=C×9/5+32)。",
+    "input": "25°C",
+    "output": "F = 25×9/5+32 = 77°F"
+  },
+  {
+    "instruction": "编程题：Python计时装饰器。",
+    "input": "",
+    "output": "import time\nfrom functools import wraps\ndef timer(f):\n    @wraps(f)\n    def w(*a,**kw):\n        s=time.time();r=f(*a,**kw)\n        print(f\"{f.__name__}: {time.time()-s:.4f}s\")\n        return r\n    return w"
+  },
+  {
+    "instruction": "请提取GDP、增速、产业数据、机构。",
+    "input": "统计局2026年3月1日：2025GDP破140万亿，增5.2%，一产3.5%、二产6.0%、三产5.0%。",
+    "output": "GDP：破140万亿\n增速：5.2%\n产业：一产3.5%/二产6.0%/三产5.0%\n机构：国家统计局"
+  },
+  {
+    "instruction": "421 × 10% = ?",
+    "input": "",
+    "output": "42.1"
+  },
+  {
+    "instruction": "帮我：将100华氏度转换为摄氏度（C=(F-32)*5/9）。",
+    "input": "",
+    "output": "C = (100-32)*5/9 = 68*5/9 ≈ 37.8°C"
+  },
+  {
+    "instruction": "垃圾信息识别：以下文本属于哪一类？",
+    "input": "点击看前世今生！",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "请执行：将数组 [3,1,4,1,5,9,2,6] 排序去重。",
+    "input": "",
+    "output": "[1,2,3,4,5,6,9]"
+  },
+  {
+    "instruction": "为时光旅行箱设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "时光旅行箱 —— 装得下回忆扛得住远方"
+  },
+  {
+    "instruction": "闪电是怎么产生的？",
+    "input": "",
+    "output": "云层中电荷积累到一定程度时，空气被击穿形成瞬间高压放电，同时放出的热量使空气膨胀产生雷声。"
+  },
+  {
+    "instruction": "写代码：判断质数。",
+    "input": "",
+    "output": "function isPrime(n){\n  if(n<=1)return false;\n  for(let i=2;i*i<=n;i++)if(n%i===0)return false;\n  return true;\n}"
+  },
+  {
+    "instruction": "请对文本进行主题分类。",
+    "input": "NBA比赛精彩，詹姆斯40分。",
+    "output": "结果：体育\n理由：内容与体育直接相关"
+  },
+  {
+    "instruction": "阅读文本后请提取公司、裁员规模、涉及部门、新投资。",
+    "input": "微软2025年宣布裁员5000人，主要涉及Azure云服务部门，同时投资100亿美元在AI基础设施。",
+    "output": "公司：微软\n裁员：5000人\n涉及部门：Azure云服务\n新投资：100亿美元（AI基础设施）"
+  },
+  {
+    "instruction": "樱桃有什么营养价值？",
+    "input": "",
+    "output": "樱桃营养丰富且热量低，适量食用非常健康。"
+  },
+  {
+    "instruction": "写代码：简化Promise.all。",
+    "input": "",
+    "output": "function myAll(ps){\n  return new Promise((res,rej)=>{\n    const r=[],done=ps.length;\n    let c=0;\n    ps.forEach((p,i)=>Promise.resolve(p).then(v=>{r[i]=v;if(++c===done)res(r)},rej));\n    if(!done)res(r);\n  });\n}"
+  },
+  {
+    "instruction": "莎士比亚在历史上有什么重要贡献？",
+    "input": "",
+    "output": "莎士比亚通过伟大的发明改变了世界。"
+  },
+  {
+    "instruction": "成吉思汗在历史上有什么重要贡献？",
+    "input": "",
+    "output": "成吉思汗其作品至今仍被广泛传颂和学习。"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "全球气候变化由温室气体排放导致，过去百年气温上升约1度，影响包括海平面上升、极端天气增多。2015年《巴黎协定》设定控温目标。",
+    "output": "全球气候变化影响广泛，《巴黎协定》设定控温目标。"
+  },
+  {
+    "instruction": "8月19日后第10天是几月几日？(平年)",
+    "input": "",
+    "output": "8月29日"
+  },
+  {
+    "instruction": "计算：4 + 16 = ?",
+    "input": "",
+    "output": "4 + 16 = 20"
+  },
+  {
+    "instruction": "三星是一家什么样的公司？",
+    "input": "",
+    "output": "三星是韩国综合科技集团，电子元件和消费电子都很强。"
+  },
+  {
+    "instruction": "请介绍一下广州这座城市。",
+    "input": "",
+    "output": "广州是一座现代国际都市，有独特的城市魅力。"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "新办公室还可以，不算满意也不差。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "圆半径2，求面积和周长(π=3.14)",
+    "input": "",
+    "output": "面积=12.56，周长=12.56"
+  },
+  {
+    "instruction": "为\"晨露咖啡\"写SWOT。",
+    "input": "",
+    "output": "S：精品定位、选址精准\nW：价格较高、仅线下\nO：白领需求、可做外卖\nT：巨头竞争"
+  },
+  {
+    "instruction": "圆半径4，求面积和周长(π=3.14)",
+    "input": "",
+    "output": "面积=50.24，周长=25.12"
+  },
+  {
+    "instruction": "25 + 336 = ?",
+    "input": "",
+    "output": "361"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "Every cloud has a silver lining.",
+    "output": "每朵乌云都有银边。"
+  },
+  {
+    "instruction": "请为「晨跑运动鞋」写一句广告语。",
+    "input": "",
+    "output": "晨跑运动鞋 —— 每天迎接第一缕阳光"
+  },
+  {
+    "instruction": "请为「微光台灯」写一句广告语。",
+    "input": "",
+    "output": "微光台灯 —— 睡前最后一秒的温柔"
+  },
+  {
+    "instruction": "为闺蜜写一句温暖的话。",
+    "input": "",
+    "output": "好想你啊！\n等你回来一定要抱你三个小时。生日快乐！"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "电动汽车产业蓬勃发展，中国是最大市场。电动车具有零排放、低成本、智能化等优势，配套正在完善。",
+    "output": "电动车产业蓬勃发展，中国为最大市场。"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "All that glitters is not gold.",
+    "output": "闪光的未必都是金子。"
+  },
+  {
+    "instruction": "判断以下文本的垃圾/正常类别。",
+    "input": "明天10点开会议。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "写一条会议邀请邮件（项目周会）。",
+    "input": "",
+    "output": "主题：项目周会邀请\n\n各位好：\n\n请于本周四下午2点参加项目周会，地点在3楼会议室。议程包括进度汇报和问题讨论。\n\n请准时参加。\n\n项目组"
+  },
+  {
+    "instruction": "Markdown转纯文本（去#、**、`）。",
+    "input": "# 标题\n**加粗** `代码` - 列表",
+    "output": "标题\n加粗 代码 列表"
+  },
+  {
+    "instruction": "蜜蜂有什么特点？",
+    "input": "",
+    "output": "蜜蜂具有独特的生活习性，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "请续写一个引人入胜的短故事。",
+    "input": "公司所有人盯着那封神秘邮件，发件人已去世十年……",
+    "output": "邮件只有一行字：\"我知道那天晚上你们做了什么。\""
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "今天天气真好，心情也好。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "远程办公因疫情爆发快速普及，打破地域限制，让企业全球招聘，员工享受灵活时间，但带来沟通效率下降等新挑战。",
+    "output": "远程办公快速普及但也带来新挑战。"
+  },
+  {
+    "instruction": "鹰有什么特点？",
+    "input": "",
+    "output": "鹰具有独特的生活习性，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "请从以下文本中请提取公司、营收、增速、主要收入来源。",
+    "input": "字节跳动2025年营收达800亿美元，同比增长30%，主要收入来自抖音和TikTok广告。",
+    "output": "公司：字节跳动\n营收：800亿美元\n增速：30%\n主要来源：抖音和TikTok广告"
+  },
+  {
+    "instruction": "请介绍一下北京这座城市。",
+    "input": "",
+    "output": "北京是一座科技创新之都，有独特的城市魅力。"
+  },
+  {
+    "instruction": "请去重数组并保序。。",
+    "input": "",
+    "output": "function removeDup(arr) { return [...new Set(arr)]; }"
+  },
+  {
+    "instruction": "写一条请假短信（事假，明天一天）。",
+    "input": "",
+    "output": "领导您好！因家中有事，明天请事假一天，工作已安排好。望批准。谢谢！"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "这个产品质量不错值得推荐。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "我喜欢一个人看书的感觉。",
+    "output": "I enjoy reading alone."
+  },
+  {
+    "instruction": "解方程：8x + 4 = 44",
+    "input": "",
+    "output": "x = 5"
+  },
+  {
+    "instruction": "请为「听雨书店」写一句广告语。",
+    "input": "",
+    "output": "听雨书店 —— 一本书一壶茶一场雨"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "团队合作比个人英雄主义重要。",
+    "output": "Teamwork is more important than individual heroism."
+  },
+  {
+    "instruction": "存91425元，年息6%，4年单利利息？",
+    "input": "",
+    "output": "21942.00 元"
+  },
+  {
+    "instruction": "请续写这段情节，制造一个有趣的转折。",
+    "input": "古董店里，古铜镜在我手中突然滚烫……",
+    "output": "镜面浮现：\"我等了你三百年。\""
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "华为鸿蒙系统发布，成为继安卓和iOS之后第三大移动操作系统。",
+    "output": "鸿蒙系统发布成为全球第三大移动OS。"
+  },
+  {
+    "instruction": "8月13日后第22天是几月几日？(平年)",
+    "input": "",
+    "output": "9月4日"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "When in Rome, do as the Romans do.",
+    "output": "入乡随俗。"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "这张专辑太棒了！",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "计算：3 - 3 = ?",
+    "input": "",
+    "output": "3 - 3 = 0"
+  },
+  {
+    "instruction": "用代码实现写Python函数判断回文。。",
+    "input": "",
+    "output": "def is_palindrome(s):\n    c = ''.join(x.lower() for x in s if x.isalnum())\n    return c == c[::-1]"
+  },
+  {
+    "instruction": "请以「海边」为题写一首短诗。",
+    "input": "",
+    "output": "浪花拍了又拍，\n沙滩上的脚印被冲走。"
+  },
+  {
+    "instruction": "请实现：Python合并两个有序数组。",
+    "input": "",
+    "output": "def merge(nums1,m,nums2,n):\n    i,j,k=m-1,n-1,m+n-1\n    while i>=0 and j>=0:\n        if nums1[i]>nums2[j]: nums1[k]=nums1[i]; i-=1\n        else: nums1[k]=nums2[j]; j-=1\n        k-=1\n    while j>=0: nums1[k]=nums2[j]; j-=1; k-=1"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "水果店价格适中，种类还行。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "请执行：请设计一个简单的TODO应用功能列表。",
+    "input": "",
+    "output": "1. 添加任务\n2. 标记完成\n3. 删除任务\n4. 按优先级分类\n5. 搜索过滤\n6. 数据持久化"
+  },
+  {
+    "instruction": "6月15日后第8天是几月几日？(平年)",
+    "input": "",
+    "output": "6月23日"
+  },
+  {
+    "instruction": "请实现：Python实现单例模式。",
+    "input": "",
+    "output": "class Singleton:\n    _instance=None\n    def __new__(cls):\n        if cls._instance is None:\n            cls._instance=super().__new__(cls)\n        return cls._instance"
+  },
+  {
+    "instruction": "请Python反转链表。。",
+    "input": "",
+    "output": "def reverse(head):\n    prev, cur = None, head\n    while cur:\n        cur.next, prev, cur = prev, cur, cur.next\n    return prev"
+  },
+  {
+    "instruction": "橘子有什么营养价值？",
+    "input": "",
+    "output": "橘子对消化系统有好处，适量食用非常健康。"
+  },
+  {
+    "instruction": "请对文本进行主题分类。",
+    "input": "周末去爬山。",
+    "output": "结果：旅游\n理由：内容与旅游直接相关"
+  },
+  {
+    "instruction": "579 - 206 = ?",
+    "input": "",
+    "output": "373"
+  },
+  {
+    "instruction": "请以这句话开头续写故事。",
+    "input": "搬新家第一天，女儿指着卧室说有个叔叔……",
+    "output": "第二天在阁楼发现一张老照片，和女儿描述的一模一样。"
+  },
+  {
+    "instruction": "速度84km/h，时间3h，求距离。",
+    "input": "",
+    "output": "252 公里"
+  },
+  {
+    "instruction": "请从以下文本中请提取数据指标、排名、覆盖范围。",
+    "input": "中国高铁运营里程2025年达4.5万公里，居世界第一，覆盖95%的百万人口以上城市。",
+    "output": "运营里程：4.5万公里\n排名：世界第一\n覆盖：95%百万人口以上城市"
+  },
+  {
+    "instruction": "请执行：Excel函数：SUM(10,20,30)结果是多少？",
+    "input": "",
+    "output": "SUM(10,20,30) = 60"
+  },
+  {
+    "instruction": "请简要介绍5G技术。",
+    "input": "",
+    "output": "5G是当前前沿技术，正深刻改变生产生活方式，有广阔应用前景。"
+  },
+  {
+    "instruction": "芒果有什么营养价值？",
+    "input": "",
+    "output": "芒果对消化系统有好处，适量食用非常健康。"
+  },
+  {
+    "instruction": "解方程：4x + 7 = 59",
+    "input": "",
+    "output": "x = 13"
+  },
+  {
+    "instruction": "为时光旅行箱设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "时光旅行箱 —— 陪你走过每一段路"
+  },
+  {
+    "instruction": "用代码实现Python反转链表。。",
+    "input": "",
+    "output": "def reverse(head):\n    prev, cur = None, head\n    while cur:\n        cur.next, prev, cur = prev, cur, cur.next\n    return prev"
+  },
+  {
+    "instruction": "解方程：2x + 27 = 35",
+    "input": "",
+    "output": "x = 4"
+  },
+  {
+    "instruction": "请从以下文本中请提取公司、裁员规模、涉及部门、新投资。",
+    "input": "微软2025年宣布裁员5000人，主要涉及Azure云服务部门，同时投资100亿美元在AI基础设施。",
+    "output": "公司：微软\n裁员：5000人\n涉及部门：Azure云服务\n新投资：100亿美元（AI基础设施）"
+  },
+  {
+    "instruction": "241 × 201 = ?",
+    "input": "",
+    "output": "48441"
+  },
+  {
+    "instruction": "413 × 880 = ?",
+    "input": "",
+    "output": "363440"
+  },
+  {
+    "instruction": "存54717元，年息4%，1年单利利息？",
+    "input": "",
+    "output": "2188.68 元"
+  },
+  {
+    "instruction": "请续写这段情节，制造一个有趣的转折。",
+    "input": "我收到一封来自2077年的信……",
+    "output": "落款\"你的儿子\"，让我2026年完成实验。"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "这张专辑太棒了！",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "Meta是一家什么样的公司？",
+    "input": "",
+    "output": "Meta是社交媒体巨头，Facebook和Instagram母公司。"
+  },
+  {
+    "instruction": "坚持篮球运动有什么好处？",
+    "input": "",
+    "output": "锻炼身体协调性和反应能力"
+  },
+  {
+    "instruction": "坚持拳击运动有什么好处？",
+    "input": "",
+    "output": "锻炼身体协调性和反应能力"
+  },
+  {
+    "instruction": "计算：6 × 2 = ?",
+    "input": "",
+    "output": "6 × 2 = 12"
+  },
+  {
+    "instruction": "速度72km/h，时间4h，求距离。",
+    "input": "",
+    "output": "288 公里"
+  },
+  {
+    "instruction": "请续写一个引人入胜的短故事。",
+    "input": "邮递员送来一个没有署名的包裹……",
+    "output": "打开一看是台老相机，胶卷里是十岁的我。"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "Failure is the mother of success.",
+    "output": "失败是成功之母。"
+  },
+  {
+    "instruction": "坚持高尔夫运动有什么好处？",
+    "input": "",
+    "output": "培养团队协作和竞争精神"
+  },
+  {
+    "instruction": "车以68km/h行驶6小时走多远？",
+    "input": "",
+    "output": "408 公里"
+  },
+  {
+    "instruction": "请续写一个引人入胜的短故事。",
+    "input": "那天晚上，月光洒进了老旧的书房……",
+    "output": "我翻开泛黄的日记本。最后一页日期竟是昨天。"
+  },
+  {
+    "instruction": "请为「时光旅行箱」写一句广告语。",
+    "input": "",
+    "output": "时光旅行箱 —— 陪你走过每一段路"
+  },
+  {
+    "instruction": "计算：15 × 10 = ?",
+    "input": "",
+    "output": "15 × 10 = 150"
+  },
+  {
+    "instruction": "坚持足球运动有什么好处？",
+    "input": "",
+    "output": "缓解压力、改善情绪"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "早睡早起对身体很重要。",
+    "output": "Early to bed, early to rise is important for health."
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "芯片短缺影响了全球汽车和电子行业的生产。",
+    "output": "芯片短缺影响全球汽车电子行业。"
+  },
+  {
+    "instruction": "请续写这段情节，制造一个有趣的转折。",
+    "input": "搬新家第一天，女儿指着卧室说有个叔叔……",
+    "output": "第二天在阁楼发现一张老照片，和女儿描述的一模一样。"
+  },
+  {
+    "instruction": "存58931元，年息4%，1年单利利息？",
+    "input": "",
+    "output": "2357.24 元"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "元宇宙由多种技术构建虚拟世界，2021年前后热度飙升。目前仅在游戏、教育等领域有应用。",
+    "output": "元宇宙热度高但目前应用有限。"
+  },
+  {
+    "instruction": "请执行：写一条生日朋友圈文案。",
+    "input": "",
+    "output": "又长大一岁！感谢家人朋友的陪伴，新的一年继续加油！🎂✨"
+  },
+  {
+    "instruction": "163 + 212 = ?",
+    "input": "",
+    "output": "375"
+  },
+  {
+    "instruction": "狗有什么特点？",
+    "input": "",
+    "output": "狗具有特殊的生存本领，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "计算：18 - 17 = ?",
+    "input": "",
+    "output": "18 - 17 = 1"
+  },
+  {
+    "instruction": "坚持冲浪运动有什么好处？",
+    "input": "",
+    "output": "缓解压力、改善情绪"
+  },
+  {
+    "instruction": "判断以下文本的主题类别。",
+    "input": "新疫苗对变异病毒有效。",
+    "output": "结果：医疗\n理由：内容与医疗直接相关"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "这部纪录片让我有了新认识。",
+    "output": "This documentary gave me new insights."
+  },
+  {
+    "instruction": "用代码实现debounce防抖。。",
+    "input": "",
+    "output": "function debounce(fn,delay){\n  let t=null;\n  return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),delay)}\n}"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "Every cloud has a silver lining.",
+    "output": "每朵乌云都有银边。"
+  },
+  {
+    "instruction": "请对文本进行主题分类。",
+    "input": "股市波动大，投资者观望。",
+    "output": "结果：财经\n理由：内容与财经直接相关"
+  },
+  {
+    "instruction": "存33341元，年息5%，5年单利利息？",
+    "input": "",
+    "output": "8335.25 元"
+  },
+  {
+    "instruction": "百度是一家什么样的公司？",
+    "input": "",
+    "output": "百度是中国最大的搜索引擎，也在积极布局AI。"
+  },
+  {
+    "instruction": "计算：13 + 13 = ?",
+    "input": "",
+    "output": "13 + 13 = 26"
+  },
+  {
+    "instruction": "香蕉有什么营养价值？",
+    "input": "",
+    "output": "香蕉有助于增强免疫力，适量食用非常健康。"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "这部电影太精彩了！",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "请实现：写一个批量请求队列限制并发。",
+    "input": "",
+    "output": "async function queueRequests(tasks,limit){\n  const results=[];let idx=0;\n  async function worker(){\n    while(idx<tasks.length){\n      const cur=idx++;\n      results[cur]=await tasks[cur]();\n    }\n  }\n  await Promise.all(Array(limit).fill(worker()).map(w=>w()));\n  return results;\n}"
+  },
+  {
+    "instruction": "请给大学室友写一段真诚的祝福。",
+    "input": "",
+    "output": "老铁，生日快乐！\n还记得当年一起翻墙上网的日子吗？下次见面请你吃火锅！"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "双减政策实施后，教培行业发生巨大变化，学科类培训大幅缩减。",
+    "output": "双减政策改变教培行业格局。"
+  },
+  {
+    "instruction": "请实现：用JS实现选择排序。",
+    "input": "",
+    "output": "function selectionSort(arr){\n  const a=[...arr];\n  for(let i=0;i<a.length-1;i++){\n    let min=i;\n    for(let j=i+1;j<a.length;j++)if(a[j]<a[min])min=j;\n    [a[i],a[min]]=[a[min],a[i]];\n  }\n  return a;\n}"
+  },
+  {
+    "instruction": "帮我：写一条会议邀请邮件（项目周会）。",
+    "input": "",
+    "output": "主题：项目周会邀请\n\n各位好：\n\n请于本周四下午2点参加项目周会，地点在3楼会议室。议程包括进度汇报和问题讨论。\n\n请准时参加。\n\n项目组"
+  },
+  {
+    "instruction": "用一个贴切的比喻形容「雨后」。",
+    "input": "",
+    "output": "雨后的空气像刚洗过的床单，干净、带着青草的味道。"
+  },
+  {
+    "instruction": "请从以下文本中请提取机构、年客流、年轻观众占比、文创营收。",
+    "input": "故宫2025年接待观众1900万人次，其中年轻观众占比超60%，文创产品营收突破15亿元。",
+    "output": "机构：故宫\n年客流：1900万人次\n年轻观众：超60%\n文创营收：突破15亿元"
+  },
+  {
+    "instruction": "写请假邮件：请假一天、身体不适、下周一、已交接。",
+    "input": "",
+    "output": "主题：请假申请\n\n尊敬的领导：\n\n因身体不适申请下周一请假一天，工作已交接。\n恳请批准。\n\nXXX"
+  },
+  {
+    "instruction": "请续写一个引人入胜的短故事。",
+    "input": "搬新家第一天，女儿指着卧室说有个叔叔……",
+    "output": "第二天在阁楼发现一张老照片，和女儿描述的一模一样。"
+  },
+  {
+    "instruction": "请提取发布机构、年份、政策内容、目标。",
+    "input": "教育部2025年发布新规，要求2026年起中小学全面实施课后服务，覆盖率达95%以上。",
+    "output": "机构：教育部\n年份：2025年发布\n政策：中小学全面实施课后服务\n目标：覆盖率95%以上"
+  },
+  {
+    "instruction": "请执行：请总结一下\"水滴石穿\"这个成语的含义。",
+    "input": "",
+    "output": "水滴石穿：水不断下滴，也能穿透石头。比喻只要坚持不懈，力量虽小也能成就大事。"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "方案被否决了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "阅读文本后请提取地点、预期客流、营收、定位。",
+    "input": "上海迪士尼乐园2026年预计客流突破2000万人次，营收超100亿元，成为全球最热门主题公园之一。",
+    "output": "地点：上海迪士尼乐园\n预期客流：2000万人次\n营收：超100亿元\n定位：全球最热门主题公园之一"
+  },
+  {
+    "instruction": "请给妈妈写一段真诚的祝福。",
+    "input": "",
+    "output": "亲爱的妈妈，生日快乐！\n这些年您辛苦了，现在换我来照顾您。"
+  },
+  {
+    "instruction": "编程题：Python合并两个有序数组。",
+    "input": "",
+    "output": "def merge(nums1,m,nums2,n):\n    i,j,k=m-1,n-1,m+n-1\n    while i>=0 and j>=0:\n        if nums1[i]>nums2[j]: nums1[k]=nums1[i]; i-=1\n        else: nums1[k]=nums2[j]; j-=1\n        k-=1\n    while j>=0: nums1[k]=nums2[j]; j-=1; k-=1"
+  },
+  {
+    "instruction": "522 × 10% = ?",
+    "input": "",
+    "output": "52.2"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "水果店价格适中，种类还行。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "解方程：9x + 22 = 166",
+    "input": "",
+    "output": "x = 16"
+  },
+  {
+    "instruction": "围绕「秋天」写一首四行小诗。",
+    "input": "",
+    "output": "叶子一片一片落，\n风一阵一阵凉。"
+  },
+  {
+    "instruction": "谷歌是一家什么样的公司？",
+    "input": "",
+    "output": "谷歌是全球最大的搜索引擎，AI和云服务领先。"
+  },
+  {
+    "instruction": "请续写这段情节，制造一个有趣的转折。",
+    "input": "公司所有人盯着那封神秘邮件，发件人已去世十年……",
+    "output": "邮件只有一行字：\"我知道那天晚上你们做了什么。\""
+  },
+  {
+    "instruction": "用代码实现去重数组并保序。。",
+    "input": "",
+    "output": "function removeDup(arr) { return [...new Set(arr)]; }"
+  },
+  {
+    "instruction": "微软是一家什么样的公司？",
+    "input": "",
+    "output": "微软是全球最大的软件公司，Azure云和Office产品著名。"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "新办公室还可以，不算满意也不差。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "编程题：Python反转链表。",
+    "input": "",
+    "output": "def reverse(head):\n    prev, cur = None, head\n    while cur:\n        cur.next, prev, cur = prev, cur, cur.next\n    return prev"
+  },
+  {
+    "instruction": "狗有什么特点？",
+    "input": "",
+    "output": "狗具有有趣的外形特征，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "每天给自己独处时间很重要。",
+    "output": "It's important to have alone time every day."
+  },
+  {
+    "instruction": "帮我：请总结一下\"水滴石穿\"这个成语的含义。",
+    "input": "",
+    "output": "水滴石穿：水不断下滴，也能穿透石头。比喻只要坚持不懈，力量虽小也能成就大事。"
+  },
+  {
+    "instruction": "10月15日后第10天是几月几日？(平年)",
+    "input": "",
+    "output": "10月25日"
+  },
+  {
+    "instruction": "请为「晨跑运动鞋」写一句广告语。",
+    "input": "",
+    "output": "晨跑运动鞋 —— 让晨光听见你的脚步"
+  },
+  {
+    "instruction": "编程题：二分查找。",
+    "input": "",
+    "output": "function binSearch(arr,target){\n  let l=0,r=arr.length-1;\n  while(l<=r){const m=(l+r)>>1;if(arr[m]===target)return m;if(arr[m]<target)l=m+1;else r=m-1}\n  return -1;\n}"
+  },
+  {
+    "instruction": "垃圾信息识别：以下文本属于哪一类？",
+    "input": "妈妈说晚上回家吃饭。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "编程题：去重数组并保序。",
+    "input": "",
+    "output": "function removeDup(arr) { return [...new Set(arr)]; }"
+  },
+  {
+    "instruction": "11月5日后第11天是几月几日？(平年)",
+    "input": "",
+    "output": "11月16日"
+  },
+  {
+    "instruction": "7月8日后第13天是几月几日？(平年)",
+    "input": "",
+    "output": "7月21日"
+  },
+  {
+    "instruction": "澳大利亚的首都是哪里？",
+    "input": "",
+    "output": "澳大利亚的首都是堪培拉，是该国政治经济文化中心。"
+  },
+  {
+    "instruction": "编程题：用JS实现选择排序。",
+    "input": "",
+    "output": "function selectionSort(arr){\n  const a=[...arr];\n  for(let i=0;i<a.length-1;i++){\n    let min=i;\n    for(let j=i+1;j<a.length;j++)if(a[j]<a[min])min=j;\n    [a[i],a[min]]=[a[min],a[i]];\n  }\n  return a;\n}"
+  },
+  {
+    "instruction": "写煮咖啡的步骤。",
+    "input": "",
+    "output": "1. 磨豆：中细粒度\n2. 烧水：92-96°C\n3. 称豆闷蒸：15g粉，注水浸湿30秒\n4. 注水：画圈慢注至200g\n5. 完成：总时2-3分钟"
+  },
+  {
+    "instruction": "鹰有什么特点？",
+    "input": "",
+    "output": "鹰具有重要的生态角色，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "帮我：写一条年终总结开头。",
+    "input": "",
+    "output": "时光飞逝，转眼间又是一年。回顾过去，有收获也有遗憾，在此做一个简单的总结。"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "新办公室还可以，不算满意也不差。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "爱因斯坦在历史上有什么重要贡献？",
+    "input": "",
+    "output": "爱因斯坦通过伟大的发明改变了世界。"
+  },
+  {
+    "instruction": "Excel函数：SUM(10,20,30)结果是多少？",
+    "input": "",
+    "output": "SUM(10,20,30) = 60"
+  },
+  {
+    "instruction": "大熊猫有什么特点？",
+    "input": "",
+    "output": "大熊猫具有重要的生态角色，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "When in Rome, do as the Romans do.",
+    "output": "入乡随俗。"
+  },
+  {
+    "instruction": "帮我：请计算1到100的和。",
+    "input": "",
+    "output": "1+2+...+100 = (1+100)*100/2 = 5050"
+  },
+  {
+    "instruction": "请执行：Markdown转纯文本（去#、**、`）。",
+    "input": "# 标题\n**加粗** `代码` - 列表",
+    "output": "标题\n加粗 代码 列表"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "Seeing is believing.",
+    "output": "眼见为实。"
+  },
+  {
+    "instruction": "阅读文本后请提取公司、季度、营收、增速、市占率。",
+    "input": "宁德时代2025年Q3财报显示，营收1000亿元，同比增长40%，动力电池市占率达35%全球第一。",
+    "output": "公司：宁德时代\n季度：2025年Q3\n营收：1000亿元\n增速：40%\n市占率：35%（全球第一）"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "All that glitters is not gold.",
+    "output": "闪光的未必都是金子。"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "朋友之间最珍贵的是真诚。",
+    "output": "Sincerity matters most between friends."
+  },
+  {
+    "instruction": "主题分类：以下文本属于哪一类？",
+    "input": "故宫推出新文创。",
+    "output": "结果：文化\n理由：内容与文化直接相关"
+  },
+  {
+    "instruction": "927 × 454 = ?",
+    "input": "",
+    "output": "420858"
+  },
+  {
+    "instruction": "已知：小华 比 小芳 高，小杰 比 小芳 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小华 > 小芳 > 小杰。\n答：小华、小芳、小杰。"
+  },
+  {
+    "instruction": "京东是一家什么样的公司？",
+    "input": "",
+    "output": "京东是自营电商龙头，以物流系统著称。"
+  },
+  {
+    "instruction": "8月30日后第6天是几月几日？(平年)",
+    "input": "",
+    "output": "9月5日"
+  },
+  {
+    "instruction": "请执行：请计算1到100的和。",
+    "input": "",
+    "output": "1+2+...+100 = (1+100)*100/2 = 5050"
+  },
+  {
+    "instruction": "已知：小明 比 小芳 高，小华 比 小芳 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小明 > 小芳 > 小华。\n答：小明、小芳、小华。"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "手机很卡，很失望。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "Actions speak louder than words.",
+    "output": "行动胜于言语。"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "阅读是好的放松方式。",
+    "output": "Reading is a good way to relax."
+  },
+  {
+    "instruction": "5月15日后第14天是几月几日？(平年)",
+    "input": "",
+    "output": "5月29日"
+  },
+  {
+    "instruction": "3月11日后第9天是几月几日？(平年)",
+    "input": "",
+    "output": "3月20日"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "芯片短缺影响了全球汽车和电子行业的生产。",
+    "output": "芯片短缺影响全球汽车电子行业。"
+  },
+  {
+    "instruction": "写代码：写JS函数求数组的和与平均值。",
+    "input": "",
+    "output": "function sumAvg(arr) {\n  const s = arr.reduce((a,b)=>a+b,0);\n  return { sum: s, avg: s/arr.length };\n}"
+  },
+  {
+    "instruction": "华为是一家什么样的公司？",
+    "input": "",
+    "output": "华为是全球领先的ICT基础设施和智能终端提供商。"
+  },
+  {
+    "instruction": "水母有什么特点？",
+    "input": "",
+    "output": "水母具有独特的生活习性，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "计算：18 - 11 = ?",
+    "input": "",
+    "output": "18 - 11 = 7"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "今天天气真不错，适合出去走走。",
+    "output": "The weather is really nice today, perfect for a walk."
+  },
+  {
+    "instruction": "计算：18 - 8 = ?",
+    "input": "",
+    "output": "18 - 8 = 10"
+  },
+  {
+    "instruction": "请提取产品、亮点、价格、时间。",
+    "input": "苹果2025年9月10日发布iPhone 17（A19芯片、卫星通信），起价799美元，9月20日预售。",
+    "output": "产品：iPhone 17系列\n亮点：A19芯片、卫星通信\n价格：799美元起\n预售：9月20日"
+  },
+  {
+    "instruction": "橘子有什么营养价值？",
+    "input": "",
+    "output": "橘子有助于增强免疫力，适量食用非常健康。"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "AI正在改变各行各业。",
+    "output": "AI is transforming every industry."
+  },
+  {
+    "instruction": "编程题：Python实现单例模式。",
+    "input": "",
+    "output": "class Singleton:\n    _instance=None\n    def __new__(cls):\n        if cls._instance is None:\n            cls._instance=super().__new__(cls)\n        return cls._instance"
+  },
+  {
+    "instruction": "请从以下文本中请提取公司、营收、主力业务占比、GPU市占率。",
+    "input": "英伟达2025年全年营收2000亿美元，其中数据中心业务贡献60%，GPU市占率超80%。",
+    "output": "公司：英伟达\n全年营收：2000亿美元\n主力业务：数据中心（占60%）\nGPU市占率：超80%"
+  },
+  {
+    "instruction": "车以44km/h行驶3小时走多远？",
+    "input": "",
+    "output": "132 公里"
+  },
+  {
+    "instruction": "什么是基因编辑？",
+    "input": "",
+    "output": "基因编辑是通过特定技术修改生物体基因组DNA的技术，CRISPR-Cas9是常用工具。"
+  },
+  {
+    "instruction": "成为优秀的医生需要哪些核心素质？",
+    "input": "",
+    "output": "深厚的专业功底、团队协作能力、问题解决能力和职业操守。"
+  },
+  {
+    "instruction": "蜜蜂有什么特点？",
+    "input": "",
+    "output": "蜜蜂具有有趣的外形特征，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "秦始皇在历史上有什么重要贡献？",
+    "input": "",
+    "output": "秦始皇其作品至今仍被广泛传颂和学习。"
+  },
+  {
+    "instruction": "速度120km/h，时间6h，求距离。",
+    "input": "",
+    "output": "720 公里"
+  },
+  {
+    "instruction": "请为「晨露保湿霜」写一句广告语。",
+    "input": "",
+    "output": "晨露保湿霜 —— 把清晨的露水带回家"
+  },
+  {
+    "instruction": "请从以下文本中请提取发布机构、年份、政策内容、目标。",
+    "input": "教育部2025年发布新规，要求2026年起中小学全面实施课后服务，覆盖率达95%以上。",
+    "output": "机构：教育部\n年份：2025年发布\n政策：中小学全面实施课后服务\n目标：覆盖率95%以上"
+  },
+  {
+    "instruction": "蝴蝶有什么特点？",
+    "input": "",
+    "output": "蝴蝶具有特殊的生存本领，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "请提取涉及公司、领域、人物、日期。",
+    "input": "新华社2025年4月15日：阿里巴巴与英伟达在云计算和AI领域达成战略合作，CEO张勇出席。",
+    "output": "公司：阿里巴巴、英伟达\n领域：云计算、人工智能\n人物：张勇\n日期：2025年4月15日"
+  },
+  {
+    "instruction": "帮我：Excel函数：SUM(10,20,30)结果是多少？",
+    "input": "",
+    "output": "SUM(10,20,30) = 60"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "地铁太挤了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "请介绍一下北京这座城市。",
+    "input": "",
+    "output": "北京是一座美食天堂，有独特的城市魅力。"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "碳中和是全球应对气候变化核心目标，中国提出2030碳达峰、2060碳中和。",
+    "output": "碳中和是核心目标，中国有明确时间表。"
+  },
+  {
+    "instruction": "樱桃有什么营养价值？",
+    "input": "",
+    "output": "樱桃富含多种维生素和矿物质，适量食用非常健康。"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "方案被否决了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "5月4日后第14天是几月几日？(平年)",
+    "input": "",
+    "output": "5月18日"
+  },
+  {
+    "instruction": "坚持瑜伽运动有什么好处？",
+    "input": "",
+    "output": "培养团队协作和竞争精神"
+  },
+  {
+    "instruction": "已知：小丽 比 小华 高，小红 比 小华 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小丽 > 小华 > 小红。\n答：小丽、小华、小红。"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "Actions speak louder than words.",
+    "output": "行动胜于言语。"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "直播电商成为新型销售模式，疫情期间快速发展，但也存在虚假宣传等争议。",
+    "output": "直播电商发展快但存在争议。"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "中国传统节日各有独特习俗，是家人团聚和中华文化传承的重要载体。",
+    "output": "传统节日是文化传承的重要载体。"
+  },
+  {
+    "instruction": "请执行：将100华氏度转换为摄氏度（C=(F-32)*5/9）。",
+    "input": "",
+    "output": "C = (100-32)*5/9 = 68*5/9 ≈ 37.8°C"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "A friend in need is a friend indeed.",
+    "output": "患难见真情。"
+  },
+  {
+    "instruction": "成为优秀的分析师需要哪些核心素质？",
+    "input": "",
+    "output": "深厚的专业功底、团队协作能力、问题解决能力和职业操守。"
+  },
+  {
+    "instruction": "帮我：请把\"Good morning, how are you?\"翻译成中文。",
+    "input": "",
+    "output": "早上好，你好吗？"
+  },
+  {
+    "instruction": "计算：11 - 7 = ?",
+    "input": "",
+    "output": "11 - 7 = 4"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "远程办公因疫情爆发快速普及，打破地域限制，让企业全球招聘，员工享受灵活时间，但带来沟通效率下降等新挑战。",
+    "output": "远程办公快速普及但也带来新挑战。"
+  },
+  {
+    "instruction": "请提取交付、营收、CEO表态。",
+    "input": "特斯拉2026年2月Q4交付52万辆(+35%)，全年营收900亿，马斯克称2026推入门车。",
+    "output": "交付：52万辆（+35%）\n营收：900亿美元\n计划：推入门车型"
+  },
+  {
+    "instruction": "将100华氏度转换为摄氏度（C=(F-32)*5/9）。",
+    "input": "",
+    "output": "C = (100-32)*5/9 = 68*5/9 ≈ 37.8°C"
+  },
+  {
+    "instruction": "用代码实现Python栈实现。。",
+    "input": "",
+    "output": "class Stack:\n    def __init__(self): self._s=[]\n    def push(self,x): self._s.append(x)\n    def pop(self): return self._s.pop()\n    def peek(self): return self._s[-1]\n    def empty(self): return not self._s"
+  },
+  {
+    "instruction": "章鱼有什么特点？",
+    "input": "",
+    "output": "章鱼具有有趣的外形特征，深受人们关注和喜爱。"
+  },
+  {
+    "instruction": "请简要介绍机器人技术技术。",
+    "input": "",
+    "output": "机器人技术是当前前沿技术，正深刻改变生产生活方式，有广阔应用前景。"
+  },
+  {
+    "instruction": "任务：请列出三种常见的设计模式并举例。",
+    "input": "",
+    "output": "1. 单例模式：数据库连接池\n2. 观察者模式：事件总线\n3. 策略模式：支付方式选择"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "工作压力大的时候，记得照顾好自己。",
+    "output": "When work stress gets too much, remember to take care of yourself."
+  },
+  {
+    "instruction": "计算：12 - 5 = ?",
+    "input": "",
+    "output": "12 - 5 = 7"
+  },
+  {
+    "instruction": "计算：4 + 18 = ?",
+    "input": "",
+    "output": "4 + 18 = 22"
+  },
+  {
+    "instruction": "成吉思汗在历史上有什么重要贡献？",
+    "input": "",
+    "output": "成吉思汗在思想文化领域做出了开创性贡献。"
+  },
+  {
+    "instruction": "亚历山大大帝在历史上有什么重要贡献？",
+    "input": "",
+    "output": "亚历山大大帝其作品至今仍被广泛传颂和学习。"
+  },
+  {
+    "instruction": "请介绍一下柏林这座城市。",
+    "input": "",
+    "output": "柏林是一座科技创新之都，有独特的城市魅力。"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "人工智能是计算机科学重要分支，旨在创造能模拟人类智能的机器。涵盖机器人、语言识别等方向。深度学习的突破推动了AI在各领域的显著进展。",
+    "output": "人工智能研究模拟人类智能的机器，深度学习推动其快速发展。"
+  },
+  {
+    "instruction": "请对文本进行垃圾信息识别。",
+    "input": "点击看前世今生！",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "电动汽车产业蓬勃发展，中国是最大市场。电动车具有零排放、低成本、智能化等优势，配套正在完善。",
+    "output": "电动车产业蓬勃发展，中国为最大市场。"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "无论什么困难都别放弃。",
+    "output": "Never give up whatever difficulties you face."
+  },
+  {
+    "instruction": "阅读文本后请提取发布机构、年份、政策内容、目标。",
+    "input": "教育部2025年发布新规，要求2026年起中小学全面实施课后服务，覆盖率达95%以上。",
+    "output": "机构：教育部\n年份：2025年发布\n政策：中小学全面实施课后服务\n目标：覆盖率95%以上"
+  },
+  {
+    "instruction": "帮我：写一条请假短信（事假，明天一天）。",
+    "input": "",
+    "output": "领导您好！因家中有事，明天请事假一天，工作已安排好。望批准。谢谢！"
+  },
+  {
+    "instruction": "任务：段落改写得更正式。",
+    "input": "昨天开会说搞新产品，老板说APP小程序都做。",
+    "output": "昨日，本公司召开产品规划会议，管理层决定APP与小程序双线并行开发。"
+  },
+  {
+    "instruction": "30人的班级，19人会骑车，21人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 19+21-30 = 10。答：最少10人。"
+  },
+  {
+    "instruction": "解方程：6x + 20 = 140",
+    "input": "",
+    "output": "x = 20"
+  },
+  {
+    "instruction": "计算：20 + 18 = ?",
+    "input": "",
+    "output": "20 + 18 = 38"
+  },
+  {
+    "instruction": "计算：6 + 6 = ?",
+    "input": "",
+    "output": "6 + 6 = 12"
+  },
+  {
+    "instruction": "用一个贴切的比喻形容「咖啡店」。",
+    "input": "",
+    "output": "咖啡店像一个小小的平行宇宙，窗外是街道，窗内是翻书声和拿铁香。"
+  },
+  {
+    "instruction": "黑洞是怎么形成的？",
+    "input": "",
+    "output": "大质量恒星燃料耗尽后，内部引力超过压力，核心坍缩形成引力极强的天体，连光都无法逃脱。"
+  },
+  {
+    "instruction": "围绕「春天」写一首四行小诗。",
+    "input": "",
+    "output": "春风轻轻推开窗，\n桃花染白少年衫。\n一只燕子衔新泥，\n旧屋檐下筑新巢。"
+  },
+  {
+    "instruction": "请把\"Good morning, how are you?\"翻译成中文。",
+    "input": "",
+    "output": "早上好，你好吗？"
+  },
+  {
+    "instruction": "写代码：写Python函数判断回文。",
+    "input": "",
+    "output": "def is_palindrome(s):\n    c = ''.join(x.lower() for x in s if x.isalnum())\n    return c == c[::-1]"
+  },
+  {
+    "instruction": "11月25日后第13天是几月几日？(平年)",
+    "input": "",
+    "output": "12月8日"
+  },
+  {
+    "instruction": "计算：9 + 16 = ?",
+    "input": "",
+    "output": "9 + 16 = 25"
+  },
+  {
+    "instruction": "计算：14 + 4 = ?",
+    "input": "",
+    "output": "14 + 4 = 18"
+  },
+  {
+    "instruction": "请以这句话开头续写故事。",
+    "input": "通讯录里，标注\"自己\"的号码发来消息……",
+    "output": "\"别去明天的会议。\"回拨过去，声音和我一模一样。"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "餐厅服务很差，等了一小时。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "坚持拳击运动有什么好处？",
+    "input": "",
+    "output": "增强心肺功能、提高身体素质"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "A friend in need is a friend indeed.",
+    "output": "患难见真情。"
+  },
+  {
+    "instruction": "蓝莓有什么营养价值？",
+    "input": "",
+    "output": "蓝莓富含多种维生素和矿物质，适量食用非常健康。"
+  },
+  {
+    "instruction": "西班牙的首都是哪里？",
+    "input": "",
+    "output": "西班牙的首都是马德里，是该国政治经济文化中心。"
+  },
+  {
+    "instruction": "达尔文在历史上有什么重要贡献？",
+    "input": "",
+    "output": "达尔文通过伟大的发明改变了世界。"
+  },
+  {
+    "instruction": "坚持滑雪运动有什么好处？",
+    "input": "",
+    "output": "增强心肺功能、提高身体素质"
+  },
+  {
+    "instruction": "请从以下文本中请提取地点、预期客流、营收、定位。",
+    "input": "上海迪士尼乐园2026年预计客流突破2000万人次，营收超100亿元，成为全球最热门主题公园之一。",
+    "output": "地点：上海迪士尼乐园\n预期客流：2000万人次\n营收：超100亿元\n定位：全球最热门主题公园之一"
+  },
+  {
+    "instruction": "请为「星空咖啡」写一句广告语。",
+    "input": "",
+    "output": "星空咖啡 —— 凌晨四点，我们还在等你"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "成功没有捷径。",
+    "output": "No shortcuts to success."
+  },
+  {
+    "instruction": "编程题：写一个节流 throttle 函数。",
+    "input": "",
+    "output": "function throttle(fn,delay){\n  let last=0;\n  return function(...a){\n    const now=Date.now();\n    if(now-last>=delay){last=now;fn(...a);}\n  }\n}"
+  },
+  {
+    "instruction": "苹果有什么营养价值？",
+    "input": "",
+    "output": "苹果营养丰富且热量低，适量食用非常健康。"
+  },
+  {
+    "instruction": "判断以下文本的垃圾/正常类别。",
+    "input": "周五8点机票已订。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "为高中老师写一句温暖的话。",
+    "input": "",
+    "output": "老师您好！\n感谢您的教导，祝您身体健康，桃李满天下！"
+  },
+  {
+    "instruction": "请总结一下\"水滴石穿\"这个成语的含义。",
+    "input": "",
+    "output": "水滴石穿：水不断下滴，也能穿透石头。比喻只要坚持不懈，力量虽小也能成就大事。"
+  },
+  {
+    "instruction": "坚持乒乓球运动有什么好处？",
+    "input": "",
+    "output": "缓解压力、改善情绪"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "Practice makes perfect.",
+    "output": "熟能生巧。"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "新能源汽车补贴退坡，行业竞争加剧，车企加速转型。",
+    "output": "新能源补贴退坡行业竞争加剧。"
+  },
+  {
+    "instruction": "判断以下文本的主题类别。",
+    "input": "新手机摄像头1亿像素。",
+    "output": "结果：科技\n理由：内容与科技直接相关"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "Actions speak louder than words.",
+    "output": "行动胜于言语。"
+  },
+  {
+    "instruction": "5月16日后第14天是几月几日？(平年)",
+    "input": "",
+    "output": "5月30日"
+  },
+  {
+    "instruction": "用代码实现写JS函数求数组的和与平均值。。",
+    "input": "",
+    "output": "function sumAvg(arr) {\n  const s = arr.reduce((a,b)=>a+b,0);\n  return { sum: s, avg: s/arr.length };\n}"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "工作压力大的时候，记得照顾好自己。",
+    "output": "When work stress gets too much, remember to take care of yourself."
+  },
+  {
+    "instruction": "中译英。",
+    "input": "旅行不仅看风景，更认识不同的人。",
+    "output": "Travel lets you see scenery and meet different people."
+  },
+  {
+    "instruction": "350 × 348 = ?",
+    "input": "",
+    "output": "121800"
+  },
+  {
+    "instruction": "阿里巴巴是一家什么样的公司？",
+    "input": "",
+    "output": "阿里巴巴是电商巨头，核心业务包括淘宝、天猫、阿里云等。"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "加班到深夜累坏了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "用一个贴切的比喻形容「清晨的城市」。",
+    "input": "",
+    "output": "清晨的城市像刚睁开眼睛的猫，带着几分慵懒。"
+  },
+  {
+    "instruction": "请提取涉及方、转会费、合同、号码。",
+    "input": "国安2026年3月1日宣布博格巴加盟，签两年，转会费约800万欧元，年薪500万，穿10号。",
+    "output": "涉及：北京国安、博格巴\n转会费：约800万欧元\n合同：两年\n号码：10号"
+  },
+  {
+    "instruction": "935 + 235 = ?",
+    "input": "",
+    "output": "1170"
+  },
+  {
+    "instruction": "亚马逊是一家什么样的公司？",
+    "input": "",
+    "output": "亚马逊是全球最大电商，AWS云计算市场第一。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "健康要好好爱护。",
+    "output": "Take good care of your health."
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "早睡早起对身体很重要。",
+    "output": "Early to bed, early to rise is important for health."
+  },
+  {
+    "instruction": "垃圾信息识别：以下文本属于哪一类？",
+    "input": "办信用卡5分钟下卡。",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "为晨跑运动鞋设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "晨跑运动鞋 —— 每天迎接第一缕阳光"
+  },
+  {
+    "instruction": "解方程：5x + 21 = 121",
+    "input": "",
+    "output": "x = 20"
+  },
+  {
+    "instruction": "编程题：写JS函数求数组的和与平均值。",
+    "input": "",
+    "output": "function sumAvg(arr) {\n  const s = arr.reduce((a,b)=>a+b,0);\n  return { sum: s, avg: s/arr.length };\n}"
+  },
+  {
+    "instruction": "请续写这段情节，制造一个有趣的转折。",
+    "input": "凌晨三点，我被一阵奇怪的声音惊醒……",
+    "output": "拉开窗帘，一只发光的蝴蝶在月光下盘旋。"
+  },
+  {
+    "instruction": "葡萄有什么营养价值？",
+    "input": "",
+    "output": "葡萄有助于增强免疫力，适量食用非常健康。"
+  },
+  {
+    "instruction": "任务：100km/h转m/s和mph。",
+    "input": "",
+    "output": "27.78 m/s，62.14 mph"
+  },
+  {
+    "instruction": "写代码：Python实现单例模式。",
+    "input": "",
+    "output": "class Singleton:\n    _instance=None\n    def __new__(cls):\n        if cls._instance is None:\n            cls._instance=super().__new__(cls)\n        return cls._instance"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "When in Rome, do as the Romans do.",
+    "output": "入乡随俗。"
+  },
+  {
+    "instruction": "请Python栈实现。。",
+    "input": "",
+    "output": "class Stack:\n    def __init__(self): self._s=[]\n    def push(self,x): self._s.append(x)\n    def pop(self): return self._s.pop()\n    def peek(self): return self._s[-1]\n    def empty(self): return not self._s"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "健康要好好爱护。",
+    "output": "Take good care of your health."
+  },
+  {
+    "instruction": "坚持高尔夫运动有什么好处？",
+    "input": "",
+    "output": "增强心肺功能、提高身体素质"
+  },
+  {
+    "instruction": "写代码：Python计时装饰器。",
+    "input": "",
+    "output": "import time\nfrom functools import wraps\ndef timer(f):\n    @wraps(f)\n    def w(*a,**kw):\n        s=time.time();r=f(*a,**kw)\n        print(f\"{f.__name__}: {time.time()-s:.4f}s\")\n        return r\n    return w"
+  },
+  {
+    "instruction": "请执行：段落改写得更正式。",
+    "input": "昨天开会说搞新产品，老板说APP小程序都做。",
+    "output": "昨日，本公司召开产品规划会议，管理层决定APP与小程序双线并行开发。"
+  },
+  {
+    "instruction": "请介绍一下伦敦这座城市。",
+    "input": "",
+    "output": "伦敦是一座历史文化名城，有独特的城市魅力。"
+  },
+  {
+    "instruction": "解方程：8x + 25 = 73",
+    "input": "",
+    "output": "x = 6"
+  },
+  {
+    "instruction": "解方程：5x + 22 = 77",
+    "input": "",
+    "output": "x = 11"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "芯片短缺影响了全球汽车和电子行业的生产。",
+    "output": "芯片短缺影响全球汽车电子行业。"
+  },
+  {
+    "instruction": "写代码：去重数组并保序。",
+    "input": "",
+    "output": "function removeDup(arr) { return [...new Set(arr)]; }"
+  },
+  {
+    "instruction": "请为「清风电风扇」写一句广告语。",
+    "input": "",
+    "output": "清风电风扇 —— 像自然一样温柔"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "健康要好好爱护。",
+    "output": "Take good care of your health."
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "这个产品质量不错值得推荐。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "4月16日后第9天是几月几日？(平年)",
+    "input": "",
+    "output": "4月25日"
+  },
+  {
+    "instruction": "请提取公司、营收、主力业务占比、GPU市占率。",
+    "input": "英伟达2025年全年营收2000亿美元，其中数据中心业务贡献60%，GPU市占率超80%。",
+    "output": "公司：英伟达\n全年营收：2000亿美元\n主力业务：数据中心（占60%）\nGPU市占率：超80%"
+  },
+  {
+    "instruction": "掷骰子5次，至少一次6的概率？",
+    "input": "",
+    "output": "1-(5/6)^5 ≈ 0.60 (60.0%)"
+  },
+  {
+    "instruction": "解方程：7x + 9 = 58",
+    "input": "",
+    "output": "x = 7"
+  },
+  {
+    "instruction": "请续写这段情节，制造一个有趣的转折。",
+    "input": "邮递员送来一个没有署名的包裹……",
+    "output": "打开一看是台老相机，胶卷里是十岁的我。"
+  },
+  {
+    "instruction": "用代码实现统计字符频率。。",
+    "input": "",
+    "output": "function countChars(s){\n  const c={};\n  for(const x of s)c[x]=(c[x]||0)+1;\n  return c;\n}"
+  },
+  {
+    "instruction": "计算：10 + 11 = ?",
+    "input": "",
+    "output": "10 + 11 = 21"
+  },
+  {
+    "instruction": "为新同事写一句温暖的话。",
+    "input": "",
+    "output": "欢迎加入我们团队！\n希望你工作开心，有问题随时找我。"
+  },
+  {
+    "instruction": "请介绍一下南京这座城市。",
+    "input": "",
+    "output": "南京是一座交通枢纽，有独特的城市魅力。"
+  },
+  {
+    "instruction": "用代码完成：写一个简单的Promise。",
+    "input": "",
+    "output": "class MyPromise{\n  constructor(exec){\n    this.state='pending';this.val=null;this.cbs=[];\n    const resolve=v=>{if(this.state!=='pending')return;this.state='fulfilled';this.val=v;this.cbs.forEach(c=>c(v))};\n    const reject=e=>{if(this.state!=='pending')return;this.state='rejected';this.val=e};\n    exec(resolve,reject);\n  }\n  then(cb){if(this.state==='fulfilled')cb(this.val);else this.cbs.push(cb);}\n}"
+  },
+  {
+    "instruction": "用代码实现EventEmitter。。",
+    "input": "",
+    "output": "class EventEmitter{\n  constructor(){this.e={}}\n  on(n,cb){(this.e[n]||=[]).push(cb)}\n  emit(n,...a){(this.e[n]||[]).forEach(cb=>cb(...a))}\n  off(n,cb){this.e[n]=(this.e[n]||[]).filter(c=>c!==cb)}\n}"
+  },
+  {
+    "instruction": "腾讯是一家什么样的公司？",
+    "input": "",
+    "output": "腾讯是社交娱乐巨头，微信和QQ是其核心产品。"
+  },
+  {
+    "instruction": "455 × 229 = ?",
+    "input": "",
+    "output": "104195"
+  },
+  {
+    "instruction": "存99521元，年息6%，3年单利利息？",
+    "input": "",
+    "output": "17913.78 元"
+  },
+  {
+    "instruction": "请对文本进行主题分类。",
+    "input": "故宫推出新文创。",
+    "output": "结果：文化\n理由：内容与文化直接相关"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "会议内容比较常规。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "帮我：请设计一个简单的TODO应用功能列表。",
+    "input": "",
+    "output": "1. 添加任务\n2. 标记完成\n3. 删除任务\n4. 按优先级分类\n5. 搜索过滤\n6. 数据持久化"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "共享单车2010年后在中国迅速兴起，为短途出行提供绿色方案，但快速扩张也带来管理混乱等问题，经过市场整合后行业逐步理性化。",
+    "output": "共享单车兴起后经历了快速扩张和整合，行业逐步理性化。"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "Every cloud has a silver lining.",
+    "output": "每朵乌云都有银边。"
+  },
+  {
+    "instruction": "任务：将100华氏度转换为摄氏度（C=(F-32)*5/9）。",
+    "input": "",
+    "output": "C = (100-32)*5/9 = 68*5/9 ≈ 37.8°C"
+  },
+  {
+    "instruction": "坚持篮球运动有什么好处？",
+    "input": "",
+    "output": "增强心肺功能、提高身体素质"
+  },
+  {
+    "instruction": "已知：小丽 比 小明 高，小杰 比 小明 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小丽 > 小明 > 小杰。\n答：小丽、小明、小杰。"
+  },
+  {
+    "instruction": "任务：3分钟自我介绍：教育、经历、能力、意向。",
+    "input": "",
+    "output": "您好，我叫XXX。\n毕业于XX大学计算机专业。\n做过前端和AI开发。\n快速学习落地产品。\n希望加入有挑战的团队。"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "全球供应链在疫情后加速重构，区域化趋势明显。",
+    "output": "疫情后全球供应链加速重构。"
+  },
+  {
+    "instruction": "解方程：4x + 19 = 87",
+    "input": "",
+    "output": "x = 17"
+  },
+  {
+    "instruction": "车以94km/h行驶8小时走多远？",
+    "input": "",
+    "output": "752 公里"
+  },
+  {
+    "instruction": "编程题：写一个带缓存的斐波那契。",
+    "input": "",
+    "output": "const fib=(function(){\n  const cache={0:0,1:1};\n  return function(n){\n    if(n in cache)return cache[n];\n    cache[n]=fib(n-1)+fib(n-2);\n    return cache[n];\n  };\n})();"
+  },
+  {
+    "instruction": "已知：小强 比 小丽 高，小芳 比 小丽 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小强 > 小丽 > 小芳。\n答：小强、小丽、小芳。"
+  },
+  {
+    "instruction": "速度54km/h，时间3h，求距离。",
+    "input": "",
+    "output": "162 公里"
+  },
+  {
+    "instruction": "请以这句话开头续写故事。",
+    "input": "那天晚上，月光洒进了老旧的书房……",
+    "output": "我翻开泛黄的日记本。最后一页日期竟是昨天。"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "GPT系列引领大语言模型发展，ChatGPT爆红后全球科技巨头纷纷跟进。",
+    "output": "GPT引领大模型发展，巨头竞相布局。"
+  },
+  {
+    "instruction": "请对文本进行主题分类。",
+    "input": "发布会公布减税政策。",
+    "output": "结果：政治\n理由：内容与政治直接相关"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "中国是人口最多的国家之一。",
+    "output": "China is one of the most populous countries."
+  },
+  {
+    "instruction": "速度112km/h，时间2h，求距离。",
+    "input": "",
+    "output": "224 公里"
+  },
+  {
+    "instruction": "7月24日后第22天是几月几日？(平年)",
+    "input": "",
+    "output": "8月15日"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "旅行不仅看风景，更认识不同的人。",
+    "output": "Travel lets you see scenery and meet different people."
+  },
+  {
+    "instruction": "贝多芬在历史上有什么重要贡献？",
+    "input": "",
+    "output": "贝多芬其作品至今仍被广泛传颂和学习。"
+  },
+  {
+    "instruction": "任务：请总结一下\"水滴石穿\"这个成语的含义。",
+    "input": "",
+    "output": "水滴石穿：水不断下滴，也能穿透石头。比喻只要坚持不懈，力量虽小也能成就大事。"
+  },
+  {
+    "instruction": "主题分类：以下文本属于哪一类？",
+    "input": "新疫苗对变异病毒有效。",
+    "output": "结果：医疗\n理由：内容与医疗直接相关"
+  },
+  {
+    "instruction": "为星空咖啡设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "星空咖啡 —— 凌晨四点，我们还在等你"
+  },
+  {
+    "instruction": "请提取城市、指标数值、目标完成情况。",
+    "input": "北京2026年PM2.5年均浓度降至30微克/立方米，提前两年完成国家蓝天行动计划目标。",
+    "output": "城市：北京\nPM2.5：30μg/m³\n情况：提前两年完成国家目标"
+  },
+  {
+    "instruction": "请对文本进行垃圾信息识别。",
+    "input": "办信用卡5分钟下卡。",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "什么是量子纠缠？",
+    "input": "",
+    "output": "量子纠缠是量子力学中两个粒子无论相隔多远都相互关联的现象，是量子计算的基础。"
+  },
+  {
+    "instruction": "判断以下文本的主题类别。",
+    "input": "股市波动大，投资者观望。",
+    "output": "结果：财经\n理由：内容与财经直接相关"
+  },
+  {
+    "instruction": "计算：6 + 14 = ?",
+    "input": "",
+    "output": "6 + 14 = 20"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "Where there is a will, there is a way.",
+    "output": "有志者事竟成。"
+  },
+  {
+    "instruction": "围绕「夜晚」写一首四行小诗。",
+    "input": "",
+    "output": "城市渐渐安静下来，\n只有路灯还亮着。\n月亮也在看我。"
+  },
+  {
+    "instruction": "已知：小刚 比 小强 高，小明 比 小强 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小刚 > 小强 > 小明。\n答：小刚、小强、小明。"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "这张专辑太棒了！",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "305 × 944 = ?",
+    "input": "",
+    "output": "287920"
+  },
+  {
+    "instruction": "请对文本进行垃圾信息识别。",
+    "input": "明天10点开会议。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "56人的班级，32人会骑车，24人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 32+24-56 = 0。答：最少0人。"
+  },
+  {
+    "instruction": "已知：小芳 比 小刚 高，小强 比 小刚 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小芳 > 小刚 > 小强。\n答：小芳、小刚、小强。"
+  },
+  {
+    "instruction": "33人的班级，22人会骑车，20人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 22+20-33 = 9。答：最少9人。"
+  },
+  {
+    "instruction": "任务：为\"晨露咖啡\"写SWOT。",
+    "input": "",
+    "output": "S：精品定位、选址精准\nW：价格较高、仅线下\nO：白领需求、可做外卖\nT：巨头竞争"
+  },
+  {
+    "instruction": "垃圾信息识别：以下文本属于哪一类？",
+    "input": "明天10点开会议。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "Failure is the mother of success.",
+    "output": "失败是成功之母。"
+  },
+  {
+    "instruction": "坚持游泳运动有什么好处？",
+    "input": "",
+    "output": "增强心肺功能、提高身体素质"
+  },
+  {
+    "instruction": "掷骰子2次，至少一次6的概率？",
+    "input": "",
+    "output": "1-(5/6)^2 ≈ 0.31 (31.0%)"
+  },
+  {
+    "instruction": "请对文本进行主题分类。",
+    "input": "新学期开学。",
+    "output": "结果：教育\n理由：内容与教育直接相关"
+  },
+  {
+    "instruction": "解方程：9x + 25 = 88",
+    "input": "",
+    "output": "x = 7"
+  },
+  {
+    "instruction": "38人的班级，24人会骑车，16人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 24+16-38 = 2。答：最少2人。"
+  },
+  {
+    "instruction": "车以50km/h行驶3小时走多远？",
+    "input": "",
+    "output": "150 公里"
+  },
+  {
+    "instruction": "帮我：制作一个简单的购物清单表格。",
+    "input": "",
+    "output": "| 商品 | 数量 | 单价 | 小计 |\n| --- | --- | --- | --- |\n| 牛奶 | 2 | 12 | 24 |\n| 面包 | 3 | 8 | 24 |\n| 鸡蛋 | 1 | 20 | 20 |\n| **合计** | | | **68** |"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "学习一门新语言需要耐心。",
+    "output": "Learning a new language requires patience."
+  },
+  {
+    "instruction": "印度的首都是哪里？",
+    "input": "",
+    "output": "印度的首都是新德里，是该国政治经济文化中心。"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "A picture is worth a thousand words.",
+    "output": "一张图片胜过千言万语。"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "I think, therefore I am.",
+    "output": "我思故我在。"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "科技改变了人们的生活方式。",
+    "output": "Technology has changed people's way of life."
+  },
+  {
+    "instruction": "写代码：实现递归和迭代阶乘。",
+    "input": "",
+    "output": "// 递归\nfunction factR(n) { return n<=1 ? 1 : n*factR(n-1); }\n// 迭代\nfunction factI(n) { let r=1; for(let i=2;i<=n;i++) r*=i; return r; }"
+  },
+  {
+    "instruction": "主题分类：以下文本属于哪一类？",
+    "input": "股市波动大，投资者观望。",
+    "output": "结果：财经\n理由：内容与财经直接相关"
+  },
+  {
+    "instruction": "任务：取1-10偶数求和，用JSON输出。",
+    "input": "",
+    "output": "{\"偶数\":[2,4,6,8,10],\"和\":30,\"平均\":6}"
+  },
+  {
+    "instruction": "编程题：debounce防抖。",
+    "input": "",
+    "output": "function debounce(fn,delay){\n  let t=null;\n  return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),delay)}\n}"
+  },
+  {
+    "instruction": "为什么天空是蓝色的？",
+    "input": "",
+    "output": "太阳光穿过大气层时发生瑞利散射，蓝光波长短被散射最多，所以天空看起来是蓝色的。"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "加班到深夜累坏了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "计算：15 + 15 = ?",
+    "input": "",
+    "output": "15 + 15 = 30"
+  },
+  {
+    "instruction": "请提取赛事、队伍、对手、比赛时间地点。",
+    "input": "2026年亚洲杯中国队小组出线，1/4决赛对阵日本队，比赛将于6月20日在沙特利雅得进行。",
+    "output": "赛事：2026亚洲杯\n中国队：小组出线\n对手：日本队\n时间：6月20日\n地点：沙特利雅得"
+  },
+  {
+    "instruction": "请对文本进行垃圾信息识别。",
+    "input": "点击领iPhone15！",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "全球气候变化由温室气体排放导致，过去百年气温上升约1度，影响包括海平面上升、极端天气增多。2015年《巴黎协定》设定控温目标。",
+    "output": "全球气候变化影响广泛，《巴黎协定》设定控温目标。"
+  },
+  {
+    "instruction": "222 × 50% = ?",
+    "input": "",
+    "output": "111.0"
+  },
+  {
+    "instruction": "548 × 166 = ?",
+    "input": "",
+    "output": "90968"
+  },
+  {
+    "instruction": "请提取演讲人、观点、领域、时间。",
+    "input": "清华陈志武2026年2月28日演讲：扩大内需，AI/绿色能源/数字经济是五年增长引擎。",
+    "output": "演讲人：陈志武（清华经管）\n时间：2026年2月28日\n观点：扩大内需\n领域：AI、绿色能源、数字经济"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "远程办公因疫情爆发快速普及，打破地域限制，让企业全球招聘，员工享受灵活时间，但带来沟通效率下降等新挑战。",
+    "output": "远程办公快速普及但也带来新挑战。"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "这本书写得一般。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "碳中和是全球应对气候变化核心目标，中国提出2030碳达峰、2060碳中和。",
+    "output": "碳中和是核心目标，中国有明确时间表。"
+  },
+  {
+    "instruction": "请统计字符频率。。",
+    "input": "",
+    "output": "function countChars(s){\n  const c={};\n  for(const x of s)c[x]=(c[x]||0)+1;\n  return c;\n}"
+  },
+  {
+    "instruction": "计算：2 × 12 = ?",
+    "input": "",
+    "output": "2 × 12 = 24"
+  },
+  {
+    "instruction": "7月14日后第13天是几月几日？(平年)",
+    "input": "",
+    "output": "7月27日"
+  },
+  {
+    "instruction": "700 × 536 = ?",
+    "input": "",
+    "output": "375200"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "中国航天取得嫦娥登月、天问探火、天宫空间站等多项重大成就，已跻身航天强国。",
+    "output": "中国航天取得多项重大成就。"
+  },
+  {
+    "instruction": "请对文本进行垃圾信息识别。",
+    "input": "免费领课程扫码。",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "存76518元，年息5%，1年单利利息？",
+    "input": "",
+    "output": "3825.90 元"
+  },
+  {
+    "instruction": "请为「微光台灯」写一句广告语。",
+    "input": "",
+    "output": "微光台灯 —— 护眼也护你入眠"
+  },
+  {
+    "instruction": "掷骰子4次，至少一次6的概率？",
+    "input": "",
+    "output": "1-(5/6)^4 ≈ 0.52 (52.0%)"
+  },
+  {
+    "instruction": "请提取数据指标、排名、覆盖范围。",
+    "input": "中国高铁运营里程2025年达4.5万公里，居世界第一，覆盖95%的百万人口以上城市。",
+    "output": "运营里程：4.5万公里\n排名：世界第一\n覆盖：95%百万人口以上城市"
+  },
+  {
+    "instruction": "为妈妈写一句温暖的话。",
+    "input": "",
+    "output": "亲爱的妈妈，生日快乐！\n这些年您辛苦了，现在换我来照顾您。"
+  },
+  {
+    "instruction": "请以这句话开头续写故事。",
+    "input": "邮递员送来一个没有署名的包裹……",
+    "output": "打开一看是台老相机，胶卷里是十岁的我。"
+  },
+  {
+    "instruction": "已知：小芳 比 小强 高，小明 比 小强 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小芳 > 小强 > 小明。\n答：小芳、小强、小明。"
+  },
+  {
+    "instruction": "写代码：统计字符频率。",
+    "input": "",
+    "output": "function countChars(s){\n  const c={};\n  for(const x of s)c[x]=(c[x]||0)+1;\n  return c;\n}"
+  },
+  {
+    "instruction": "请执行：提高睡眠质量的五个建议。",
+    "input": "",
+    "output": "1. 固定作息\n2. 睡前1小时不看屏\n3. 卧室黑暗凉爽\n4. 白天运动\n5. 睡前放松"
+  },
+  {
+    "instruction": "计算：17 × 15 = ?",
+    "input": "",
+    "output": "17 × 15 = 255"
+  },
+  {
+    "instruction": "请提取队伍、赛事、对手、结果。",
+    "input": "中国女排在2026年奥运会资格赛中以3:2战胜巴西队，成功锁定参赛名额。",
+    "output": "队伍：中国女排\n赛事：2026奥运资格赛\n对手：巴西队\n结果：3:2获胜，锁定名额"
+  },
+  {
+    "instruction": "帮我：将以下日期转成中文格式：2026-10-21",
+    "input": "",
+    "output": "2026年10月21日（星期三）"
+  },
+  {
+    "instruction": "写代码：二分查找。",
+    "input": "",
+    "output": "function binSearch(arr,target){\n  let l=0,r=arr.length-1;\n  while(l<=r){const m=(l+r)>>1;if(arr[m]===target)return m;if(arr[m]<target)l=m+1;else r=m-1}\n  return -1;\n}"
+  },
+  {
+    "instruction": "车以72km/h行驶5小时走多远？",
+    "input": "",
+    "output": "360 公里"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "答辩很顺利。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "咖啡起源于埃塞俄比亚，是全球流行饮品。星巴克等品牌广泛流行，精品咖啡文化兴起。",
+    "output": "咖啡是全球流行饮品，精品文化兴起。"
+  },
+  {
+    "instruction": "圆半径12，求面积和周长(π=3.14)",
+    "input": "",
+    "output": "面积=452.16，周长=75.36"
+  },
+  {
+    "instruction": "请计算1到100的和。",
+    "input": "",
+    "output": "1+2+...+100 = (1+100)*100/2 = 5050"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "GPT系列引领大语言模型发展，ChatGPT爆红后全球科技巨头纷纷跟进。",
+    "output": "GPT引领大模型发展，巨头竞相布局。"
+  },
+  {
+    "instruction": "请续写一个引人入胜的短故事。",
+    "input": "通讯录里，标注\"自己\"的号码发来消息……",
+    "output": "\"别去明天的会议。\"回拨过去，声音和我一模一样。"
+  },
+  {
+    "instruction": "请简要介绍物联网技术。",
+    "input": "",
+    "output": "物联网是当前前沿技术，正深刻改变生产生活方式，有广阔应用前景。"
+  },
+  {
+    "instruction": "存18867元，年息3%，1年单利利息？",
+    "input": "",
+    "output": "566.01 元"
+  },
+  {
+    "instruction": "请用比喻描写「清晨的城市」。",
+    "input": "",
+    "output": "清晨的城市像刚睁开眼睛的猫，带着几分慵懒。"
+  },
+  {
+    "instruction": "写一条年终总结开头。",
+    "input": "",
+    "output": "时光飞逝，转眼间又是一年。回顾过去，有收获也有遗憾，在此做一个简单的总结。"
+  },
+  {
+    "instruction": "计算：7 × 16 = ?",
+    "input": "",
+    "output": "7 × 16 = 112"
+  },
+  {
+    "instruction": "请执行：制作朝九晚五日程。",
+    "input": "",
+    "output": "07:00 起床\n08:00 通勤\n09:00 深度工作\n12:00 午餐\n13:30 继续工作\n17:00 收尾\n17:30 下班"
+  },
+  {
+    "instruction": "存11712元，年息3%，4年单利利息？",
+    "input": "",
+    "output": "1405.44 元"
+  },
+  {
+    "instruction": "请为「清风电风扇」写一句广告语。",
+    "input": "",
+    "output": "清风电风扇 —— 安静到只听见风的声音"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "这家咖啡店的拿铁很香。",
+    "output": "The latte here is fragrant."
+  },
+  {
+    "instruction": "请从以下文本中请提取奖项、领域、获奖人数、贡献。",
+    "input": "2026年诺贝尔化学奖授予两位科学家，表彰他们在蛋白质结构预测方面的突破。",
+    "output": "奖项：2026诺贝尔化学奖\n领域：蛋白质结构预测\n获奖人数：两位\n贡献：突破性研究"
+  },
+  {
+    "instruction": "请对文本进行主题分类。",
+    "input": "红烧肉做法简单。",
+    "output": "结果：美食\n理由：内容与美食直接相关"
+  },
+  {
+    "instruction": "208 × 25% = ?",
+    "input": "",
+    "output": "52.0"
+  },
+  {
+    "instruction": "请实现：写一个发布-订阅模式（Python）。",
+    "input": "",
+    "output": "class EventBus:\n    def __init__(self): self._handlers={}\n    def on(self,event,cb): self._handlers.setdefault(event,[]).append(cb)\n    def emit(self,event,*a):\n        for cb in self._handlers.get(event,[]): cb(*a)\n    def off(self,event,cb): self._handlers[event]=[c for c in self._handlers.get(event,[]) if c!=cb]"
+  },
+  {
+    "instruction": "任务：购物清单分类：牛奶、洗衣液、面包、洗发水、鸡蛋、卫生纸。",
+    "input": "",
+    "output": "食品：牛奶、面包、鸡蛋\n日用品：洗衣液、洗发水、卫生纸"
+  },
+  {
+    "instruction": "任务：25°C转华氏度(F=C×9/5+32)。",
+    "input": "25°C",
+    "output": "F = 25×9/5+32 = 77°F"
+  },
+  {
+    "instruction": "462 - 327 = ?",
+    "input": "",
+    "output": "135"
+  },
+  {
+    "instruction": "荔枝有什么营养价值？",
+    "input": "",
+    "output": "荔枝营养丰富且热量低，适量食用非常健康。"
+  },
+  {
+    "instruction": "计算：14 × 7 = ?",
+    "input": "",
+    "output": "14 × 7 = 98"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "早睡早起对身体很重要。",
+    "output": "Early to bed, early to rise is important for health."
+  },
+  {
+    "instruction": "请给新同事写一段真诚的祝福。",
+    "input": "",
+    "output": "欢迎加入我们团队！\n希望你工作开心，有问题随时找我。"
+  },
+  {
+    "instruction": "已知：小明 比 小强 高，小刚 比 小强 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小明 > 小强 > 小刚。\n答：小明、小强、小刚。"
+  },
+  {
+    "instruction": "请执行：取1-10偶数求和，用JSON输出。",
+    "input": "",
+    "output": "{\"偶数\":[2,4,6,8,10],\"和\":30,\"平均\":6}"
+  },
+  {
+    "instruction": "886 + 796 = ?",
+    "input": "",
+    "output": "1682"
+  },
+  {
+    "instruction": "请从以下文本中请提取队伍、赛事、对手、结果。",
+    "input": "中国女排在2026年奥运会资格赛中以3:2战胜巴西队，成功锁定参赛名额。",
+    "output": "队伍：中国女排\n赛事：2026奥运资格赛\n对手：巴西队\n结果：3:2获胜，锁定名额"
+  },
+  {
+    "instruction": "垃圾信息识别：以下文本属于哪一类？",
+    "input": "快递到驿站取件码7788。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "153 + 725 = ?",
+    "input": "",
+    "output": "878"
+  },
+  {
+    "instruction": "写代码：用JS实现选择排序。",
+    "input": "",
+    "output": "function selectionSort(arr){\n  const a=[...arr];\n  for(let i=0;i<a.length-1;i++){\n    let min=i;\n    for(let j=i+1;j<a.length;j++)if(a[j]<a[min])min=j;\n    [a[i],a[min]]=[a[min],a[i]];\n  }\n  return a;\n}"
+  },
+  {
+    "instruction": "任务：将数组 [3,1,4,1,5,9,2,6] 排序去重。",
+    "input": "",
+    "output": "[1,2,3,4,5,6,9]"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "全球气候变化由温室气体排放导致，过去百年气温上升约1度，影响包括海平面上升、极端天气增多。2015年《巴黎协定》设定控温目标。",
+    "output": "全球气候变化影响广泛，《巴黎协定》设定控温目标。"
+  },
+  {
+    "instruction": "10月13日后第16天是几月几日？(平年)",
+    "input": "",
+    "output": "10月29日"
+  },
+  {
+    "instruction": "存58223元，年息6%，5年单利利息？",
+    "input": "",
+    "output": "17466.90 元"
+  },
+  {
+    "instruction": "43人的班级，33人会骑车，23人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 33+23-43 = 13。答：最少13人。"
+  },
+  {
+    "instruction": "任务：提高睡眠质量的五个建议。",
+    "input": "",
+    "output": "1. 固定作息\n2. 睡前1小时不看屏\n3. 卧室黑暗凉爽\n4. 白天运动\n5. 睡前放松"
+  },
+  {
+    "instruction": "请以「希望」为题写一首短诗。",
+    "input": "",
+    "output": "天还没亮，\n路灯还亮着。\n走到街角时，太阳就会升起来。"
+  },
+  {
+    "instruction": "计算：15 + 17 = ?",
+    "input": "",
+    "output": "15 + 17 = 32"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "咖啡起源于埃塞俄比亚，是全球流行饮品。星巴克等品牌广泛流行，精品咖啡文化兴起。",
+    "output": "咖啡是全球流行饮品，精品文化兴起。"
+  },
+  {
+    "instruction": "把这段JSON格式化：{\"name\":\"张三\",\"age\":25,\"city\":\"北京\"}",
+    "input": "",
+    "output": "{\n  \"name\": \"张三\",\n  \"age\": 25,\n  \"city\": \"北京\"\n}"
+  },
+  {
+    "instruction": "用代码完成：Python合并两个有序数组。",
+    "input": "",
+    "output": "def merge(nums1,m,nums2,n):\n    i,j,k=m-1,n-1,m+n-1\n    while i>=0 and j>=0:\n        if nums1[i]>nums2[j]: nums1[k]=nums1[i]; i-=1\n        else: nums1[k]=nums2[j]; j-=1\n        k-=1\n    while j>=0: nums1[k]=nums2[j]; j-=1; k-=1"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "周末打算和朋友去露营。",
+    "output": "I plan to go camping with friends this weekend."
+  },
+  {
+    "instruction": "垃圾信息识别：以下文本属于哪一类？",
+    "input": "周五8点机票已订。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "坚持游泳运动有什么好处？",
+    "input": "",
+    "output": "锻炼身体协调性和反应能力"
+  },
+  {
+    "instruction": "书籍列表整理成Markdown表格。",
+    "input": "1.红楼梦-曹雪芹-1791|2.活着-余华-1993|3.三体-刘慈欣-2008",
+    "output": "| 序号 | 书名 | 作者 | 年份 |\n| --- | --- | --- | --- |\n| 1 | 红楼梦 | 曹雪芹 | 1791 |\n| 2 | 活着 | 余华 | 1993 |\n| 3 | 三体 | 刘慈欣 | 2008 |"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "The early bird catches the worm.",
+    "output": "早起的鸟儿有虫吃。"
+  },
+  {
+    "instruction": "存56602元，年息3%，1年单利利息？",
+    "input": "",
+    "output": "1698.06 元"
+  },
+  {
+    "instruction": "一个出色的记者应该具备什么能力？",
+    "input": "",
+    "output": "扎实的专业知识、良好沟通、持续学习、创新思维和责任感。"
+  },
+  {
+    "instruction": "美团是一家什么样的公司？",
+    "input": "",
+    "output": "美团是本地生活服务平台，覆盖外卖、打车等。"
+  },
+  {
+    "instruction": "请执行：将以下日期转成中文格式：2026-10-21",
+    "input": "",
+    "output": "2026年10月21日（星期三）"
+  },
+  {
+    "instruction": "652 × 849 = ?",
+    "input": "",
+    "output": "553548"
+  },
+  {
+    "instruction": "任务：请把\"Good morning, how are you?\"翻译成中文。",
+    "input": "",
+    "output": "早上好，你好吗？"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "水果店价格适中，种类还行。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "主题分类：以下文本属于哪一类？",
+    "input": "红烧肉做法简单。",
+    "output": "结果：美食\n理由：内容与美食直接相关"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "短视频平台成为重要信息娱乐渠道，催生了短视频创作者新职业，广泛应用于营销、知识传播等领域，但也面临沉迷、内容同质化等问题。",
+    "output": "短视频平台成为重要渠道但也面临多种问题。"
+  },
+  {
+    "instruction": "已知：小杰 比 小红 高，小强 比 小红 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小杰 > 小红 > 小强。\n答：小杰、小红、小强。"
+  },
+  {
+    "instruction": "为暖阳毛毯设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "暖阳毛毯 —— 让寒冬只有温暖"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "地铁太挤了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "Practice makes perfect.",
+    "output": "熟能生巧。"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "这本书我已经读了三遍，每遍都有新收获。",
+    "output": "I've read this book three times, gaining something new each time."
+  },
+  {
+    "instruction": "掷骰子6次，至少一次6的概率？",
+    "input": "",
+    "output": "1-(5/6)^6 ≈ 0.67 (67.0%)"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "阅读是好的放松方式。",
+    "output": "Reading is a good way to relax."
+  },
+  {
+    "instruction": "编程题：写Python函数判断回文。",
+    "input": "",
+    "output": "def is_palindrome(s):\n    c = ''.join(x.lower() for x in s if x.isalnum())\n    return c == c[::-1]"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "电动汽车产业蓬勃发展，中国是最大市场。电动车具有零排放、低成本、智能化等优势，配套正在完善。",
+    "output": "电动车产业蓬勃发展，中国为最大市场。"
+  },
+  {
+    "instruction": "垃圾信息识别：以下文本属于哪一类？",
+    "input": "贷款找他日息万三。",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "取1-10偶数求和，用JSON输出。",
+    "input": "",
+    "output": "{\"偶数\":[2,4,6,8,10],\"和\":30,\"平均\":6}"
+  },
+  {
+    "instruction": "请给高中老师写一段真诚的祝福。",
+    "input": "",
+    "output": "老师您好！\n感谢您的教导，祝您身体健康，桃李满天下！"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "GPT系列引领大语言模型发展，ChatGPT爆红后全球科技巨头纷纷跟进。",
+    "output": "GPT引领大模型发展，巨头竞相布局。"
+  },
+  {
+    "instruction": "请用比喻描写「夜晚」。",
+    "input": "",
+    "output": "夜晚像一杯刚泡好的红茶，温热、安静。"
+  },
+  {
+    "instruction": "715 - 12 = ?",
+    "input": "",
+    "output": "703"
+  },
+  {
+    "instruction": "请续写这段情节，制造一个有趣的转折。",
+    "input": "那天晚上，月光洒进了老旧的书房……",
+    "output": "我翻开泛黄的日记本。最后一页日期竟是昨天。"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "答辩很顺利。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "A picture is worth a thousand words.",
+    "output": "一张图片胜过千言万语。"
+  },
+  {
+    "instruction": "用代码完成：用JS实现选择排序。",
+    "input": "",
+    "output": "function selectionSort(arr){\n  const a=[...arr];\n  for(let i=0;i<a.length-1;i++){\n    let min=i;\n    for(let j=i+1;j<a.length;j++)if(a[j]<a[min])min=j;\n    [a[i],a[min]]=[a[min],a[i]];\n  }\n  return a;\n}"
+  },
+  {
+    "instruction": "322 × 876 = ?",
+    "input": "",
+    "output": "282072"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "地铁太挤了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "为大学室友写一句温暖的话。",
+    "input": "",
+    "output": "老铁，生日快乐！\n还记得当年一起翻墙上网的日子吗？下次见面请你吃火锅！"
+  },
+  {
+    "instruction": "主题分类：以下文本属于哪一类？",
+    "input": "NBA比赛精彩，詹姆斯40分。",
+    "output": "结果：体育\n理由：内容与体育直接相关"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "共享单车2010年后在中国迅速兴起，为短途出行提供绿色方案，但快速扩张也带来管理混乱等问题，经过市场整合后行业逐步理性化。",
+    "output": "共享单车兴起后经历了快速扩张和整合，行业逐步理性化。"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "Seeing is believing.",
+    "output": "眼见为实。"
+  },
+  {
+    "instruction": "杜甫在历史上有什么重要贡献？",
+    "input": "",
+    "output": "杜甫在思想文化领域做出了开创性贡献。"
+  },
+  {
+    "instruction": "解方程：4x + 16 = 52",
+    "input": "",
+    "output": "x = 9"
+  },
+  {
+    "instruction": "阅读文本后请提取奖项、领域、获奖人数、贡献。",
+    "input": "2026年诺贝尔化学奖授予两位科学家，表彰他们在蛋白质结构预测方面的突破。",
+    "output": "奖项：2026诺贝尔化学奖\n领域：蛋白质结构预测\n获奖人数：两位\n贡献：突破性研究"
+  },
+  {
+    "instruction": "编程题：写一个简单的Promise。",
+    "input": "",
+    "output": "class MyPromise{\n  constructor(exec){\n    this.state='pending';this.val=null;this.cbs=[];\n    const resolve=v=>{if(this.state!=='pending')return;this.state='fulfilled';this.val=v;this.cbs.forEach(c=>c(v))};\n    const reject=e=>{if(this.state!=='pending')return;this.state='rejected';this.val=e};\n    exec(resolve,reject);\n  }\n  then(cb){if(this.state==='fulfilled')cb(this.val);else this.cbs.push(cb);}\n}"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "中国传统节日各有独特习俗，是家人团聚和中华文化传承的重要载体。",
+    "output": "传统节日是文化传承的重要载体。"
+  },
+  {
+    "instruction": "已知：小明 比 小强 高，小华 比 小强 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小明 > 小强 > 小华。\n答：小明、小强、小华。"
+  },
+  {
+    "instruction": "写一条生日朋友圈文案。",
+    "input": "",
+    "output": "又长大一岁！感谢家人朋友的陪伴，新的一年继续加油！🎂✨"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "外卖送错地址了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "圆半径10，求面积和周长(π=3.14)",
+    "input": "",
+    "output": "面积=314.00，周长=62.80"
+  },
+  {
+    "instruction": "解方程：3x + 30 = 69",
+    "input": "",
+    "output": "x = 13"
+  },
+  {
+    "instruction": "请以「春天」为题写一首短诗。",
+    "input": "",
+    "output": "春风轻轻推开窗，\n桃花染白少年衫。\n一只燕子衔新泥，\n旧屋檐下筑新巢。"
+  },
+  {
+    "instruction": "请简化Promise.all。。",
+    "input": "",
+    "output": "function myAll(ps){\n  return new Promise((res,rej)=>{\n    const r=[],done=ps.length;\n    let c=0;\n    ps.forEach((p,i)=>Promise.resolve(p).then(v=>{r[i]=v;if(++c===done)res(r)},rej));\n    if(!done)res(r);\n  });\n}"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "全球气候变化由温室气体排放导致，过去百年气温上升约1度，影响包括海平面上升、极端天气增多。2015年《巴黎协定》设定控温目标。",
+    "output": "全球气候变化影响广泛，《巴黎协定》设定控温目标。"
+  },
+  {
+    "instruction": "判断以下文本的主题类别。",
+    "input": "周末去爬山。",
+    "output": "结果：旅游\n理由：内容与旅游直接相关"
+  },
+  {
+    "instruction": "计算：10 + 7 = ?",
+    "input": "",
+    "output": "10 + 7 = 17"
+  },
+  {
+    "instruction": "速度79km/h，时间5h，求距离。",
+    "input": "",
+    "output": "395 公里"
+  },
+  {
+    "instruction": "存11386元，年息5%，2年单利利息？",
+    "input": "",
+    "output": "1138.60 元"
+  },
+  {
+    "instruction": "223 × 50% = ?",
+    "input": "",
+    "output": "111.5"
+  },
+  {
+    "instruction": "请对文本进行垃圾信息识别。",
+    "input": "妈妈说晚上回家吃饭。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "请以「青春」为题写一首短诗。",
+    "input": "",
+    "output": "那年夏天特别热，\n蝉声特别长。\n我们躺在草地上望天，\n以为永远不会长大。"
+  },
+  {
+    "instruction": "59人的班级，42人会骑车，29人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 42+29-59 = 12。答：最少12人。"
+  },
+  {
+    "instruction": "请执行：将段落缩写为50字内。",
+    "input": "AI是计算机科学分支，研究让机器模拟人类智能，涵盖多个子方向，正改变各行各业。",
+    "output": "AI研究机器模拟人类智能，正深刻改变各行各业。"
+  },
+  {
+    "instruction": "判断以下文本的垃圾/正常类别。",
+    "input": "贷款找他日息万三。",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "请实现：实现一个计数器闭包。",
+    "input": "",
+    "output": "function createCounter(start=0){\n  let count=start;\n  return {\n    inc(){return ++count},\n    dec(){return --count},\n    get(){return count},\n    reset(){count=start}\n  };\n}"
+  },
+  {
+    "instruction": "任务：Markdown转纯文本（去#、**、`）。",
+    "input": "# 标题\n**加粗** `代码` - 列表",
+    "output": "标题\n加粗 代码 列表"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "电动汽车产业蓬勃发展，中国是最大市场。电动车具有零排放、低成本、智能化等优势，配套正在完善。",
+    "output": "电动车产业蓬勃发展，中国为最大市场。"
+  },
+  {
+    "instruction": "请提取公司、裁员规模、涉及部门、新投资。",
+    "input": "微软2025年宣布裁员5000人，主要涉及Azure云服务部门，同时投资100亿美元在AI基础设施。",
+    "output": "公司：微软\n裁员：5000人\n涉及部门：Azure云服务\n新投资：100亿美元（AI基础设施）"
+  },
+  {
+    "instruction": "请为「晨跑运动鞋」写一句广告语。",
+    "input": "",
+    "output": "晨跑运动鞋 —— 轻到忘记脚上有鞋"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "坚持锻炼半年，身体好多了。",
+    "output": "I feel much better after half a year of exercise."
+  },
+  {
+    "instruction": "将地址整理成JSON。",
+    "input": "收件人张三，电话13800138000，地址北京海淀中关村1号，邮编100080",
+    "output": "{\n  \"收件人\": \"张三\",\n  \"电话\": \"13800138000\",\n  \"地址\": \"北京海淀中关村1号\",\n  \"邮编\": \"100080\"\n}"
+  },
+  {
+    "instruction": "请对文本进行垃圾信息识别。",
+    "input": "周五8点机票已订。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "3月1日后第6天是几月几日？(平年)",
+    "input": "",
+    "output": "3月7日"
+  },
+  {
+    "instruction": "12月29日后第22天是几月几日？(平年)",
+    "input": "",
+    "output": "1月20日"
+  },
+  {
+    "instruction": "请执行：100km/h转m/s和mph。",
+    "input": "",
+    "output": "27.78 m/s，62.14 mph"
+  },
+  {
+    "instruction": "请为「星空咖啡」写一句广告语。",
+    "input": "",
+    "output": "星空咖啡 —— 深夜不打烊的心灵驿站"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "阳光明媚适合散步。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "请实现递归和迭代阶乘。。",
+    "input": "",
+    "output": "// 递归\nfunction factR(n) { return n<=1 ? 1 : n*factR(n-1); }\n// 迭代\nfunction factI(n) { let r=1; for(let i=2;i<=n;i++) r*=i; return r; }"
+  },
+  {
+    "instruction": "解方程：3x + 21 = 54",
+    "input": "",
+    "output": "x = 11"
+  },
+  {
+    "instruction": "计算：7 - 6 = ?",
+    "input": "",
+    "output": "7 - 6 = 1"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "今天天气真不错，适合出去走走。",
+    "output": "The weather is really nice today, perfect for a walk."
+  },
+  {
+    "instruction": "计算：14 × 15 = ?",
+    "input": "",
+    "output": "14 × 15 = 210"
+  },
+  {
+    "instruction": "请以「秋天」为题写一首短诗。",
+    "input": "",
+    "output": "叶子一片一片落，\n风一阵一阵凉。"
+  },
+  {
+    "instruction": "请以这句话开头续写故事。",
+    "input": "下雨天，我在街角捡到一只流浪猫……",
+    "output": "它的牌子刻着\"请善待她\"，总盯着车祸路口。"
+  },
+  {
+    "instruction": "写代码：写一个节流 throttle 函数。",
+    "input": "",
+    "output": "function throttle(fn,delay){\n  let last=0;\n  return function(...a){\n    const now=Date.now();\n    if(now-last>=delay){last=now;fn(...a);}\n  }\n}"
+  },
+  {
+    "instruction": "请对文本进行主题分类。",
+    "input": "高铁缩到4.5小时。",
+    "output": "结果：交通\n理由：内容与交通直接相关"
+  },
+  {
+    "instruction": "用代码实现Python计时装饰器。。",
+    "input": "",
+    "output": "import time\nfrom functools import wraps\ndef timer(f):\n    @wraps(f)\n    def w(*a,**kw):\n        s=time.time();r=f(*a,**kw)\n        print(f\"{f.__name__}: {time.time()-s:.4f}s\")\n        return r\n    return w"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "全球供应链在疫情后加速重构，区域化趋势明显。",
+    "output": "疫情后全球供应链加速重构。"
+  },
+  {
+    "instruction": "坚持跑步运动有什么好处？",
+    "input": "",
+    "output": "缓解压力、改善情绪"
+  },
+  {
+    "instruction": "速度86km/h，时间2h，求距离。",
+    "input": "",
+    "output": "172 公里"
+  },
+  {
+    "instruction": "围绕「希望」写一首四行小诗。",
+    "input": "",
+    "output": "天还没亮，\n路灯还亮着。\n走到街角时，太阳就会升起来。"
+  },
+  {
+    "instruction": "亚历山大大帝在历史上有什么重要贡献？",
+    "input": "",
+    "output": "亚历山大大帝在思想文化领域做出了开创性贡献。"
+  },
+  {
+    "instruction": "购物清单分类：牛奶、洗衣液、面包、洗发水、鸡蛋、卫生纸。",
+    "input": "",
+    "output": "食品：牛奶、面包、鸡蛋\n日用品：洗衣液、洗发水、卫生纸"
+  },
+  {
+    "instruction": "946 + 971 = ?",
+    "input": "",
+    "output": "1917"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "Time flies like an arrow.",
+    "output": "光阴似箭。"
+  },
+  {
+    "instruction": "用代码完成：Python实现单例模式。",
+    "input": "",
+    "output": "class Singleton:\n    _instance=None\n    def __new__(cls):\n        if cls._instance is None:\n            cls._instance=super().__new__(cls)\n        return cls._instance"
+  },
+  {
+    "instruction": "解方程：3x + 18 = 39",
+    "input": "",
+    "output": "x = 7"
+  },
+  {
+    "instruction": "计算：6 + 4 = ?",
+    "input": "",
+    "output": "6 + 4 = 10"
+  },
+  {
+    "instruction": "解方程：8x + 4 = 84",
+    "input": "",
+    "output": "x = 10"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "人工智能是计算机科学重要分支，旨在创造能模拟人类智能的机器。涵盖机器人、语言识别等方向。深度学习的突破推动了AI在各领域的显著进展。",
+    "output": "人工智能研究模拟人类智能的机器，深度学习推动其快速发展。"
+  },
+  {
+    "instruction": "解方程：5x + 14 = 54",
+    "input": "",
+    "output": "x = 8"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "周末在家两部电影，普通一天。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "请简要介绍云计算技术。",
+    "input": "",
+    "output": "云计算是当前前沿技术，正深刻改变生产生活方式，有广阔应用前景。"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "远程办公因疫情爆发快速普及，打破地域限制，让企业全球招聘，员工享受灵活时间，但带来沟通效率下降等新挑战。",
+    "output": "远程办公快速普及但也带来新挑战。"
+  },
+  {
+    "instruction": "2月8日后第8天是几月几日？(平年)",
+    "input": "",
+    "output": "2月16日"
+  },
+  {
+    "instruction": "已知：小丽 比 小杰 高，小华 比 小杰 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小丽 > 小杰 > 小华。\n答：小丽、小杰、小华。"
+  },
+  {
+    "instruction": "编程题：写一个发布-订阅模式（Python）。",
+    "input": "",
+    "output": "class EventBus:\n    def __init__(self): self._handlers={}\n    def on(self,event,cb): self._handlers.setdefault(event,[]).append(cb)\n    def emit(self,event,*a):\n        for cb in self._handlers.get(event,[]): cb(*a)\n    def off(self,event,cb): self._handlers[event]=[c for c in self._handlers.get(event,[]) if c!=cb]"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "这家咖啡店的拿铁很香。",
+    "output": "The latte here is fragrant."
+  },
+  {
+    "instruction": "请提取地点、预期客流、营收、定位。",
+    "input": "上海迪士尼乐园2026年预计客流突破2000万人次，营收超100亿元，成为全球最热门主题公园之一。",
+    "output": "地点：上海迪士尼乐园\n预期客流：2000万人次\n营收：超100亿元\n定位：全球最热门主题公园之一"
+  },
+  {
+    "instruction": "41人的班级，28人会骑车，26人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 28+26-41 = 13。答：最少13人。"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "The early bird catches the worm.",
+    "output": "早起的鸟儿有虫吃。"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "中国传统节日各有独特习俗，是家人团聚和中华文化传承的重要载体。",
+    "output": "传统节日是文化传承的重要载体。"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "电动汽车产业蓬勃发展，中国是最大市场。电动车具有零排放、低成本、智能化等优势，配套正在完善。",
+    "output": "电动车产业蓬勃发展，中国为最大市场。"
+  },
+  {
+    "instruction": "已知：小芳 比 小华 高，小明 比 小华 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小芳 > 小华 > 小明。\n答：小芳、小华、小明。"
+  },
+  {
+    "instruction": "用代码完成：实现一个计数器闭包。",
+    "input": "",
+    "output": "function createCounter(start=0){\n  let count=start;\n  return {\n    inc(){return ++count},\n    dec(){return --count},\n    get(){return count},\n    reset(){count=start}\n  };\n}"
+  },
+  {
+    "instruction": "32人的班级，22人会骑车，14人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 22+14-32 = 4。答：最少4人。"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "这部电影太精彩了！",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "中国传统节日各有独特习俗，是家人团聚和中华文化传承的重要载体。",
+    "output": "传统节日是文化传承的重要载体。"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "华为鸿蒙系统发布，成为继安卓和iOS之后第三大移动操作系统。",
+    "output": "鸿蒙系统发布成为全球第三大移动OS。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "这道菜做法简单味道棒。",
+    "output": "This dish is simple to make but tastes great."
+  },
+  {
+    "instruction": "英译中。",
+    "input": "Knowledge is power.",
+    "output": "知识就是力量。"
+  },
+  {
+    "instruction": "阅读文本后请提取机构、年客流、年轻观众占比、文创营收。",
+    "input": "故宫2025年接待观众1900万人次，其中年轻观众占比超60%，文创产品营收突破15亿元。",
+    "output": "机构：故宫\n年客流：1900万人次\n年轻观众：超60%\n文创营收：突破15亿元"
+  },
+  {
+    "instruction": "31人的班级，22人会骑车，11人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 22+11-31 = 2。答：最少2人。"
+  },
+  {
+    "instruction": "解方程：4x + 7 = 43",
+    "input": "",
+    "output": "x = 9"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "全球气候变化由温室气体排放导致，过去百年气温上升约1度，影响包括海平面上升、极端天气增多。2015年《巴黎协定》设定控温目标。",
+    "output": "全球气候变化影响广泛，《巴黎协定》设定控温目标。"
+  },
+  {
+    "instruction": "请执行：写一条年终总结开头。",
+    "input": "",
+    "output": "时光飞逝，转眼间又是一年。回顾过去，有收获也有遗憾，在此做一个简单的总结。"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "这个产品质量不错值得推荐。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "芯片短缺影响了全球汽车和电子行业的生产。",
+    "output": "芯片短缺影响全球汽车电子行业。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "坚持锻炼半年，身体好多了。",
+    "output": "I feel much better after half a year of exercise."
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "旅行不仅看风景，更认识不同的人。",
+    "output": "Travel lets you see scenery and meet different people."
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "I think, therefore I am.",
+    "output": "我思故我在。"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "华为鸿蒙系统发布，成为继安卓和iOS之后第三大移动操作系统。",
+    "output": "鸿蒙系统发布成为全球第三大移动OS。"
+  },
+  {
+    "instruction": "请为「暖阳毛毯」写一句广告语。",
+    "input": "",
+    "output": "暖阳毛毯 —— 冬天的被窝不愿起来"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "人工智能是计算机科学重要分支，旨在创造能模拟人类智能的机器。涵盖机器人、语言识别等方向。深度学习的突破推动了AI在各领域的显著进展。",
+    "output": "人工智能研究模拟人类智能的机器，深度学习推动其快速发展。"
+  },
+  {
+    "instruction": "请写JS函数求数组的和与平均值。。",
+    "input": "",
+    "output": "function sumAvg(arr) {\n  const s = arr.reduce((a,b)=>a+b,0);\n  return { sum: s, avg: s/arr.length };\n}"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "堵车堵了两小时，迟到了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "请为「暖阳毛毯」写一句广告语。",
+    "input": "",
+    "output": "暖阳毛毯 —— 让寒冬只有温暖"
+  },
+  {
+    "instruction": "判断以下文本的主题类别。",
+    "input": "故宫推出新文创。",
+    "output": "结果：文化\n理由：内容与文化直接相关"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "In the middle of difficulty lies opportunity.",
+    "output": "困难之中蕴含着机遇。"
+  },
+  {
+    "instruction": "请执行：把这段JSON格式化：{\"name\":\"张三\",\"age\":25,\"city\":\"北京\"}",
+    "input": "",
+    "output": "{\n  \"name\": \"张三\",\n  \"age\": 25,\n  \"city\": \"北京\"\n}"
+  },
+  {
+    "instruction": "圆半径5，求面积和周长(π=3.14)",
+    "input": "",
+    "output": "面积=78.50，周长=31.40"
+  },
+  {
+    "instruction": "阅读文本后请提取数据指标、排名、覆盖范围。",
+    "input": "中国高铁运营里程2025年达4.5万公里，居世界第一，覆盖95%的百万人口以上城市。",
+    "output": "运营里程：4.5万公里\n排名：世界第一\n覆盖：95%百万人口以上城市"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "GPT系列引领大语言模型发展，ChatGPT爆红后全球科技巨头纷纷跟进。",
+    "output": "GPT引领大模型发展，巨头竞相布局。"
+  },
+  {
+    "instruction": "任务：将地址整理成JSON。",
+    "input": "收件人张三，电话13800138000，地址北京海淀中关村1号，邮编100080",
+    "output": "{\n  \"收件人\": \"张三\",\n  \"电话\": \"13800138000\",\n  \"地址\": \"北京海淀中关村1号\",\n  \"邮编\": \"100080\"\n}"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "新能源汽车补贴退坡，行业竞争加剧，车企加速转型。",
+    "output": "新能源补贴退坡行业竞争加剧。"
+  },
+  {
+    "instruction": "请对文本进行垃圾信息识别。",
+    "input": "周末一起吃饭？",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "请给闺蜜写一段真诚的祝福。",
+    "input": "",
+    "output": "好想你啊！\n等你回来一定要抱你三个小时。生日快乐！"
+  },
+  {
+    "instruction": "请对文本进行垃圾信息识别。",
+    "input": "贷款找他日息万三。",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "735 × 40% = ?",
+    "input": "",
+    "output": "294.0"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "阳光明媚适合散步。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "直播电商成为新型销售模式，疫情期间快速发展，但也存在虚假宣传等争议。",
+    "output": "直播电商发展快但存在争议。"
+  },
+  {
+    "instruction": "任务：写一条请假短信（事假，明天一天）。",
+    "input": "",
+    "output": "领导您好！因家中有事，明天请事假一天，工作已安排好。望批准。谢谢！"
+  },
+  {
+    "instruction": "已知：小杰 比 小明 高，小丽 比 小明 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小杰 > 小明 > 小丽。\n答：小杰、小明、小丽。"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "No pain, no gain.",
+    "output": "没有付出就没有收获。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "这个项目需要共同努力。",
+    "output": "This project requires joint effort."
+  },
+  {
+    "instruction": "计算：4 + 20 = ?",
+    "input": "",
+    "output": "4 + 20 = 24"
+  },
+  {
+    "instruction": "已知：小华 比 小明 高，小杰 比 小明 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小华 > 小明 > 小杰。\n答：小华、小明、小杰。"
+  },
+  {
+    "instruction": "计算：7 + 20 = ?",
+    "input": "",
+    "output": "7 + 20 = 27"
+  },
+  {
+    "instruction": "请用比喻描写「冬天的阳光」。",
+    "input": "",
+    "output": "冬天的阳光像一杯热牛奶，让人从里到外都暖和。"
+  },
+  {
+    "instruction": "为晨露保湿霜设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "晨露保湿霜 —— 皮肤喝饱水的秘密"
+  },
+  {
+    "instruction": "请提取作品、作者、奖项、时间地点。",
+    "input": "刘慈欣《球状闪电》获2025雨果奖最佳长篇，颁奖于8月20日美国西雅图。",
+    "output": "作品：《球状闪电》\n作者：刘慈欣\n奖项：2025雨果奖最佳长篇\n地点：西雅图\n时间：8月20日"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "餐厅服务很差，等了一小时。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "中国航天取得嫦娥登月、天问探火、天宫空间站等多项重大成就，已跻身航天强国。",
+    "output": "中国航天取得多项重大成就。"
+  },
+  {
+    "instruction": "请以这句话开头续写故事。",
+    "input": "我收到一封来自2077年的信……",
+    "output": "落款\"你的儿子\"，让我2026年完成实验。"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "共享单车2010年后在中国迅速兴起，为短途出行提供绿色方案，但快速扩张也带来管理混乱等问题，经过市场整合后行业逐步理性化。",
+    "output": "共享单车兴起后经历了快速扩张和整合，行业逐步理性化。"
+  },
+  {
+    "instruction": "计算：16 - 16 = ?",
+    "input": "",
+    "output": "16 - 16 = 0"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "朋友之间最珍贵的是真诚。",
+    "output": "Sincerity matters most between friends."
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "GPT系列引领大语言模型发展，ChatGPT爆红后全球科技巨头纷纷跟进。",
+    "output": "GPT引领大模型发展，巨头竞相布局。"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "短视频平台成为重要信息娱乐渠道，催生了短视频创作者新职业，广泛应用于营销、知识传播等领域，但也面临沉迷、内容同质化等问题。",
+    "output": "短视频平台成为重要渠道但也面临多种问题。"
+  },
+  {
+    "instruction": "解方程：2x + 20 = 56",
+    "input": "",
+    "output": "x = 18"
+  },
+  {
+    "instruction": "圆半径9，求面积和周长(π=3.14)",
+    "input": "",
+    "output": "面积=254.34，周长=56.52"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "双减政策实施后，教培行业发生巨大变化，学科类培训大幅缩减。",
+    "output": "双减政策改变教培行业格局。"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "Great minds think alike.",
+    "output": "英雄所见略同。"
+  },
+  {
+    "instruction": "用一个贴切的比喻形容「冬天的阳光」。",
+    "input": "",
+    "output": "冬天的阳光像一杯热牛奶，让人从里到外都暖和。"
+  },
+  {
+    "instruction": "判断以下文本的主题类别。",
+    "input": "红烧肉做法简单。",
+    "output": "结果：美食\n理由：内容与美食直接相关"
+  },
+  {
+    "instruction": "请从以下文本中请提取城市、指标数值、目标完成情况。",
+    "input": "北京2026年PM2.5年均浓度降至30微克/立方米，提前两年完成国家蓝天行动计划目标。",
+    "output": "城市：北京\nPM2.5：30μg/m³\n情况：提前两年完成国家目标"
+  },
+  {
+    "instruction": "将数组 [3,1,4,1,5,9,2,6] 排序去重。",
+    "input": "",
+    "output": "[1,2,3,4,5,6,9]"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "Seeing is believing.",
+    "output": "眼见为实。"
+  },
+  {
+    "instruction": "为晨露保湿霜设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "晨露保湿霜 —— 把清晨的露水带回家"
+  },
+  {
+    "instruction": "3月24日后第21天是几月几日？(平年)",
+    "input": "",
+    "output": "4月14日"
+  },
+  {
+    "instruction": "为星空咖啡设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "星空咖啡 —— 一杯星空，温暖整座城市"
+  },
+  {
+    "instruction": "用代码实现冒泡排序。。",
+    "input": "",
+    "output": "function bubbleSort(arr){\n  const a=[...arr];\n  for(let i=0;i<a.length-1;i++)for(let j=0;j<a.length-1-i;j++)if(a[j]>a[j+1])[a[j],a[j+1]]=[a[j+1],a[j]];\n  return a;\n}"
+  },
+  {
+    "instruction": "判断以下文本的垃圾/正常类别。",
+    "input": "免费领课程扫码。",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "车以66km/h行驶7小时走多远？",
+    "input": "",
+    "output": "462 公里"
+  },
+  {
+    "instruction": "任务：将以下日期转成中文格式：2026-10-21",
+    "input": "",
+    "output": "2026年10月21日（星期三）"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "阳光明媚适合散步。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "写代码：写一个带缓存的斐波那契。",
+    "input": "",
+    "output": "const fib=(function(){\n  const cache={0:0,1:1};\n  return function(n){\n    if(n in cache)return cache[n];\n    cache[n]=fib(n-1)+fib(n-2);\n    return cache[n];\n  };\n})();"
+  },
+  {
+    "instruction": "请用比喻描写「雨后」。",
+    "input": "",
+    "output": "雨后的空气像刚洗过的床单，干净、带着青草的味道。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "中国是人口最多的国家之一。",
+    "output": "China is one of the most populous countries."
+  },
+  {
+    "instruction": "坚持羽毛球运动有什么好处？",
+    "input": "",
+    "output": "培养团队协作和竞争精神"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "疫情改变了人们的生活方式，远程办公、线上学习、数字消费成为常态。",
+    "output": "疫情深刻改变了生活工作方式。"
+  },
+  {
+    "instruction": "475 × 15% = ?",
+    "input": "",
+    "output": "71.3"
+  },
+  {
+    "instruction": "221 × 312 = ?",
+    "input": "",
+    "output": "68952"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "新能源汽车补贴退坡，行业竞争加剧，车企加速转型。",
+    "output": "新能源补贴退坡行业竞争加剧。"
+  },
+  {
+    "instruction": "请实现：写一个带缓存的斐波那契。",
+    "input": "",
+    "output": "const fib=(function(){\n  const cache={0:0,1:1};\n  return function(n){\n    if(n in cache)return cache[n];\n    cache[n]=fib(n-1)+fib(n-2);\n    return cache[n];\n  };\n})();"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "春天是最好的季节。",
+    "output": "Spring is the best season."
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "新能源汽车补贴退坡，行业竞争加剧，车企加速转型。",
+    "output": "新能源补贴退坡行业竞争加剧。"
+  },
+  {
+    "instruction": "写代码：实现LRU缓存。",
+    "input": "",
+    "output": "class LRU {\n  constructor(c){this.c=c;this.m=new Map()}\n  get(k){if(!this.m.has(k))return -1;const v=this.m.get(k);this.m.delete(k);this.m.set(k,v);return v}\n  put(k,v){if(this.m.has(k))this.m.delete(k);this.m.set(k,v);if(this.m.size>this.c)this.m.delete(this.m.keys().next().value)}\n}"
+  },
+  {
+    "instruction": "判断以下文本的垃圾/正常类别。",
+    "input": "点击看前世今生！",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "华为鸿蒙系统发布，成为继安卓和iOS之后第三大移动操作系统。",
+    "output": "鸿蒙系统发布成为全球第三大移动OS。"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "阅读纸质书和电子书各有优劣，许多读者根据场景灵活使用两者。疫情期间电子书增长，近年纸质书回暖。",
+    "output": "纸质书和电子书各有优势，读者灵活使用。"
+  },
+  {
+    "instruction": "请执行：将地址整理成JSON。",
+    "input": "收件人张三，电话13800138000，地址北京海淀中关村1号，邮编100080",
+    "output": "{\n  \"收件人\": \"张三\",\n  \"电话\": \"13800138000\",\n  \"地址\": \"北京海淀中关村1号\",\n  \"邮编\": \"100080\"\n}"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "华为鸿蒙系统发布，成为继安卓和iOS之后第三大移动操作系统。",
+    "output": "鸿蒙系统发布成为全球第三大移动OS。"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "阅读纸质书和电子书各有优劣，许多读者根据场景灵活使用两者。疫情期间电子书增长，近年纸质书回暖。",
+    "output": "纸质书和电子书各有优势，读者灵活使用。"
+  },
+  {
+    "instruction": "11月15日后第9天是几月几日？(平年)",
+    "input": "",
+    "output": "11月24日"
+  },
+  {
+    "instruction": "判断以下文本的主题类别。",
+    "input": "新学期开学。",
+    "output": "结果：教育\n理由：内容与教育直接相关"
+  },
+  {
+    "instruction": "解方程：8x + 26 = 66",
+    "input": "",
+    "output": "x = 5"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "疫情改变了人们的生活方式，远程办公、线上学习、数字消费成为常态。",
+    "output": "疫情深刻改变了生活工作方式。"
+  },
+  {
+    "instruction": "任务：写一条年终总结开头。",
+    "input": "",
+    "output": "时光飞逝，转眼间又是一年。回顾过去，有收获也有遗憾，在此做一个简单的总结。"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "堵车堵了两小时，迟到了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "人工智能是计算机科学重要分支，旨在创造能模拟人类智能的机器。涵盖机器人、语言识别等方向。深度学习的突破推动了AI在各领域的显著进展。",
+    "output": "人工智能研究模拟人类智能的机器，深度学习推动其快速发展。"
+  },
+  {
+    "instruction": "计算：2 × 2 = ?",
+    "input": "",
+    "output": "2 × 2 = 4"
+  },
+  {
+    "instruction": "请为「清风电风扇」写一句广告语。",
+    "input": "",
+    "output": "清风电风扇 —— 夏天的第一缕清凉"
+  },
+  {
+    "instruction": "10月12日后第10天是几月几日？(平年)",
+    "input": "",
+    "output": "10月22日"
+  },
+  {
+    "instruction": "圆半径3，求面积和周长(π=3.14)",
+    "input": "",
+    "output": "面积=28.26，周长=18.84"
+  },
+  {
+    "instruction": "计算：12 + 15 = ?",
+    "input": "",
+    "output": "12 + 15 = 27"
+  },
+  {
+    "instruction": "计算：16 × 3 = ?",
+    "input": "",
+    "output": "16 × 3 = 48"
+  },
+  {
+    "instruction": "掷骰子3次，至少一次6的概率？",
+    "input": "",
+    "output": "1-(5/6)^3 ≈ 0.42 (42.0%)"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "芯片短缺影响了全球汽车和电子行业的生产。",
+    "output": "芯片短缺影响全球汽车电子行业。"
+  },
+  {
+    "instruction": "请以这句话开头续写故事。",
+    "input": "凌晨三点，我被一阵奇怪的声音惊醒……",
+    "output": "拉开窗帘，一只发光的蝴蝶在月光下盘旋。"
+  },
+  {
+    "instruction": "计算：10 × 11 = ?",
+    "input": "",
+    "output": "10 × 11 = 110"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "直播电商成为新型销售模式，疫情期间快速发展，但也存在虚假宣传等争议。",
+    "output": "直播电商发展快但存在争议。"
+  },
+  {
+    "instruction": "计算：2 × 5 = ?",
+    "input": "",
+    "output": "2 × 5 = 10"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "每天给自己独处时间很重要。",
+    "output": "It's important to have alone time every day."
+  },
+  {
+    "instruction": "530 × 25% = ?",
+    "input": "",
+    "output": "132.5"
+  },
+  {
+    "instruction": "解方程：6x + 18 = 90",
+    "input": "",
+    "output": "x = 12"
+  },
+  {
+    "instruction": "已知：小芳 比 小丽 高，小明 比 小丽 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小芳 > 小丽 > 小明。\n答：小芳、小丽、小明。"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "双减政策实施后，教培行业发生巨大变化，学科类培训大幅缩减。",
+    "output": "双减政策改变教培行业格局。"
+  },
+  {
+    "instruction": "用代码实现判断质数。。",
+    "input": "",
+    "output": "function isPrime(n){\n  if(n<=1)return false;\n  for(let i=2;i*i<=n;i++)if(n%i===0)return false;\n  return true;\n}"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "远程办公因疫情爆发快速普及，打破地域限制，让企业全球招聘，员工享受灵活时间，但带来沟通效率下降等新挑战。",
+    "output": "远程办公快速普及但也带来新挑战。"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "咖啡起源于埃塞俄比亚，是全球流行饮品。星巴克等品牌广泛流行，精品咖啡文化兴起。",
+    "output": "咖啡是全球流行饮品，精品文化兴起。"
+  },
+  {
+    "instruction": "帮我：写一条生日朋友圈文案。",
+    "input": "",
+    "output": "又长大一岁！感谢家人朋友的陪伴，新的一年继续加油！🎂✨"
+  },
+  {
+    "instruction": "任务：写请假邮件：请假一天、身体不适、下周一、已交接。",
+    "input": "",
+    "output": "主题：请假申请\n\n尊敬的领导：\n\n因身体不适申请下周一请假一天，工作已交接。\n恳请批准。\n\nXXX"
+  },
+  {
+    "instruction": "请列出三种常见的设计模式并举例。",
+    "input": "",
+    "output": "1. 单例模式：数据库连接池\n2. 观察者模式：事件总线\n3. 策略模式：支付方式选择"
+  },
+  {
+    "instruction": "请为「时光旅行箱」写一句广告语。",
+    "input": "",
+    "output": "时光旅行箱 —— 十年后依然好看"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "远程办公因疫情爆发快速普及，打破地域限制，让企业全球招聘，员工享受灵活时间，但带来沟通效率下降等新挑战。",
+    "output": "远程办公快速普及但也带来新挑战。"
+  },
+  {
+    "instruction": "904 - 296 = ?",
+    "input": "",
+    "output": "608"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "芯片短缺影响了全球汽车和电子行业的生产。",
+    "output": "芯片短缺影响全球汽车电子行业。"
+  },
+  {
+    "instruction": "729 × 205 = ?",
+    "input": "",
+    "output": "149445"
+  },
+  {
+    "instruction": "495 - 132 = ?",
+    "input": "",
+    "output": "363"
+  },
+  {
+    "instruction": "944 × 10% = ?",
+    "input": "",
+    "output": "94.4"
+  },
+  {
+    "instruction": "编程题：实现一个计数器闭包。",
+    "input": "",
+    "output": "function createCounter(start=0){\n  let count=start;\n  return {\n    inc(){return ++count},\n    dec(){return --count},\n    get(){return count},\n    reset(){count=start}\n  };\n}"
+  },
+  {
+    "instruction": "用代码完成：写一个批量请求队列限制并发。",
+    "input": "",
+    "output": "async function queueRequests(tasks,limit){\n  const results=[];let idx=0;\n  async function worker(){\n    while(idx<tasks.length){\n      const cur=idx++;\n      results[cur]=await tasks[cur]();\n    }\n  }\n  await Promise.all(Array(limit).fill(worker()).map(w=>w()));\n  return results;\n}"
+  },
+  {
+    "instruction": "计算：18 + 3 = ?",
+    "input": "",
+    "output": "18 + 3 = 21"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "科技让生活越来越便利。",
+    "output": "Technology makes life increasingly convenient."
+  },
+  {
+    "instruction": "解方程：3x + 16 = 28",
+    "input": "",
+    "output": "x = 4"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "人工智能是计算机科学重要分支，旨在创造能模拟人类智能的机器。涵盖机器人、语言识别等方向。深度学习的突破推动了AI在各领域的显著进展。",
+    "output": "人工智能研究模拟人类智能的机器，深度学习推动其快速发展。"
+  },
+  {
+    "instruction": "请从以下文本中请提取赛事、队伍、对手、比赛时间地点。",
+    "input": "2026年亚洲杯中国队小组出线，1/4决赛对阵日本队，比赛将于6月20日在沙特利雅得进行。",
+    "output": "赛事：2026亚洲杯\n中国队：小组出线\n对手：日本队\n时间：6月20日\n地点：沙特利雅得"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "电动汽车产业蓬勃发展，中国是最大市场。电动车具有零排放、低成本、智能化等优势，配套正在完善。",
+    "output": "电动车产业蓬勃发展，中国为最大市场。"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "全球供应链在疫情后加速重构，区域化趋势明显。",
+    "output": "疫情后全球供应链加速重构。"
+  },
+  {
+    "instruction": "请写Python函数判断回文。。",
+    "input": "",
+    "output": "def is_palindrome(s):\n    c = ''.join(x.lower() for x in s if x.isalnum())\n    return c == c[::-1]"
+  },
+  {
+    "instruction": "写代码：Python合并两个有序数组。",
+    "input": "",
+    "output": "def merge(nums1,m,nums2,n):\n    i,j,k=m-1,n-1,m+n-1\n    while i>=0 and j>=0:\n        if nums1[i]>nums2[j]: nums1[k]=nums1[i]; i-=1\n        else: nums1[k]=nums2[j]; j-=1\n        k-=1\n    while j>=0: nums1[k]=nums2[j]; j-=1; k-=1"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "会议内容比较常规。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "已知：小强 比 小杰 高，小芳 比 小杰 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小强 > 小杰 > 小芳。\n答：小强、小杰、小芳。"
+  },
+  {
+    "instruction": "阅读文本后请提取城市、指标数值、目标完成情况。",
+    "input": "北京2026年PM2.5年均浓度降至30微克/立方米，提前两年完成国家蓝天行动计划目标。",
+    "output": "城市：北京\nPM2.5：30μg/m³\n情况：提前两年完成国家目标"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "全球气候变化由温室气体排放导致，过去百年气温上升约1度，影响包括海平面上升、极端天气增多。2015年《巴黎协定》设定控温目标。",
+    "output": "全球气候变化影响广泛，《巴黎协定》设定控温目标。"
+  },
+  {
+    "instruction": "车以66km/h行驶6小时走多远？",
+    "input": "",
+    "output": "396 公里"
+  },
+  {
+    "instruction": "任务：制作朝九晚五日程。",
+    "input": "",
+    "output": "07:00 起床\n08:00 通勤\n09:00 深度工作\n12:00 午餐\n13:30 继续工作\n17:00 收尾\n17:30 下班"
+  },
+  {
+    "instruction": "为听雨书店设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "听雨书店 —— 一本书一壶茶一场雨"
+  },
+  {
+    "instruction": "阅读文本后请提取公司、营收、主力业务占比、GPU市占率。",
+    "input": "英伟达2025年全年营收2000亿美元，其中数据中心业务贡献60%，GPU市占率超80%。",
+    "output": "公司：英伟达\n全年营收：2000亿美元\n主力业务：数据中心（占60%）\nGPU市占率：超80%"
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "The early bird catches the worm.",
+    "output": "早起的鸟儿有虫吃。"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "工作压力大的时候，记得照顾好自己。",
+    "output": "When work stress gets too much, remember to take care of yourself."
+  },
+  {
+    "instruction": "2月27日后第23天是几月几日？(平年)",
+    "input": "",
+    "output": "3月22日"
+  },
+  {
+    "instruction": "判断以下文本的垃圾/正常类别。",
+    "input": "妈妈说晚上回家吃饭。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "周末打算和朋友去露营。",
+    "output": "I plan to go camping with friends this weekend."
+  },
+  {
+    "instruction": "英译中。",
+    "input": "Great minds think alike.",
+    "output": "英雄所见略同。"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "无论什么困难都别放弃。",
+    "output": "Never give up whatever difficulties you face."
+  },
+  {
+    "instruction": "请执行：制作一个简单的购物清单表格。",
+    "input": "",
+    "output": "| 商品 | 数量 | 单价 | 小计 |\n| --- | --- | --- | --- |\n| 牛奶 | 2 | 12 | 24 |\n| 面包 | 3 | 8 | 24 |\n| 鸡蛋 | 1 | 20 | 20 |\n| **合计** | | | **68** |"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "科技改变了人们的生活方式。",
+    "output": "Technology has changed people's way of life."
+  },
+  {
+    "instruction": "将下列英文转为中文。",
+    "input": "Better late than never.",
+    "output": "迟到总比不到好。"
+  },
+  {
+    "instruction": "请EventEmitter。。",
+    "input": "",
+    "output": "class EventEmitter{\n  constructor(){this.e={}}\n  on(n,cb){(this.e[n]||=[]).push(cb)}\n  emit(n,...a){(this.e[n]||[]).forEach(cb=>cb(...a))}\n  off(n,cb){this.e[n]=(this.e[n]||[]).filter(c=>c!==cb)}\n}"
+  },
+  {
+    "instruction": "阅读文本后请提取队伍、赛事、对手、结果。",
+    "input": "中国女排在2026年奥运会资格赛中以3:2战胜巴西队，成功锁定参赛名额。",
+    "output": "队伍：中国女排\n赛事：2026奥运资格赛\n对手：巴西队\n结果：3:2获胜，锁定名额"
+  },
+  {
+    "instruction": "913 × 15 = ?",
+    "input": "",
+    "output": "13695"
+  },
+  {
+    "instruction": "请二分查找。。",
+    "input": "",
+    "output": "function binSearch(arr,target){\n  let l=0,r=arr.length-1;\n  while(l<=r){const m=(l+r)>>1;if(arr[m]===target)return m;if(arr[m]<target)l=m+1;else r=m-1}\n  return -1;\n}"
+  },
+  {
+    "instruction": "垃圾信息识别：以下文本属于哪一类？",
+    "input": "周末一起吃饭？",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "今天天气真好，心情也好。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "共享单车2010年后在中国迅速兴起，为短途出行提供绿色方案，但快速扩张也带来管理混乱等问题，经过市场整合后行业逐步理性化。",
+    "output": "共享单车兴起后经历了快速扩张和整合，行业逐步理性化。"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "这本书写得一般。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "围绕「海边」写一首四行小诗。",
+    "input": "",
+    "output": "浪花拍了又拍，\n沙滩上的脚印被冲走。"
+  },
+  {
+    "instruction": "速度119km/h，时间5h，求距离。",
+    "input": "",
+    "output": "595 公里"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "远程办公因疫情爆发快速普及，打破地域限制，让企业全球招聘，员工享受灵活时间，但带来沟通效率下降等新挑战。",
+    "output": "远程办公快速普及但也带来新挑战。"
+  },
+  {
+    "instruction": "用代码实现简化Promise.all。。",
+    "input": "",
+    "output": "function myAll(ps){\n  return new Promise((res,rej)=>{\n    const r=[],done=ps.length;\n    let c=0;\n    ps.forEach((p,i)=>Promise.resolve(p).then(v=>{r[i]=v;if(++c===done)res(r)},rej));\n    if(!done)res(r);\n  });\n}"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "元宇宙由多种技术构建虚拟世界，2021年前后热度飙升。目前仅在游戏、教育等领域有应用。",
+    "output": "元宇宙热度高但目前应用有限。"
+  },
+  {
+    "instruction": "写代码：debounce防抖。",
+    "input": "",
+    "output": "function debounce(fn,delay){\n  let t=null;\n  return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),delay)}\n}"
+  },
+  {
+    "instruction": "为暖阳毛毯设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "暖阳毛毯 —— 把冬天裹成拥抱"
+  },
+  {
+    "instruction": "判断以下文本的垃圾/正常类别。",
+    "input": "快递到驿站取件码7788。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "阅读纸质书和电子书各有优劣，许多读者根据场景灵活使用两者。疫情期间电子书增长，近年纸质书回暖。",
+    "output": "纸质书和电子书各有优势，读者灵活使用。"
+  },
+  {
+    "instruction": "主题分类：以下文本属于哪一类？",
+    "input": "新手机摄像头1亿像素。",
+    "output": "结果：科技\n理由：内容与科技直接相关"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "碳中和是全球应对气候变化核心目标，中国提出2030碳达峰、2060碳中和。",
+    "output": "碳中和是核心目标，中国有明确时间表。"
+  },
+  {
+    "instruction": "10月3日后第23天是几月几日？(平年)",
+    "input": "",
+    "output": "10月26日"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "全球供应链在疫情后加速重构，区域化趋势明显。",
+    "output": "疫情后全球供应链加速重构。"
+  },
+  {
+    "instruction": "将下列中文转为英文。",
+    "input": "春天是最好的季节。",
+    "output": "Spring is the best season."
+  },
+  {
+    "instruction": "944 × 40% = ?",
+    "input": "",
+    "output": "377.6"
+  },
+  {
+    "instruction": "计算：6 × 20 = ?",
+    "input": "",
+    "output": "6 × 20 = 120"
+  },
+  {
+    "instruction": "写代码：实现一个计数器闭包。",
+    "input": "",
+    "output": "function createCounter(start=0){\n  let count=start;\n  return {\n    inc(){return ++count},\n    dec(){return --count},\n    get(){return count},\n    reset(){count=start}\n  };\n}"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "阅读纸质书和电子书各有优劣，许多读者根据场景灵活使用两者。疫情期间电子书增长，近年纸质书回暖。",
+    "output": "纸质书和电子书各有优势，读者灵活使用。"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "周末在家两部电影，普通一天。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "为清风电风扇设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "清风电风扇 —— 像自然一样温柔"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "周末在家两部电影，普通一天。",
+    "output": "结果：中性\n理由：态度客观中立"
+  },
+  {
+    "instruction": "请以这句话开头续写故事。",
+    "input": "古董店里，古铜镜在我手中突然滚烫……",
+    "output": "镜面浮现：\"我等了你三百年。\""
+  },
+  {
+    "instruction": "请执行：写一条会议邀请邮件（项目周会）。",
+    "input": "",
+    "output": "主题：项目周会邀请\n\n各位好：\n\n请于本周四下午2点参加项目周会，地点在3楼会议室。议程包括进度汇报和问题讨论。\n\n请准时参加。\n\n项目组"
+  },
+  {
+    "instruction": "编程题：冒泡排序。",
+    "input": "",
+    "output": "function bubbleSort(arr){\n  const a=[...arr];\n  for(let i=0;i<a.length-1;i++)for(let j=0;j<a.length-1-i;j++)if(a[j]>a[j+1])[a[j],a[j+1]]=[a[j+1],a[j]];\n  return a;\n}"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "中国航天取得嫦娥登月、天问探火、天宫空间站等多项重大成就，已跻身航天强国。",
+    "output": "中国航天取得多项重大成就。"
+  },
+  {
+    "instruction": "主题分类：以下文本属于哪一类？",
+    "input": "周末去爬山。",
+    "output": "结果：旅游\n理由：内容与旅游直接相关"
+  },
+  {
+    "instruction": "533 × 343 = ?",
+    "input": "",
+    "output": "182819"
+  },
+  {
+    "instruction": "帮我：请列出三种常见的设计模式并举例。",
+    "input": "",
+    "output": "1. 单例模式：数据库连接池\n2. 观察者模式：事件总线\n3. 策略模式：支付方式选择"
+  },
+  {
+    "instruction": "30人的班级，18人会骑车，15人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 18+15-30 = 3。答：最少3人。"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "好电影能让人思考很多。",
+    "output": "A good movie makes people think."
+  },
+  {
+    "instruction": "请执行：写请假邮件：请假一天、身体不适、下周一、已交接。",
+    "input": "",
+    "output": "主题：请假申请\n\n尊敬的领导：\n\n因身体不适申请下周一请假一天，工作已交接。\n恳请批准。\n\nXXX"
+  },
+  {
+    "instruction": "为晨露保湿霜设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "晨露保湿霜 —— 让每一天都水润如初"
+  },
+  {
+    "instruction": "892 + 898 = ?",
+    "input": "",
+    "output": "1790"
+  },
+  {
+    "instruction": "计算：11 × 6 = ?",
+    "input": "",
+    "output": "11 × 6 = 66"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "咖啡起源于埃塞俄比亚，是全球流行饮品。星巴克等品牌广泛流行，精品咖啡文化兴起。",
+    "output": "咖啡是全球流行饮品，精品文化兴起。"
+  },
+  {
+    "instruction": "请从以下文本中请提取公司、季度、营收、增速、市占率。",
+    "input": "宁德时代2025年Q3财报显示，营收1000亿元，同比增长40%，动力电池市占率达35%全球第一。",
+    "output": "公司：宁德时代\n季度：2025年Q3\n营收：1000亿元\n增速：40%\n市占率：35%（全球第一）"
+  },
+  {
+    "instruction": "主题分类：以下文本属于哪一类？",
+    "input": "发布会公布减税政策。",
+    "output": "结果：政治\n理由：内容与政治直接相关"
+  },
+  {
+    "instruction": "任务：制作一个简单的购物清单表格。",
+    "input": "",
+    "output": "| 商品 | 数量 | 单价 | 小计 |\n| --- | --- | --- | --- |\n| 牛奶 | 2 | 12 | 24 |\n| 面包 | 3 | 8 | 24 |\n| 鸡蛋 | 1 | 20 | 20 |\n| **合计** | | | **68** |"
+  },
+  {
+    "instruction": "请续写一个引人入胜的短故事。",
+    "input": "古董店里，古铜镜在我手中突然滚烫……",
+    "output": "镜面浮现：\"我等了你三百年。\""
+  },
+  {
+    "instruction": "解方程：6x + 13 = 67",
+    "input": "",
+    "output": "x = 9"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "元宇宙由多种技术构建虚拟世界，2021年前后热度飙升。目前仅在游戏、教育等领域有应用。",
+    "output": "元宇宙热度高但目前应用有限。"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "Time flies like an arrow.",
+    "output": "光阴似箭。"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "直播电商成为新型销售模式，疫情期间快速发展，但也存在虚假宣传等争议。",
+    "output": "直播电商发展快但存在争议。"
+  },
+  {
+    "instruction": "用代码完成：写一个发布-订阅模式（Python）。",
+    "input": "",
+    "output": "class EventBus:\n    def __init__(self): self._handlers={}\n    def on(self,event,cb): self._handlers.setdefault(event,[]).append(cb)\n    def emit(self,event,*a):\n        for cb in self._handlers.get(event,[]): cb(*a)\n    def off(self,event,cb): self._handlers[event]=[c for c in self._handlers.get(event,[]) if c!=cb]"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "碳中和是全球应对气候变化核心目标，中国提出2030碳达峰、2060碳中和。",
+    "output": "碳中和是核心目标，中国有明确时间表。"
+  },
+  {
+    "instruction": "计算：17 + 8 = ?",
+    "input": "",
+    "output": "17 + 8 = 25"
+  },
+  {
+    "instruction": "197 × 40% = ?",
+    "input": "",
+    "output": "78.8"
+  },
+  {
+    "instruction": "计算：10 - 7 = ?",
+    "input": "",
+    "output": "10 - 7 = 3"
+  },
+  {
+    "instruction": "编程题：判断质数。",
+    "input": "",
+    "output": "function isPrime(n){\n  if(n<=1)return false;\n  for(let i=2;i*i<=n;i++)if(n%i===0)return false;\n  return true;\n}"
+  },
+  {
+    "instruction": "请设计一个简单的TODO应用功能列表。",
+    "input": "",
+    "output": "1. 添加任务\n2. 标记完成\n3. 删除任务\n4. 按优先级分类\n5. 搜索过滤\n6. 数据持久化"
+  },
+  {
+    "instruction": "请对文本进行垃圾信息识别。",
+    "input": "快递到驿站取件码7788。",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "Knowledge is power.",
+    "output": "知识就是力量。"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "Every dog has its day.",
+    "output": "人人都有得意之日。"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "中国航天取得嫦娥登月、天问探火、天宫空间站等多项重大成就，已跻身航天强国。",
+    "output": "中国航天取得多项重大成就。"
+  },
+  {
+    "instruction": "请执行：请把\"Good morning, how are you?\"翻译成中文。",
+    "input": "",
+    "output": "早上好，你好吗？"
+  },
+  {
+    "instruction": "写代码：冒泡排序。",
+    "input": "",
+    "output": "function bubbleSort(arr){\n  const a=[...arr];\n  for(let i=0;i<a.length-1;i++)for(let j=0;j<a.length-1-i;j++)if(a[j]>a[j+1])[a[j],a[j+1]]=[a[j+1],a[j]];\n  return a;\n}"
+  },
+  {
+    "instruction": "请为「微光台灯」写一句广告语。",
+    "input": "",
+    "output": "微光台灯 —— 深夜阅读有我陪伴"
+  },
+  {
+    "instruction": "围绕「离别」写一首四行小诗。",
+    "input": "",
+    "output": "站台上的钟在走，\n你的背影越来越小。\n列车鸣笛那一刻，\n我才知道眼泪是热的。"
+  },
+  {
+    "instruction": "翻译成中文。",
+    "input": "A picture is worth a thousand words.",
+    "output": "一张图片胜过千言万语。"
+  },
+  {
+    "instruction": "7月6日后第21天是几月几日？(平年)",
+    "input": "",
+    "output": "7月27日"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "这家咖啡店的拿铁很香。",
+    "output": "The latte here is fragrant."
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "双减政策实施后，教培行业发生巨大变化，学科类培训大幅缩减。",
+    "output": "双减政策改变教培行业格局。"
+  },
+  {
+    "instruction": "请续写一个引人入胜的短故事。",
+    "input": "凌晨三点，我被一阵奇怪的声音惊醒……",
+    "output": "拉开窗帘，一只发光的蝴蝶在月光下盘旋。"
+  },
+  {
+    "instruction": "编程题：简化Promise.all。",
+    "input": "",
+    "output": "function myAll(ps){\n  return new Promise((res,rej)=>{\n    const r=[],done=ps.length;\n    let c=0;\n    ps.forEach((p,i)=>Promise.resolve(p).then(v=>{r[i]=v;if(++c===done)res(r)},rej));\n    if(!done)res(r);\n  });\n}"
+  },
+  {
+    "instruction": "请提取公司、季度、营收、增速、市占率。",
+    "input": "宁德时代2025年Q3财报显示，营收1000亿元，同比增长40%，动力电池市占率达35%全球第一。",
+    "output": "公司：宁德时代\n季度：2025年Q3\n营收：1000亿元\n增速：40%\n市占率：35%（全球第一）"
+  },
+  {
+    "instruction": "请对以下文本进行摘要，保留核心观点。",
+    "input": "GPT系列引领大语言模型发展，ChatGPT爆红后全球科技巨头纷纷跟进。",
+    "output": "GPT引领大模型发展，巨头竞相布局。"
+  },
+  {
+    "instruction": "计算：3 × 13 = ?",
+    "input": "",
+    "output": "3 × 13 = 39"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "中国传统节日各有独特习俗，是家人团聚和中华文化传承的重要载体。",
+    "output": "传统节日是文化传承的重要载体。"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "咖啡起源于埃塞俄比亚，是全球流行饮品。星巴克等品牌广泛流行，精品咖啡文化兴起。",
+    "output": "咖啡是全球流行饮品，精品文化兴起。"
+  },
+  {
+    "instruction": "计算：12 - 3 = ?",
+    "input": "",
+    "output": "12 - 3 = 9"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "直播电商成为新型销售模式，疫情期间快速发展，但也存在虚假宣传等争议。",
+    "output": "直播电商发展快但存在争议。"
+  },
+  {
+    "instruction": "已知：小强 比 小红 高，小芳 比 小红 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小强 > 小红 > 小芳。\n答：小强、小红、小芳。"
+  },
+  {
+    "instruction": "请执行：请列出三种常见的设计模式并举例。",
+    "input": "",
+    "output": "1. 单例模式：数据库连接池\n2. 观察者模式：事件总线\n3. 策略模式：支付方式选择"
+  },
+  {
+    "instruction": "提高睡眠质量的五个建议。",
+    "input": "",
+    "output": "1. 固定作息\n2. 睡前1小时不看屏\n3. 卧室黑暗凉爽\n4. 白天运动\n5. 睡前放松"
+  },
+  {
+    "instruction": "翻译成英文。",
+    "input": "时间是最宝贵的财富。",
+    "output": "Time is the most precious treasure."
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "方案被否决了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "已知：小刚 比 小强 高，小红 比 小强 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小刚 > 小强 > 小红。\n答：小刚、小强、小红。"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "碳中和是全球应对气候变化核心目标，中国提出2030碳达峰、2060碳中和。",
+    "output": "碳中和是核心目标，中国有明确时间表。"
+  },
+  {
+    "instruction": "请debounce防抖。。",
+    "input": "",
+    "output": "function debounce(fn,delay){\n  let t=null;\n  return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),delay)}\n}"
+  },
+  {
+    "instruction": "请提取总票房、冠军、亚军。",
+    "input": "2026春节档总票房破100亿，《流浪地球3》48亿夺冠，《满江红2》25亿亚军。",
+    "output": "总票房：破100亿\n冠军：《流浪地球3》（48亿）\n亚军：《满江红2》（25亿）"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "全球气候变化由温室气体排放导致，过去百年气温上升约1度，影响包括海平面上升、极端天气增多。2015年《巴黎协定》设定控温目标。",
+    "output": "全球气候变化影响广泛，《巴黎协定》设定控温目标。"
+  },
+  {
+    "instruction": "存92704元，年息5%，4年单利利息？",
+    "input": "",
+    "output": "18540.80 元"
+  },
+  {
+    "instruction": "为微光台灯设计一句吸引人的广告文案。",
+    "input": "",
+    "output": "微光台灯 —— 护眼也护你入眠"
+  },
+  {
+    "instruction": "请提取奖项、领域、获奖人数、贡献。",
+    "input": "2026年诺贝尔化学奖授予两位科学家，表彰他们在蛋白质结构预测方面的突破。",
+    "output": "奖项：2026诺贝尔化学奖\n领域：蛋白质结构预测\n获奖人数：两位\n贡献：突破性研究"
+  },
+  {
+    "instruction": "已知：小芳 比 小刚 高，小华 比 小刚 矮。请从高到低排列。",
+    "input": "",
+    "output": "由条件得 小芳 > 小刚 > 小华。\n答：小芳、小刚、小华。"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "人工智能是计算机科学重要分支，旨在创造能模拟人类智能的机器。涵盖机器人、语言识别等方向。深度学习的突破推动了AI在各领域的显著进展。",
+    "output": "人工智能研究模拟人类智能的机器，深度学习推动其快速发展。"
+  },
+  {
+    "instruction": "垃圾信息识别：以下文本属于哪一类？",
+    "input": "点击领iPhone15！",
+    "output": "结果：垃圾信息\n理由：包含营销或诱导内容"
+  },
+  {
+    "instruction": "请实现：写一个简单的Promise。",
+    "input": "",
+    "output": "class MyPromise{\n  constructor(exec){\n    this.state='pending';this.val=null;this.cbs=[];\n    const resolve=v=>{if(this.state!=='pending')return;this.state='fulfilled';this.val=v;this.cbs.forEach(c=>c(v))};\n    const reject=e=>{if(this.state!=='pending')return;this.state='rejected';this.val=e};\n    exec(resolve,reject);\n  }\n  then(cb){if(this.state==='fulfilled')cb(this.val);else this.cbs.push(cb);}\n}"
+  },
+  {
+    "instruction": "圆半径13，求面积和周长(π=3.14)",
+    "input": "",
+    "output": "面积=530.66，周长=81.64"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "答辩很顺利。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "英译中。",
+    "input": "Practice makes perfect.",
+    "output": "熟能生巧。"
+  },
+  {
+    "instruction": "607 + 623 = ?",
+    "input": "",
+    "output": "1230"
+  },
+  {
+    "instruction": "请续写这段情节，制造一个有趣的转折。",
+    "input": "通讯录里，标注\"自己\"的号码发来消息……",
+    "output": "\"别去明天的会议。\"回拨过去，声音和我一模一样。"
+  },
+  {
+    "instruction": "请用简短的话概括以下内容。",
+    "input": "全球供应链在疫情后加速重构，区域化趋势明显。",
+    "output": "疫情后全球供应链加速重构。"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "考试结束了！",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "编程题：写一个批量请求队列限制并发。",
+    "input": "",
+    "output": "async function queueRequests(tasks,limit){\n  const results=[];let idx=0;\n  async function worker(){\n    while(idx<tasks.length){\n      const cur=idx++;\n      results[cur]=await tasks[cur]();\n    }\n  }\n  await Promise.all(Array(limit).fill(worker()).map(w=>w()));\n  return results;\n}"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "考试结束了！",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "这部电影太精彩了！",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "判断以下文本的主题类别。",
+    "input": "NBA比赛精彩，詹姆斯40分。",
+    "output": "结果：体育\n理由：内容与体育直接相关"
+  },
+  {
+    "instruction": "请提炼以下文本的核心信息。",
+    "input": "华为鸿蒙系统发布，成为继安卓和iOS之后第三大移动操作系统。",
+    "output": "鸿蒙系统发布成为全球第三大移动OS。"
+  },
+  {
+    "instruction": "请概括以下段落的核心含义。",
+    "input": "疫情改变了人们的生活方式，远程办公、线上学习、数字消费成为常态。",
+    "output": "疫情深刻改变了生活工作方式。"
+  },
+  {
+    "instruction": "写代码：EventEmitter。",
+    "input": "",
+    "output": "class EventEmitter{\n  constructor(){this.e={}}\n  on(n,cb){(this.e[n]||=[]).push(cb)}\n  emit(n,...a){(this.e[n]||[]).forEach(cb=>cb(...a))}\n  off(n,cb){this.e[n]=(this.e[n]||[]).filter(c=>c!==cb)}\n}"
+  },
+  {
+    "instruction": "请写出下面这段文字的要点摘要。",
+    "input": "咖啡起源于埃塞俄比亚，是全球流行饮品。星巴克等品牌广泛流行，精品咖啡文化兴起。",
+    "output": "咖啡是全球流行饮品，精品文化兴起。"
+  },
+  {
+    "instruction": "判断以下文本的垃圾/正常类别。",
+    "input": "周末一起吃饭？",
+    "output": "结果：正常信息\n理由：属于正常日常沟通"
+  },
+  {
+    "instruction": "请提取机构、年客流、年轻观众占比、文创营收。",
+    "input": "故宫2025年接待观众1900万人次，其中年轻观众占比超60%，文创产品营收突破15亿元。",
+    "output": "机构：故宫\n年客流：1900万人次\n年轻观众：超60%\n文创营收：突破15亿元"
+  },
+  {
+    "instruction": "中译英。",
+    "input": "我喜欢一个人看书的感觉。",
+    "output": "I enjoy reading alone."
+  },
+  {
+    "instruction": "553 - 308 = ?",
+    "input": "",
+    "output": "245"
+  },
+  {
+    "instruction": "任务：把这段JSON格式化：{\"name\":\"张三\",\"age\":25,\"city\":\"北京\"}",
+    "input": "",
+    "output": "{\n  \"name\": \"张三\",\n  \"age\": 25,\n  \"city\": \"北京\"\n}"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "中国传统节日各有独特习俗，是家人团聚和中华文化传承的重要载体。",
+    "output": "传统节日是文化传承的重要载体。"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "元宇宙由多种技术构建虚拟世界，2021年前后热度飙升。目前仅在游戏、教育等领域有应用。",
+    "output": "元宇宙热度高但目前应用有限。"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "疫情改变了人们的生活方式，远程办公、线上学习、数字消费成为常态。",
+    "output": "疫情深刻改变了生活工作方式。"
+  },
+  {
+    "instruction": "请实现LRU缓存。。",
+    "input": "",
+    "output": "class LRU {\n  constructor(c){this.c=c;this.m=new Map()}\n  get(k){if(!this.m.has(k))return -1;const v=this.m.get(k);this.m.delete(k);this.m.set(k,v);return v}\n  put(k,v){if(this.m.has(k))this.m.delete(k);this.m.set(k,v);if(this.m.size>this.c)this.m.delete(this.m.keys().next().value)}\n}"
+  },
+  {
+    "instruction": "320 - 75 = ?",
+    "input": "",
+    "output": "245"
+  },
+  {
+    "instruction": "请提取主体、时间、成就。",
+    "input": "SpaceX 2026年1月20日星舰第八次试飞，首次一二级同时回收。",
+    "output": "主体：SpaceX\n时间：2026年1月20日\n成就：首次一二级同时回收"
+  },
+  {
+    "instruction": "请实现：写一个节流 throttle 函数。",
+    "input": "",
+    "output": "function throttle(fn,delay){\n  let last=0;\n  return function(...a){\n    const now=Date.now();\n    if(now-last>=delay){last=now;fn(...a);}\n  }\n}"
+  },
+  {
+    "instruction": "306 + 107 = ?",
+    "input": "",
+    "output": "413"
+  },
+  {
+    "instruction": "存64064元，年息6%，5年单利利息？",
+    "input": "",
+    "output": "19219.20 元"
+  },
+  {
+    "instruction": "请对以下内容做一段话的总结。",
+    "input": "直播电商成为新型销售模式，疫情期间快速发展，但也存在虚假宣传等争议。",
+    "output": "直播电商发展快但存在争议。"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "外卖送错地址了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "任务：写一条会议邀请邮件（项目周会）。",
+    "input": "",
+    "output": "主题：项目周会邀请\n\n各位好：\n\n请于本周四下午2点参加项目周会，地点在3楼会议室。议程包括进度汇报和问题讨论。\n\n请准时参加。\n\n项目组"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "手机很卡，很失望。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "用代码完成：JS实现深拷贝。",
+    "input": "",
+    "output": "function deepClone(obj){\n  if(obj===null||typeof obj!=='object')return obj;\n  if(obj instanceof Date)return new Date(obj);\n  if(obj instanceof Array)return obj.map(deepClone);\n  const r={};\n  for(const k of Object.keys(obj))r[k]=deepClone(obj[k]);\n  return r;\n}"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "今天天气真好，心情也好。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "写代码：JS实现深拷贝。",
+    "input": "",
+    "output": "function deepClone(obj){\n  if(obj===null||typeof obj!=='object')return obj;\n  if(obj instanceof Date)return new Date(obj);\n  if(obj instanceof Array)return obj.map(deepClone);\n  const r={};\n  for(const k of Object.keys(obj))r[k]=deepClone(obj[k]);\n  return r;\n}"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "碳中和是全球应对气候变化核心目标，中国提出2030碳达峰、2060碳中和。",
+    "output": "碳中和是核心目标，中国有明确时间表。"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "考试结束了！",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "367 × 103 = ?",
+    "input": "",
+    "output": "37801"
+  },
+  {
+    "instruction": "存42797元，年息6%，1年单利利息？",
+    "input": "",
+    "output": "2567.82 元"
+  },
+  {
+    "instruction": "请执行：25°C转华氏度(F=C×9/5+32)。",
+    "input": "25°C",
+    "output": "F = 25×9/5+32 = 77°F"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "外卖送错地址了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "判断以下文本的主题类别。",
+    "input": "高铁缩到4.5小时。",
+    "output": "结果：交通\n理由：内容与交通直接相关"
+  },
+  {
+    "instruction": "判断以下文本的情感类别。",
+    "input": "新同事很友善。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "请对文本进行情感分析。",
+    "input": "堵车堵了两小时，迟到了。",
+    "output": "结果：负面\n理由：表达了消极情绪"
+  },
+  {
+    "instruction": "请简要总结以下段落的主要内容。",
+    "input": "双减政策实施后，教培行业发生巨大变化，学科类培训大幅缩减。",
+    "output": "双减政策改变教培行业格局。"
+  },
+  {
+    "instruction": "任务：请计算1到100的和。",
+    "input": "",
+    "output": "1+2+...+100 = (1+100)*100/2 = 5050"
+  },
+  {
+    "instruction": "写代码：Python栈实现。",
+    "input": "",
+    "output": "class Stack:\n    def __init__(self): self._s=[]\n    def push(self,x): self._s.append(x)\n    def pop(self): return self._s.pop()\n    def peek(self): return self._s[-1]\n    def empty(self): return not self._s"
+  },
+  {
+    "instruction": "请提取公司、营收、增速、主要收入来源。",
+    "input": "字节跳动2025年营收达800亿美元，同比增长30%，主要收入来自抖音和TikTok广告。",
+    "output": "公司：字节跳动\n营收：800亿美元\n增速：30%\n主要来源：抖音和TikTok广告"
+  },
+  {
+    "instruction": "将段落缩写为50字内。",
+    "input": "AI是计算机科学分支，研究让机器模拟人类智能，涵盖多个子方向，正改变各行各业。",
+    "output": "AI研究机器模拟人类智能，正深刻改变各行各业。"
+  },
+  {
+    "instruction": "制作朝九晚五日程。",
+    "input": "",
+    "output": "07:00 起床\n08:00 通勤\n09:00 深度工作\n12:00 午餐\n13:30 继续工作\n17:00 收尾\n17:30 下班"
+  },
+  {
+    "instruction": "3分钟自我介绍：教育、经历、能力、意向。",
+    "input": "",
+    "output": "您好，我叫XXX。\n毕业于XX大学计算机专业。\n做过前端和AI开发。\n快速学习落地产品。\n希望加入有挑战的团队。"
+  },
+  {
+    "instruction": "100km/h转m/s和mph。",
+    "input": "",
+    "output": "27.78 m/s，62.14 mph"
+  },
+  {
+    "instruction": "请实现：JS实现深拷贝。",
+    "input": "",
+    "output": "function deepClone(obj){\n  if(obj===null||typeof obj!=='object')return obj;\n  if(obj instanceof Date)return new Date(obj);\n  if(obj instanceof Array)return obj.map(deepClone);\n  const r={};\n  for(const k of Object.keys(obj))r[k]=deepClone(obj[k]);\n  return r;\n}"
+  },
+  {
+    "instruction": "情感分析：以下文本属于哪一类？",
+    "input": "新同事很友善。",
+    "output": "结果：正面\n理由：表达了积极情感"
+  },
+  {
+    "instruction": "40人的班级，30人会骑车，13人会游泳，同时会最少几人？",
+    "input": "",
+    "output": "|A∩B| ≥ 30+13-40 = 3。答：最少3人。"
+  },
+  {
+    "instruction": "任务：Excel函数：SUM(10,20,30)结果是多少？",
+    "input": "",
+    "output": "SUM(10,20,30) = 60"
+  },
+  {
+    "instruction": "请执行：购物清单分类：牛奶、洗衣液、面包、洗发水、鸡蛋、卫生纸。",
+    "input": "",
+    "output": "食品：牛奶、面包、鸡蛋\n日用品：洗衣液、洗发水、卫生纸"
+  }
+]

@@ -22,9 +22,9 @@ from weakref import WeakValueDictionary
 from loguru import logger
 
 from agent.tools import ToolRegistry
+from erp.protocol import ErpClient
 from governance.approval import ApprovalService
 from infrastructure.exceptions import ApprovalError, TraceStoreError
-from kingdee.client import KingdeeClient
 from kingdee.saga import SagaStep, ToolExecutor
 from kingdee.write_coordinator import (
     SnapshotProvider,
@@ -48,7 +48,7 @@ class ApprovalExecution(Protocol):
 class RegistryToolExecutor:
     """把工具名解析到 ToolRegistry 并执行（未来写工具的统一入口）。"""
 
-    def __init__(self, tools: ToolRegistry, client: KingdeeClient) -> None:
+    def __init__(self, tools: ToolRegistry, client: ErpClient) -> None:
         self._tools = tools
         self._client = client
 

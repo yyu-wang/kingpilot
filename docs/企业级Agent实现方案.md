@@ -1,9 +1,10 @@
 # KingPilot 企业级金蝶 ERP Agent 实现方案
 
-> 版本：v1.8
-> 日期：2026-10-14
+> 版本：v1.9
+> 日期：2026-10-21
 > 状态：设计定稿，待评审
 > 变更记录：
+> - v1.9：引入 ERP 适配层（`erp/` 契约 + `kingdee/` 参考适配器）；查询条件改为结构化 `FilterExpression`，修正 §3/§4.2/§5.1 中「LLM 直接产出 FilterString」的旧表述
 > - v1.8：LLM 选型改为"主流大模型矩阵接入"（不锁定厂商，与支柱十二注册中心设计对齐）+ 接入硬性标准
 > - v1.7：修正技术选型——Agent 编排明确为自研轻量（主循环图结构），备选 LangGraph；补充选型说明
 > - v1.6：支柱十二模型路由改为"注册中心+可配置路由"（模型可登记/切换/灰度/故障互备）
@@ -17,7 +18,8 @@
 
 - [一、项目背景与渐进路径](#一项目背景与渐进路径)
 - [二、Agent 核心架构与主循环](#二agent-核心架构与主循环)
-- [三、自然语言到金蝶 API 的映射设计](#三自然语言到金蝶-api-的映射设计)
+  - [2.4 ERP 适配层（厂商中立契约）](#24-erp-适配层厂商中立契约)
+- [三、自然语言到 ERP 查询的映射设计](#三自然语言到-erp-查询的映射设计)
 - [四、Tool Schema 设计规范](#四tool-schema-设计规范)
 - [五、十七大支柱体系](#五十七大支柱体系)
   - [5.1 执行安全支柱（一~五）](#51-执行安全支柱一五)
@@ -271,11 +273,61 @@ async def run(self, user_input: str, user_context: UserContext) -> AgentResponse
     )
 ```
 
+### 2.4 ERP 适配层（厂商中立契约）
+
+**核心问题**：Agent 的工具层、Guard 层、权限层不应知道「金蝶」二字。否则每接一个厂商（用友 / SAP），都要改一遍安全边界。
+
+**分层**：
+
+```
+LLM 输出结构化参数
+   │
+   ▼
+ToolDefinition.execute()            agent/tools.py
+   │  build_filter(params) → FilterExpression（中性条件元组）
+   ▼
+erp.BillQuerySpec                   erp/types.py
+   │  form_id + field_keys + filter + order_by + start_row + limit
+   ▼
+ErpClient.query(spec)               erp/protocol.py（Protocol）
+   │
+   ├── KingdeeClient.query()         kingdee/client.py（参考适配器）
+   │      └─ 渲染 FilterString → ExecuteBillQuery
+   └── YonyouClient.query()          erp/yonyou/（骨架，演示扩展方式）
+          └─ 翻译为用友查询语法
+```
+
+**四类契约**：
+
+| 类型 | 位置 | 作用 |
+|------|------|------|
+| `FilterExpression` / `FilterCondition` | `erp/types.py` | 中性过滤条件（AND 语义的元组），**不含任何查询方言** |
+| `BillQuerySpec` | `erp/types.py` | 中性查询请求（表单 + 字段 + 条件 + 排序 + 分页） |
+| `EndpointDescriptor` | `erp/descriptors.py` | 端点元数据：可选字段集与**可过滤字段集**（两套白名单，可查 ≠ 可过滤） |
+| `ErpClient` | `erp/protocol.py` | 客户端契约：`query()` / `invoke_action()` / `aclose()` |
+
+**新增一个厂商只需三步**：
+
+1. 实现 `ErpClient` 三方法（查询、写动作、资源释放），内部自行翻译 `BillQuerySpec` 与 `invoke_action` 参数；
+2. 按该厂商的表单与字段声明 `EndpointDescriptor`（字段名、类型、是否可过滤）；
+3. 在工厂按 `settings.erp_vendor` 注册分支。
+
+工具层、六道 Guard、权限引擎**零改动**——它们只依赖 `erp/` 契约。
+
+**边界约束**：
+- `erp/` 不得 import `kingdee/`（避免循环依赖，契约层必须保持中立）；
+- 工具层与 Guard 层不得 import 任何厂商包；
+- 厂商方言（如金蝶 FilterString）只在适配器内部出现，且渲染器自带危险模式自检（防渲染器自身 bug）。
+
+**为什么结果模型没有中立化**：`BillQueryResult` / `ActionResult` 的形状（`form_id` / `field_keys` / `rows`，`success` / `bill_no` / `message`）已足够通用，且工具层、安全层、审计层均已基于它们构建。另起中性模型会波及 25+ 文件，收益不抵成本；若未来某厂商需要扩展字段（如 SAP 的 `__metadata`），再中性化不迟。
+
+> **落地状态**：`erp/` 契约（types / protocol / conditions / descriptors / bindings / tool_names / factory）与金蝶参考适配器（含 `filter_string.py` 渲染器）已完成，工具执行链路与 Guard 2 已切换到结构化表达式；工具名统一 `erp_` 前缀，客户端由工厂按 `settings.erp_vendor` 构造。`erp/yonyou/` 为可运行的用友骨架——实现协议并由工厂注册，但未接入真实环境时 `query` / `invoke_action` fail-closed 报错。
+
 ---
 
-## 三、自然语言到金蝶 API 的映射设计
+## 三、自然语言到 ERP 查询的映射设计
 
-### 3.1 金蝶 API 参数结构
+### 3.1 厂商查询协议参数（以金蝶 ExecuteBillQuery 为例）
 
 ```python
 {
@@ -287,6 +339,11 @@ async def run(self, user_input: str, user_context: UserContext) -> AgentResponse
     "SortString": "FDate DESC"
 }
 ```
+
+> **重要：这是适配器内部形态，LLM 与 Guard 都看不到它。**
+> 工具层产出中性 `BillQuerySpec`（`filter` 是结构化的 `FilterExpression`），
+> `KingdeeClient.query()` 在适配器边界内把它渲染成上面的 `FilterString`。
+> 其他厂商各自翻译为自家查询语法，不一定存在 "FilterString" 这个概念。
 
 ### 3.2 三层解析法
 
@@ -306,30 +363,32 @@ Step 1: 意图+实体抽取    Step 2: formId 路由
 }                              │
          ┌─────────────────────┘
          ▼
-Step 3: 组装API参数
+Step 3: 组装中性查询请求（BillQuerySpec）
 {
-    "formId": "SAL_Order",
-    "FieldKeys": "FCustomerName,FDate,FAmount,FRegion",
-    "FilterString": "FAmount > 100000 AND FRegion = '华东' AND ...",
-    "PageSize": 100
+    "form_id": "SAL_Order",
+    "field_keys": ("FCustomerID.FName", "FDate", "FBillAllAmount"),
+    "filter": FilterExpression(conditions=(
+        ge("FBillAllAmount", 100000),
+    )),
+    "limit": 100
 }
+→ 各厂商适配器再翻译为自家协议（金蝶渲染成 FilterString）
 ```
 
 ### 3.3 系统 Prompt 核心规则
 
 ```python
 SYSTEM_PROMPT = """
-你是金蝶ERP的智能助手。根据用户的自然语言输入，输出需要调用的工具和参数。
+你是企业 ERP 系统的智能助手。根据用户的自然语言输入，输出需要调用的工具和参数。
 
-## 金蝶API参数规则（务必遵守）
-1. formId 必须从工具的 formId 字段中选择，不能自己编
-2. FilterString 使用 SQL WHERE 语法，字段名参考工具描述中的字段列表
-3. 时间转换规则：
-   - "今天" → FDate >= CURDATE()
-   - "昨天" → FDate = DATE_SUB(CURDATE(), INTERVAL 1 DAY)
-   - "上个月" → MONTH(FDate) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
-   - "本月" → MONTH(FDate) = MONTH(CURDATE())
-4. 金额单位：金蝶存储单位是"元"，用户说的"10万" → 100000
+## 工具参数规则（务必遵守）
+1. tool_name 必须从提供的工具清单中选择，不能自己编
+2. 参数只能填工具 Schema 中声明的结构化字段（单号、编码、日期、金额区间、条数上限）
+3. 禁止输出任何查询方言字符串（SQL WHERE、FilterString、表达式）；
+   过滤条件由服务端按端点字段白名单组装，模型只负责选值
+4. 日期只填 "YYYY-MM-DD"；范围查询使用工具提供的上下限字段，不要自己造运算符
+5. 金额单位是"元"：用户说的"10万" → 100000
+6. 未知参数会被服务端拒绝（Schema 为 extra=forbid）；不确定时省略该参数，不要猜
 
 ## 决策流程
 1. 闲聊 → 直接回复，不调工具
@@ -364,34 +423,57 @@ SYSTEM_PROMPT = """
 | 描述要具体 | LLM 选 Tool 全靠 description | "查询数据" | "查询销售订单，包括日期、编号、客户、金额、状态" |
 | 不让 LLM 猜 | 需要转换的逻辑写进描述 | "时间范围" | "时间用 FDate 字段，格式 YYYY-MM-DD" |
 
-### 4.2 核心查询 Tool 示例（5 个起步）
+### 4.2 核心查询 Tool 示例（真实形态）
 
-```python
+工具 Schema 由参数模型的 `model_json_schema()` 自动生成——**给模型看的文档与服务端校验器同源**，不存在手工维护的 Schema 副本。
+
+以销售订单查询工具（`kingdee/endpoints/sal_order.py::SALES_ORDER_TOOL`）为例：
+
+```json
 {
-    "name": "query_sales_orders",
-    "description": "查询销售订单数据。当用户提到订单、销售、出库、发货时使用此工具。",
-    "formId": "SAL_Order",
-    "tool_type": "query",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "FieldKeys": {
-                "type": "string",
-                "description": "逗号分隔的字段名。可选：FDate(日期), FBillNo(订单编号), FCustomerId(客户), FRegion(区域), FAmount(金额,元), FStatus(状态: A=已审核,B=已提交,C=保存)"
-            },
-            "FilterString": {
-                "type": "string",
-                "description": "SQL WHERE 风格过滤条件。字段名：FRegion取值如'华东'/'华南'/'华北'"
-            },
-            "PageSize": {"type": "integer", "default": 50},
-            "PageIndex": {"type": "integer", "default": 1}
-        },
-        "required": ["FieldKeys", "FilterString"]
+  "type": "object",
+  "properties": {
+    "customer_number": {
+      "type": "string", "default": "",
+      "description": "客户编码精确匹配（如 CUS001）；按名称查请先用客户查询工具换编码"
+    },
+    "document_status": {
+      "type": "string", "default": "",
+      "description": "单据状态：Z 暂存 / A 创建 / B 审核中 / C 已审核 / D 重新审核"
+    },
+    "min_amount": {
+      "anyOf": [{"type": "number"}, {"type": "null"}],
+      "description": "金额下限（表头合计）"
+    },
+    "bill_no": {"type": "string", "default": "", "description": "单据编号精确匹配（如 SO000008）"},
+    "order_date": {
+      "type": "string", "default": "",
+      "description": "单据日期精确匹配，格式 YYYY-MM-DD；范围查询暂不支持"
+    },
+    "include_entries": {
+      "type": "boolean", "default": false,
+      "description": "是否返回物料明细行。问「用了哪些物料/明细/数量/单价」时置 true"
+    },
+    "limit": {
+      "type": "integer", "default": 100, "minimum": 1, "maximum": 100,
+      "description": "返回条数上限（1-100）"
     }
+  },
+  "additionalProperties": false
 }
 ```
 
-其余 4 个核心 Tool：`query_customers`（BAS_Customer）、`query_stock`（STK_Inventory）、`query_purchase_orders`（PUR_Order）、`query_finance_vouchers`（GL_Voucher），结构同上。
+**三条刻意缺席的字段**，正是安全边界的体现：
+
+| 缺席 | 原因 |
+|------|------|
+| `FieldKeys` | 返回列由端点 `default_field_keys` 固定，`include_entries` 只能控制是否追加明细列——LLM 不能自选任意字段，避免越权取数 |
+| `FilterString` | 过滤条件就是上面这些结构化参数，由 `build_filter` 转成 `FilterExpression`；LLM 无法构造查询语法 |
+| `formId` | 表单由工具绑定固定，LLM 不能跨表查询 |
+
+`additionalProperties: false`（继承自 `KingPilotBaseModel` 的 `extra=forbid`）使未知参数在 `model_validate` 时直接拒绝——模型"自由发挥"会在第一道 Guard 前就失败。
+
+当前工具集：**21 个 ERP 工具**（6 查询 + 15 写/动作）+ **1 个知识检索工具**。工具名由 `QueryToolBinding` / `WriteToolBinding` 在端点层声明，注册表统一导出。
 
 ---
 
@@ -486,53 +568,68 @@ class RiskDecision:
 LLM 输出 Tool Call JSON
     │
     ▼ Guard 1: JSON Schema 校验 —— Tool名白名单 / 必填参数 / 参数类型
-    ▼ Guard 2: FilterString AST 解析 —— 字段白名单 / 防全表 / 禁危险模式
+    ▼ Guard 2: FilterExpression 校验 —— 字段白名单 / 值类型匹配 / LIKE 限制
     ▼ Guard 3: 实体存在性预检 —— 写操作引用的实体先查，查不到=幻觉拒绝
-    ▼ Guard 4: 查询行数硬限制 —— PageSize ≤ 10000，无条件查询拒绝
+    ▼ Guard 4: 查询条数硬限制 —— limit ≤ 10000，无条件查询拒绝
     ▼ Guard 5: 写操作参数完整性 —— 业务必填项 / 引用字段必须有内码Id
     │
     ▼ 全部通过 → 放行执行
 ```
 
-**FilterString AST 校验实现**：
+**注入防护的三层收敛**（纵深防御，各层职责不重叠）：
 
 ```python
-import sqlparse, re
+# ── 第一层：构造期 invariant（erp/conditions.py）──
+# 单引号是所有类 SQL 查询方言的公共注入面，早拒绝 = 错误离输入更近
+def _check_value(value: str | float) -> None:
+    if isinstance(value, str) and "'" in value:
+        raise ValueError(f"过滤值不能包含单引号: {value!r}")
 
-AST_FORBIDDEN_PATTERNS = [
-    r"\bDROP\b", r"\bUPDATE\b",
-    r";.*--",                    # SQL注入
-    r"\/\*.*\*\/",               # 块注释
-    r"\bBENCHMARK\b", r"\bSLEEP\b",  # 时间盲注
-    r"\bOR\s+1\s*=\s*1\b",       # 恒真条件
-    r"\bUNION\b",
-]
+# ── 第二层：Guard 2 校验结构化条件（safety/guard_sql.py）──
+# 校验对象是 FilterExpression，不是字符串——没有语法可解析
+for condition in filter_expr.conditions:
+    if condition.field not in tool.endpoint.filterable_fields:
+        return GuardResult.block(f"字段 {condition.field} 不在可过滤白名单内")
+    if error := _check_value_type(condition, field_types[condition.field]):
+        return GuardResult.block(f"过滤值类型不匹配: {condition.field}（{error}）")
 
-FIELD_WHITELIST = {
-    "SAL_Order": {"FDate", "FBillNo", "FCustomerId", "FRegion", "FAmount", "FStatus", "FEmployeeId", "FOrganizeId"},
-    "PUR_Order": {"FDate", "FBillNo", "FSupplierId", "FAmount", "FStatus", "FOrganizeId"},
-}
+def _check_value_type(condition: FilterCondition, data_type: FieldType) -> str | None:
+    """值类型必须与端点字段类型一致；返回拒绝原因，None = 通过。"""
+    if condition.op is FilterOp.LIKE:
+        if data_type == "number":
+            return "LIKE 不能用于数值字段"
+        return None if isinstance(condition.value, str) else "LIKE 条件的值必须是字符串"
+    if data_type == "number":
+        if not isinstance(condition.value, (int, float)) or isinstance(condition.value, bool):
+            return f"数值字段的过滤值必须是数值: {condition.value!r}"
+        return None
+    if not isinstance(condition.value, str):
+        return f"文本类字段的过滤值必须是字符串: {condition.value!r}"
+    if data_type == "date" and not _DATE_VALUE_RE.match(condition.value):
+        return f"日期字段的过滤值须为 YYYY-MM-DD: {condition.value!r}"
+    return None
 
-def validate_filter_string(filter_string: str, form_id: str) -> GuardResult:
-    if not filter_string or filter_string.strip() == "":
-        return GuardResult.BLOCKED("FilterString 不能为空，禁止全表操作")
-
-    for pattern in AST_FORBIDDEN_PATTERNS:
-        if re.search(pattern, filter_string, re.IGNORECASE):
-            return GuardResult.BLOCKED(f"检测到危险模式: {pattern}")
-
-    parsed = sqlparse.parse(f"SELECT * FROM t WHERE {filter_string}")[0]
-    whitelist = FIELD_WHITELIST.get(form_id, set())
-    for token in parsed.flatten():
-        field_name = token.value.strip()
-        if field_name.upper() not in whitelist and field_name.startswith('F'):
-            return GuardResult.BLOCKED(f"字段 '{field_name}' 不在 {form_id} 白名单内")
-
-    if re.search(r"1\s*=\s*1", filter_string):
-        return GuardResult.BLOCKED("检测到恒真条件，可能导致全表返回")
-
-    return GuardResult.PASSED()
+# ── 第三层：适配器渲染器自检（kingdee/filter_string.py）──
+# FilterExpression → FilterString 时对渲染产物再做一次危险模式检查。
+# 它防的是渲染器自身的 bug，不是 LLM——LLM 侧已经不存在可产出的字符串。
 ```
+
+**为什么从「解析字符串」改为「不产生字符串」**：
+
+旧方案让 LLM 或端点层先拼出 `FilterString`，再在 Guard 里做受限文法解析 + 引号掩码 + 危险词黑名单。问题是：**解析器和渲染器必须永远保持同步**，任何文法扩展都是新的注入面；而且「危险词黑名单」本质上是在跟攻击者的措辞赛跑。
+
+新方案让字符串**在 LLM 和 Guard 的可见范围内根本不存在**：
+
+| 层 | 能表达什么 | 注入面 |
+|----|-----------|--------|
+| `FilterCondition` | 只有 `field` + `op`（7 个枚举）+ `value`（str/float） | 无语法表达能力 |
+| `FilterExpression` | 条件元组，语义固定为 AND | 无 |
+| `BillQuerySpec` | 表单 + 字段 + 条件 + 排序 + 分页 | 无 |
+| `FilterString` | 只在金蝶适配器内部生成 | 仅渲染器 bug（由自检兜底） |
+
+这也解释了新增厂商为何不需要改安全层：新厂商只需把同一份 `FilterExpression` 翻译成自家语法，危险模式的表达力在类型层就已经消失。
+
+**空条件的职责划分**：Guard 2 对空 `FilterExpression` 放行（只负责「有条件的查询是否安全」），无条件查询的拒绝归 Guard 4——同一条规则不在两处实现。
 
 **实体存在性预检（防幻觉核心）**：
 
@@ -705,7 +802,7 @@ ROLE_DOMAIN_MATRIX = {
 ```
 拦截点1：Tool 注入层（源头）
    → assemble_tools() 按用户角色过滤，无权限域的 Tool 根本不进 LLM 工具列表
-   → 运营问"查凭证"时，LLM 连 query_finance_vouchers 这个工具都不知道
+   → 运营问"查凭证"时，LLM 连财务域的查询工具都不在工具列表里
    → 效果：源头杜绝 + 省 Token + 用户诱导 LLM 也无工具可调
 
 拦截点2：执行前校验（兜底）
@@ -713,9 +810,9 @@ ROLE_DOMAIN_MATRIX = {
    → 服务端执行器按 FORM_DOMAIN_MAP 再验一次 formId 所在域
    → 无权限 → 拒绝 + 记 SecurityEvent(越权尝试)
 
-拦截点3：FilterString 强制注入行级条件
-   → 有域权限 ≠ 全域可见：销售员查询自动拼接 "AND FSaleEmpId = 当前用户ID"
-   → 统一在 Guard 2 之后、执行之前注入，LLM 无法去掉
+拦截点3：FilterExpression 强制合并行级条件
+   → 有域权限 ≠ 全域可见：销售员查询自动追加 eq("FSaleEmpId", 当前用户ID)
+   → 由权限引擎构造 FilterExpression，在 Guard 之后、执行之前按 AND 合并，LLM 无法去掉
    → （此机制承载支柱十一第1层的"按用户身份行级裁剪"）
 
 拦截点4：身份只信登录态（防 prompt injection）
@@ -1514,9 +1611,9 @@ WriteRecord 账本：记"前后状态 + 完整证据链"（数据级）  ← 互
 
 ```
 用户: "帮我查一下上个月华东区销售额超过10万的客户"
-  ├─ Step 1: LLM 规划 → query_sales_orders + FilterString 组装
-  ├─ Step 2: 护栏 AST 校验字段白名单通过
-  ├─ Step 3: 金蝶 API 返回 12 条记录
+  ├─ Step 1: LLM 规划 → 销售订单查询工具 + 结构化参数（金额下限、日期）
+  ├─ Step 2: 护栏校验 FilterExpression（字段白名单 + 值类型）通过
+  ├─ Step 3: 适配器渲染为厂商查询语法，返回 12 条记录
   └─ Step 4: LLM 生成排序摘要回复 + 幻觉数字校验通过
 ```
 
@@ -1524,7 +1621,7 @@ WriteRecord 账本：记"前后状态 + 完整证据链"（数据级）  ← 互
 
 ```
 用户: "帮我创建一张销售订单，客户是深圳XX公司，商品A 100个，单价50元"
-  ├─ Step 1: LLM 规划 → create_sales_order (write类型)
+  ├─ Step 1: LLM 规划 → 创建销售订单工具 (write类型)
   ├─ Step 2: Guard 3 实体预检（客户/商品先查内码，防幻觉）
   ├─ Step 3: 风险评分 → confirm 级 → 展示摘要请确认
   │     "客户：深圳XX公司 / 商品A ×100 / 合计：¥5,000 请确认（Y/N）"
@@ -1595,8 +1692,8 @@ Tool 返回3条订单，LLM 回复说"查到5张"
 ```
 对照场景：角色=SALESPERSON 用户: "查一下这个月我的订单"
   │
-  ├─ 拦截点1: query_sales_orders 可见 ✅
-  ├─ 拦截点3: FilterString 强制注入 "AND FSaleEmpId = {当前用户ID}"
+  ├─ 拦截点1: 销售订单查询工具可见 ✅
+  ├─ 拦截点3: 权限引擎追加 eq("FSaleEmpId", "{当前用户ID}") 到 FilterExpression
   │           → 只能看到自己负责的订单，看不到同事的
   └─ 正常返回结果（用户无感知，过滤是透明的）
 ```
@@ -1613,9 +1710,19 @@ KingPilot/
 │   ├── permission_rules.py          # 支柱五
 │   └── alert_rules.py               # 支柱七/十/十二
 │
-├── kingdee/                         # 金蝶 API 适配层
+├── erp/                             # 厂商中立契约（适配层）
+│   ├── types.py                     # BillQuerySpec / FilterExpression / FilterOp
+│   ├── protocol.py                  # ErpClient Protocol（query/invoke_action/aclose）
+│   ├── conditions.py                # 条件构造助手（构造期单引号 invariant）
+│   ├── descriptors.py               # 端点描述符（可查 ≠ 可过滤两套白名单）
+│   ├── bindings.py                  # 查询/写工具绑定
+│   ├── tool_names.py                # 工具名常量（单一真相源）
+│   └── yonyou/                      # 第二厂商骨架（演示新增厂商三步）
+│
+├── kingdee/                         # 金蝶参考适配器（实现 ErpClient）
 │   ├── auth.py                      # Token 生命周期
-│   ├── client.py                    # HTTP客户端（限流/重试/熔断）
+│   ├── client.py                    # query / invoke_action（限流/重试/熔断）
+│   ├── filter_string.py             # FilterExpression → FilterString 渲染 + 自检
 │   ├── idempotency.py               # 支柱四：幂等
 │   ├── saga.py                      # 支柱三：Saga编排+补偿映射
 │   └── endpoints/
@@ -1631,7 +1738,7 @@ KingPilot/
 │
 ├── safety/                          # 安全护栏
 │   ├── guard_schema.py              # Guard 1
-│   ├── guard_sql.py                 # Guard 2: AST
+│   ├── guard_sql.py                 # Guard 2: FilterExpression 白名单+类型
 │   ├── guard_entity.py              # Guard 3: 实体预检
 │   ├── guard_limit.py               # Guard 4: 行数限制
 │   ├── guard_params.py              # Guard 5: 参数完整性

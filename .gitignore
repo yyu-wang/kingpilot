@@ -46,3 +46,6 @@ logs/
 .idea/
 .vscode/
 .DS_Store
+
+# ── Trae 临时分享包（工具生成，不入库）──
+.trae-html-share-packages/

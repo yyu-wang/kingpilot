@@ -16,8 +16,8 @@ from typing import Any
 
 from agent.llm import LLMProvider
 from agent.tools import ToolRegistry
+from erp.protocol import ErpClient
 from infrastructure.exceptions import KingPilotError
-from kingdee.client import KingdeeClient
 from models.agent import AgentResponse, AgentTrace
 from models.llm import ExecutionSummary, LLMContext, LLMMessage, MemorySnapshot
 from models.tool import ToolExecution
@@ -36,7 +36,7 @@ def _default_user_context() -> UserContext:
 class QueryPipeline:
     """M2 查询管道：一次 run = plan → 工具执行 → 结果回填 → 自然语言答复。"""
 
-    def __init__(self, provider: LLMProvider, tools: ToolRegistry, client: KingdeeClient) -> None:
+    def __init__(self, provider: LLMProvider, tools: ToolRegistry, client: ErpClient) -> None:
         self._provider = provider
         self._tools = tools
         self._client = client

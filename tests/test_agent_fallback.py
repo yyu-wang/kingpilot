@@ -13,11 +13,12 @@ from agent.core import AgentCore, render_fallback_response
 from agent.rule_engine import FallbackPlan, RuleEngine
 from agent.tools import ToolDefinition, ToolRegistry, build_default_registry
 from config.settings import Settings
+from erp import BillQuerySpec, FilterExpression, eq
 from infrastructure.exceptions import LLMUnavailableError
 from kingdee.client import KingdeeClient
 from kingdee.endpoints.base import EndpointDescriptor, EndpointParams, FieldDescriptor
 from models.base import KingPilotBaseModel
-from models.kingdee import BillQueryParams, BillQueryResult, JsonScalar
+from models.kingdee import BillQueryResult, JsonScalar
 from models.llm import PlanResult, ReflectionResult, ToolCallDecision, ToolSpec
 from models.tool import ToolExecution
 from models.user import UserContext
@@ -27,10 +28,10 @@ from tests.fakes import FakeProvider
 
 class _FakeClient:
     def __init__(self) -> None:
-        self.queries: list[BillQueryParams] = []
+        self.queries: list[BillQuerySpec] = []
 
-    async def execute_bill_query(self, params: BillQueryParams) -> BillQueryResult:
-        self.queries.append(params)
+    async def query(self, spec: BillQuerySpec) -> BillQueryResult:
+        self.queries.append(spec)
         row: dict[str, JsonScalar] = {
             "FBillNo": "SO000008",
             "FDate": "2026-03-05",
@@ -43,8 +44,8 @@ class _FakeClient:
             "FBaseQty": "100",
         }
         return BillQueryResult(
-            form_id=params.form_id,
-            field_keys=params.field_keys.split(","),
+            form_id=spec.form_id,
+            field_keys=list(spec.field_keys),
             rows=[row],
         )
 
@@ -58,13 +59,13 @@ class _UnknownParams(EndpointParams):
     bill_no: str = Field(default="", description="单据编号")
 
 
-def _unknown_filter(params: KingPilotBaseModel) -> str:
-    return "FBillNo = 'X'"
+def _unknown_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression(conditions=(eq("FBillNo", "X"),))
 
 
 _UNKNOWN_TOOL = ToolDefinition(
     spec=ToolSpec(
-        name="kingdee_query_unknown",
+        name="erp_query_unknown",
         description="未知表单测试工具",
         parameters=_UnknownParams.model_json_schema(),
     ),
@@ -98,7 +99,7 @@ class _StubRuleEngine(RuleEngine):
             plan=PlanResult(
                 tool_calls=[
                     ToolCallDecision(
-                        tool_name="kingdee_query_unknown",
+                        tool_name="erp_query_unknown",
                         arguments={"bill_no": "X"},
                     )
                 ]
@@ -124,7 +125,7 @@ def _sales_plan() -> PlanResult:
     return PlanResult(
         tool_calls=[
             ToolCallDecision(
-                tool_name="kingdee_query_sales_order",
+                tool_name="erp_query_sales_order",
                 arguments={"bill_no": "SO000008"},
             )
         ]
@@ -393,7 +394,7 @@ def test_render_fallback_response_handles_error_and_limit() -> None:
     rows = [{"FBillNo": f"SO{i:04d}"} for i in range(12)]
     executions = [
         ToolExecution(
-            tool_name="kingdee_query_sales_order",
+            tool_name="erp_query_sales_order",
             parameters={},
             result={"field_keys": ["FBillNo"], "rows": rows},
         ),
@@ -410,7 +411,7 @@ def test_render_fallback_response_handles_error_and_limit() -> None:
 def test_render_fallback_response_skips_non_dict_rows() -> None:
     executions = [
         ToolExecution(
-            tool_name="kingdee_query_sales_order",
+            tool_name="erp_query_sales_order",
             parameters={},
             result={"rows": ["bad-row", {"FBillNo": "SO1"}]},
         )

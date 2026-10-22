@@ -17,6 +17,7 @@ from typing import Any
 from kingdee.endpoints.base import EndpointDescriptor
 from kingdee.endpoints.bd_customer import CUSTOMER
 from kingdee.endpoints.bd_material import BD_MATERIAL
+from kingdee.endpoints.bd_stock import BD_STOCK
 from kingdee.endpoints.bd_supplier import SUPPLIER
 from kingdee.endpoints.pur_order import PURCHASE_ORDER
 from kingdee.endpoints.sal_order import SAL_ORDER
@@ -107,6 +108,17 @@ def _build_supplier_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
     ]
 
 
+_STOCK_NAMES: tuple[str, ...] = tuple(sorted({row.stock_name for row in INVENTORY_ROWS}))
+
+
+def _build_stock_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
+    """仓库行构造（采购入库业务预检数据源）：从库存出现的仓库去重生成。"""
+    return [
+        {"FID": index + 1, "FNumber": f"STK{index + 1:03d}", "FName": name}
+        for index, name in enumerate(_STOCK_NAMES)
+    ]
+
+
 def _build_purchase_order_rows(field_keys: list[str]) -> list[dict[str, JsonScalar]]:
     """采购订单行构造（读可变库，下单/删除后查询立即可见）。"""
     return [
@@ -160,6 +172,12 @@ FORMS: dict[str, FormModel] = {
         field_types={field.name: field.data_type for field in BD_MATERIAL.fields},
         non_sortable=frozenset({"FID"}),
         build_rows=_build_material_rows,
+    ),
+    BD_STOCK.form_id: FormModel(
+        descriptor=BD_STOCK,
+        field_types={field.name: field.data_type for field in BD_STOCK.fields},
+        non_sortable=frozenset({"FID"}),
+        build_rows=_build_stock_rows,
     ),
     SUPPLIER.form_id: FormModel(
         descriptor=SUPPLIER,

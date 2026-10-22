@@ -25,11 +25,12 @@ from api.routes import router
 from api.streaming import router as streaming_router
 from api.traces import router as traces_router
 from config.settings import Settings, get_settings
+from erp.factory import build_erp_client
+from erp.protocol import ErpClient
 from governance.approval_executor import ApprovalExecution
 from governance.prompt_registry import PromptRegistry
 from infrastructure.logger import setup_logging
 from infrastructure.secrets import build_secret_provider
-from kingdee.client import KingdeeClient
 from observability.alerts import AlertEngine
 from observability.audit import AuditLogger, JsonlAuditSink
 
@@ -47,9 +48,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     prompts = PromptRegistry(settings.prompts_dir)
 
     async with AsyncExitStack() as stack:
-        client: KingdeeClient | None = app.state.client_override
+        client: ErpClient | None = app.state.client_override
         if client is None:
-            client = await stack.enter_async_context(KingdeeClient(settings, secrets=secrets))
+            client = await stack.enter_async_context(build_erp_client(settings, secrets=secrets))
 
         registry = app.state.registry_override or build_default_registry()
         deps = AppDeps(
@@ -74,7 +75,7 @@ def create_app(
     settings: Settings | None = None,
     *,
     provider: LLMProvider | None = None,
-    client: KingdeeClient | None = None,
+    client: ErpClient | None = None,
     registry: ToolRegistry | None = None,
     approval_execution: ApprovalExecution | None = None,
 ) -> FastAPI:

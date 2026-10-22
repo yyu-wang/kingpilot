@@ -14,24 +14,37 @@
 from collections.abc import Mapping
 from typing import Any
 
+from erp import FilterExpression, eq
+from erp.protocol import ErpClient
 from infrastructure.exceptions import KingdeeError
-from kingdee.client import KingdeeClient
-from kingdee.endpoints.base import EndpointDescriptor, quote_eq
+from kingdee.endpoints.base import EndpointDescriptor
 from kingdee.endpoints.pur_order import PURCHASE_ORDER
 from kingdee.endpoints.sal_order import SAL_ORDER
 from kingdee.endpoints.stk_inbound import PURCHASE_INBOUND
 from models.kingdee import JsonScalar
 
-_SALES_FIELDS = "FBillNo,FDate,FDocumentStatus,FCustomerID.FNumber,FBillAllAmount"
+_SALES_FIELDS = ("FBillNo", "FDate", "FDocumentStatus", "FCustomerID.FNumber", "FBillAllAmount")
 _PURCHASE_FIELDS = (
-    "FBillNo,FDate,FDocumentStatus,FSupplierID.FNumber,FAmount,FMaterialId.FNumber,FQty"
+    "FBillNo",
+    "FDate",
+    "FDocumentStatus",
+    "FSupplierID.FNumber",
+    "FAmount",
+    "FMaterialId.FNumber",
+    "FQty",
 )
 _INBOUND_FIELDS = (
-    "FBillNo,FDate,FDocumentStatus,FSupplierID.FNumber,FStockId.FName,FMaterialId.FNumber,FRealQty"
+    "FBillNo",
+    "FDate",
+    "FDocumentStatus",
+    "FSupplierID.FNumber",
+    "FStockId.FName",
+    "FMaterialId.FNumber",
+    "FRealQty",
 )
 
 # 工具名关键字 → (端点, 快照字段)；避免逐一枚举 15 个工具
-_SNAPSHOT_TARGETS: tuple[tuple[str, EndpointDescriptor, str], ...] = (
+_SNAPSHOT_TARGETS: tuple[tuple[str, EndpointDescriptor, tuple[str, ...]], ...] = (
     ("purchase_inbound", PURCHASE_INBOUND, _INBOUND_FIELDS),
     ("purchase_order", PURCHASE_ORDER, _PURCHASE_FIELDS),
     ("sales_order", SAL_ORDER, _SALES_FIELDS),
@@ -41,7 +54,7 @@ _SNAPSHOT_TARGETS: tuple[tuple[str, EndpointDescriptor, str], ...] = (
 class KingdeeSnapshotProvider:
     """基于 ExecuteBillQuery 的单据快照实现。"""
 
-    def __init__(self, client: KingdeeClient) -> None:
+    def __init__(self, client: ErpClient) -> None:
         self._client = client
 
     async def before(
@@ -67,19 +80,19 @@ class KingdeeSnapshotProvider:
             return None
         endpoint, field_keys = target
         try:
-            quoted = quote_eq(bill_no.strip())
+            condition = eq("FBillNo", bill_no.strip())
         except ValueError as exc:
             raise KingdeeError("单号包含非法字符", context={"length": len(bill_no)}) from exc
-        query = endpoint.to_query_params(
+        spec = endpoint.to_query_params(
             field_keys=field_keys,
-            filter_string=f"FBillNo = {quoted}",
+            filter=FilterExpression(conditions=(condition,)),
             limit=1,
         )
-        result = await self._client.execute_bill_query(query)
+        result = await self._client.query(spec)
         return result.rows[0] if result.rows else None
 
 
-def _target_for(tool_name: str) -> tuple[EndpointDescriptor, str] | None:
+def _target_for(tool_name: str) -> tuple[EndpointDescriptor, tuple[str, ...]] | None:
     for keyword, endpoint, fields in _SNAPSHOT_TARGETS:
         if keyword in tool_name:
             return endpoint, fields

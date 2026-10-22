@@ -283,6 +283,7 @@ textarea {
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
+  flex: none;
 }
 
 /* ── 会话列表 ── */
@@ -297,6 +298,9 @@ textarea {
 }
 
 .session-list {
+  flex: 1;
+  /* flex 子项的 min-height 默认是 auto，会话过多时不会收缩，列表会被骨架裁掉 */
+  min-height: 0;
   padding: 10px;
   overflow-y: auto;
   display: flex;
@@ -306,11 +310,15 @@ textarea {
 
 .session-item {
   width: 100%;
+  /* 固定行高：滚动容器内 flex 子项的自动最小高度为 0，不锁死会被压扁 */
+  flex: none;
+  height: 38px;
   text-align: left;
   background: transparent;
   color: var(--text);
   border: 1px solid transparent;
-  padding: 9px 10px;
+  padding: 0 10px;
+  line-height: 36px;
   border-radius: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -689,6 +697,8 @@ textarea {
   inset: 56px 0 0;
   z-index: 15;
   background: rgba(15, 23, 42, 0.28);
+  /* 仅作视觉压暗：不拦截点击，避免遮罩吞掉「新建/发送」等操作 */
+  pointer-events: none;
 }
 
 .trace-panel {

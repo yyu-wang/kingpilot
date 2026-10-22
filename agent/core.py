@@ -38,11 +38,11 @@ from agent.rule_engine import RuleEngine
 from agent.tools import ToolRegistry
 from config.rag_rules import KNOWLEDGE_NO_HIT_MESSAGE, KNOWLEDGE_NOT_SEARCHED_MESSAGE
 from config.settings import Settings
+from erp.protocol import ErpClient
 from governance.rag.answer import enforce_citations, render_knowledge_fallback
 from governance.semantic_cache import SemanticCache, build_cache_key, is_cacheable_plan
 from infrastructure.exceptions import KingPilotError, LLMUnavailableError, TraceStoreError
 from infrastructure.tenancy import tenant_scope
-from kingdee.client import KingdeeClient
 from models.agent import AgentResponse, AgentTrace
 from models.audit import AuditEvent
 from models.kingdee import BillQueryResult
@@ -73,10 +73,41 @@ _UNAVAILABLE_MESSAGE = (
 )
 _FALLBACK_MAX_ROWS = 10
 _DLP_BLOCK_CONTENT = "响应包含敏感个人信息，已按数据安全策略阻断发送。请调整查询条件后重试。"
+# LLM 偶发空答复时的兜底文案（先重试一次，仍为空才使用）
+_EMPTY_RESPONSE_FALLBACK = "抱歉，本次没有生成有效答复，请重试或换个问法。"
 # 显式查询动词：LLM 空规划时，仅对「查单号」请求做规则补全
 _EXPLICIT_QUERY_VERBS = ("查", "看一下", "列出", "显示")
 # 明确业务编码：没有编码的「查客户联系人」等宽泛请求不自动补全，避免误判
-_EXPLICIT_CODE_RE = re.compile(r"\b(?:SO|CUS|SUP|MAT)\d+\b", re.IGNORECASE)
+_EXPLICIT_CODE_RE = re.compile(r"\b(?:SO|PO|CGRK|CUS|SUP|MAT)\d+\b", re.IGNORECASE)
+
+# 规划层产品提示（M9 修复）：锚定身份/能力/追问/知识检索，避免模型自我降级
+_PLANNER_PROMPT_MARK = "你是 KingPilot，企业级 ERP 智能助手。"
+_PLANNER_SYSTEM_PROMPT = (
+    f"{_PLANNER_PROMPT_MARK}"
+    "你的能力范围：1) 查询销售订单、采购订单、采购入库单、客户、供应商、即时库存；"
+    "2) 通过审批流执行创建、提交、审核、反审核、删除；3) 用 kb_search 检索企业内部操作手册。"
+    "行为要求：A. 用户明确要求执行写操作且参数齐全时，必须调用对应写工具，"
+    "不得声称自己没有该能力；B. 缺少必填参数时，用一句话追问缺少的字段，"
+    "不要提前调用写工具；C. 涉及流程、规范、时效、操作步骤的问题，先调用 kb_search，"
+    "不得仅凭常识作答；D. 不得编造单号、金额、工具或功能。"
+)
+# 含疑问标记时不做写意图覆盖，避免把「审核需要什么条件？」误判为执行审核
+_QUESTION_MARKERS = (
+    "吗",
+    "么",
+    "如何",
+    "怎么",
+    "怎样",
+    "能否",
+    "可以",
+    "需要",
+    "条件",
+    "流程",
+    "规则",
+    "为什么",
+    "？",
+    "?",
+)
 
 
 def _default_user_context() -> UserContext:
@@ -94,7 +125,7 @@ class AgentCore:
         self,
         provider: LLMProvider,
         tools: ToolRegistry,
-        client: KingdeeClient,
+        client: ErpClient,
         settings: Settings,
         usage_sink: TokenUsageSink | None = None,
         memory: MemoryStore | None = None,
@@ -312,6 +343,10 @@ class AgentCore:
             return self._finish_fallback(trace, started, user_input)
         self._phase("generate", "success")
         self._phase4_citation(trace)
+        if not trace.final_response.strip():
+            trace.final_response = _EMPTY_RESPONSE_FALLBACK
+            trace.used_fallback = True
+            logger.warning("答复为空且无知识兜底，使用通用文案 | trace_id={}", trace.trace_id)
         self._phase5_hallucination(trace)
         self._phase6_finalize(trace, started, user_input)
         return AgentResponse(
@@ -380,15 +415,71 @@ class AgentCore:
                 }
                 return cached
 
-        plan = await self._provider.plan(context, tools=self._visible_specs(user_context))
+        plan = await self._provider.plan(
+            self._with_planner_prompt(context), tools=self._visible_specs(user_context)
+        )
         trace.llm_planning = {
             "reasoning": plan.reasoning,
             "tool_calls": [decision.model_dump() for decision in plan.tool_calls],
         }
+        plan = self._prefer_explicit_write_plan(plan, trace, user_context)
         plan = self._complete_empty_plan(plan, trace, user_context)
         if cache_key and is_cacheable_plan(plan, self._tool_types()):
             self._cache.set(cache_key, plan)
         return plan
+
+    @staticmethod
+    def _with_planner_prompt(context: LLMContext) -> LLMContext:
+        """注入产品提示（已存在则跳过），不改动原始上下文。
+
+        插在已有 system 消息之后，保留「摘要/画像在前」的既有顺序。
+        """
+        if any(
+            message.role == "system" and message.content.startswith(_PLANNER_PROMPT_MARK)
+            for message in context.messages
+        ):
+            return context
+        messages = list(context.messages)
+        insert_at = 0
+        while insert_at < len(messages) and messages[insert_at].role == "system":
+            insert_at += 1
+        messages.insert(insert_at, LLMMessage(role="system", content=_PLANNER_SYSTEM_PROMPT))
+        return LLMContext(messages=messages, anchors=list(context.anchors))
+
+    def _prefer_explicit_write_plan(
+        self, plan: PlanResult, trace: AgentTrace, user_context: UserContext
+    ) -> PlanResult:
+        """显式写动作优先：LLM 错选查询工具时，用规则引擎纠正为写工具。
+
+        Why：采购订单「审核 POxxxxxx」被模型规划成查询，导致订单停在审核中、
+        后续反审核/删除全部失败。这里只在模型没有选中任何写工具、且用户输入
+        是「动作开头 + 唯一单号」时覆盖；带疑问词的咨询类输入不覆盖。
+        """
+        if not plan.tool_calls:
+            return plan
+        tool_types = self._tool_types()
+        if any(tool_types.get(call.tool_name) == "write" for call in plan.tool_calls):
+            return plan
+        text = trace.user_input.strip()
+        if any(marker in text for marker in _QUESTION_MARKERS):
+            return plan
+        available = {spec.name for spec in self._visible_specs(user_context)}
+        matched = self._rule_engine.match_write_plan(text, available_tools=available)
+        if matched is None:
+            return plan
+        trace.llm_planning["rule_override"] = {
+            "intent": matched.intent,
+            "reason": "explicit_write_action",
+        }
+        trace.llm_planning["tool_calls"] = [
+            decision.model_dump() for decision in matched.plan.tool_calls
+        ]
+        logger.info(
+            "显式写动作覆盖只读计划 | trace_id={} intent={}",
+            trace.trace_id,
+            matched.intent,
+        )
+        return matched.plan
 
     def _complete_empty_plan(
         self, plan: PlanResult, trace: AgentTrace, user_context: UserContext
@@ -406,16 +497,19 @@ class AgentCore:
         available = {spec.name for spec in self._visible_specs(user_context)}
         matched = self._rule_engine.match_write_plan(trace.user_input, available_tools=available)
         if matched is None:
-            if not any(verb in trace.user_input for verb in _EXPLICIT_QUERY_VERBS):
-                return plan
-            if _EXPLICIT_CODE_RE.search(trace.user_input) is None:
-                return plan
-            matched = self._rule_engine.match(trace.user_input, available_tools=available)
+            has_query_verb = any(verb in trace.user_input for verb in _EXPLICIT_QUERY_VERBS)
+            if has_query_verb and _EXPLICIT_CODE_RE.search(trace.user_input):
+                matched = self._rule_engine.match(trace.user_input, available_tools=available)
+        if matched is None:
+            # 知识意图但没有调 kb_search：补一次检索，保证有引用来源
+            matched = self._rule_engine.match_knowledge_plan(
+                trace.user_input, available_tools=available
+            )
         if matched is None:
             return plan
         trace.llm_planning["rule_fallback"] = {
             "intent": matched.intent,
-            "reason": "llm_plan_empty",
+            "reason": "knowledge_intent" if matched.intent == "knowledge" else "llm_plan_empty",
         }
         trace.llm_planning["tool_calls"] = [
             decision.model_dump() for decision in matched.plan.tool_calls
@@ -646,7 +740,7 @@ class AgentCore:
         execution = ToolExecution(tool_name=call.tool_name, parameters=arguments)
         try:
             tool = self._tools.get(call.tool_name)
-            if call.row_filter:
+            if call.row_filter.conditions:
                 result = await tool.execute(self._client, arguments, row_filter=call.row_filter)
             else:
                 result = await tool.execute(self._client, arguments)
@@ -690,8 +784,16 @@ class AgentCore:
     async def _phase4_generate(
         self, context: LLMContext, trace: AgentTrace, snapshot: MemorySnapshot
     ) -> None:
-        """答复生成：用全部累积的工具执行记录生成自然语言答复。"""
+        """答复生成：用全部累积的工具执行记录生成自然语言答复。
+
+        LLM 偶发返回空字符串（DeepSeek 长上下文下出现过）：重试一次，
+        仍为空则交给 `_run` 的兜底文案，避免前端收到空 final。
+        """
         summary = ExecutionSummary(tool_executions=trace.tool_executions, needs_more_steps=False)
+        trace.final_response = await self._provider.generate_response(context, summary, snapshot)
+        if trace.final_response.strip():
+            return
+        logger.warning("LLM 返回空答复，重试一次 | trace_id={}", trace.trace_id)
         trace.final_response = await self._provider.generate_response(context, summary, snapshot)
 
     # ── Phase 4.5：知识引用强制（M9-T09）──

@@ -4,11 +4,11 @@
 
 | 工具 | 动作 | 状态迁移 |
 |------|------|----------|
-| kingdee_create_purchase_inbound | save | → Z |
-| kingdee_submit_purchase_inbound | submit | Z/A → B |
-| kingdee_audit_purchase_inbound | audit | B → C |
-| kingdee_unaudit_purchase_inbound | unaudit | C → A |
-| kingdee_delete_purchase_inbound | delete | Z/A → 删除 |
+| erp_create_purchase_inbound | save | → Z |
+| erp_submit_purchase_inbound | submit | Z/A → B |
+| erp_audit_purchase_inbound | audit | B → C |
+| erp_unaudit_purchase_inbound | unaudit | C → A |
+| erp_delete_purchase_inbound | delete | Z/A → 删除 |
 
 业务约束（由沙箱入库库在写入时校验）：
 - 源采购订单必须存在且已审核（C）
@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import Field
 
+from erp.tool_names import CREATE_PURCHASE_INBOUND, OBJ_PURCHASE_INBOUND, WRITE_TOOL_NAMES
 from kingdee.endpoints.base import (
     EntityReference,
     WriteRemoteRunner,
@@ -32,7 +33,8 @@ from models.base import KingPilotBaseModel
 from models.kingdee import ActionResult
 
 if TYPE_CHECKING:
-    from kingdee.client import KingdeeClient, KingdeeWriteAction
+    from erp.protocol import ErpClient
+    from kingdee.client import KingdeeWriteAction
 
 _BILL_NO_PATTERN = r"^CGRK\d{6}$"
 _SOURCE_BILL_PATTERN = r"^PO\d{6}$"
@@ -91,9 +93,7 @@ def _reference(value: str) -> dict[str, Any]:
     return {"FID": int(text)} if text.isdigit() else {"FNumber": text}
 
 
-async def create_purchase_inbound(
-    client: KingdeeClient, params: KingPilotBaseModel
-) -> ActionResult:
+async def create_purchase_inbound(client: ErpClient, params: KingPilotBaseModel) -> ActionResult:
     """Save：创建一张暂存采购入库单。"""
     p = cast(PurchaseInboundCreateParams, params)
     model: dict[str, Any] = {
@@ -109,15 +109,15 @@ async def create_purchase_inbound(
         model["FDate"] = p.inbound_date
     if p.note:
         model["FNote"] = p.note
-    return await client.execute_action("save", PURCHASE_INBOUND.form_id, model=model)
+    return await client.invoke_action("save", PURCHASE_INBOUND.form_id, model=model)
 
 
 def _action_runner(action: KingdeeWriteAction) -> WriteRemoteRunner:
     """生成状态流转执行器（四个动作结构相同）。"""
 
-    async def runner(client: KingdeeClient, params: KingPilotBaseModel) -> ActionResult:
+    async def runner(client: ErpClient, params: KingPilotBaseModel) -> ActionResult:
         p = cast(PurchaseInboundActionParams, params)
-        return await client.execute_action(action, PURCHASE_INBOUND.form_id, bill_no=p.bill_no)
+        return await client.invoke_action(action, PURCHASE_INBOUND.form_id, bill_no=p.bill_no)
 
     return runner
 
@@ -127,6 +127,8 @@ _CREATE_DESCRIPTION = (
     "何时用：用户明确要求对某采购订单做入库/收货/到货登记，并给出源采购订单号、"
     "供应商、物料、仓库、实收数量时。"
     "源采购订单必须已审核且供应商一致；缺少必填项时先向用户追问。"
+    "源单状态、供应商一致性与仓库存在性由系统在服务端预检，"
+    "无需先调用查询工具核对，直接调用本工具即可。"
     "创建结果为暂存（Z），需要提交/审核请继续调用对应工具。"
 )
 
@@ -139,7 +141,7 @@ _ACTION_DESCRIPTIONS: dict[str, str] = {
 
 
 CREATE_PURCHASE_INBOUND_TOOL = WriteToolBinding(
-    tool_name="kingdee_create_purchase_inbound",
+    tool_name=CREATE_PURCHASE_INBOUND,
     tool_description=_CREATE_DESCRIPTION,
     endpoint=PURCHASE_INBOUND,
     params_model=PurchaseInboundCreateParams,
@@ -162,7 +164,7 @@ CREATE_PURCHASE_INBOUND_TOOL = WriteToolBinding(
 
 def _action_binding(action: KingdeeWriteAction) -> WriteToolBinding:
     return WriteToolBinding(
-        tool_name=f"kingdee_{action}_purchase_inbound",
+        tool_name=WRITE_TOOL_NAMES[(OBJ_PURCHASE_INBOUND, action)],
         tool_description=_ACTION_DESCRIPTIONS[action],
         endpoint=PURCHASE_INBOUND,
         params_model=PurchaseInboundActionParams,

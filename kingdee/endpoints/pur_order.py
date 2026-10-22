@@ -9,13 +9,13 @@ from typing import cast
 
 from pydantic import Field, field_validator
 
+from erp import FilterCondition, FilterExpression, eq, ge
+from erp.tool_names import QUERY_PURCHASE_ORDER
 from kingdee.endpoints.base import (
     EndpointDescriptor,
     EndpointParams,
     FieldDescriptor,
     QueryToolBinding,
-    fmt_number,
-    quote_eq,
     validate_document_status,
 )
 from models.base import KingPilotBaseModel
@@ -93,34 +93,34 @@ class PurchaseOrderParams(EndpointParams):
     _check_status = field_validator("document_status")(validate_document_status)
 
 
-def build_purchase_order_filter(params: KingPilotBaseModel) -> str:
-    """参数 → FilterString；条件字段均在 PURCHASE_ORDER.filterable_fields 内。"""
+def build_purchase_order_filter(params: KingPilotBaseModel) -> FilterExpression:
+    """参数 → FilterExpression；条件字段均在 PURCHASE_ORDER.filterable_fields 内。"""
     p = cast(PurchaseOrderParams, params)
-    conditions: list[str] = []
+    conditions: list[FilterCondition] = []
     if p.supplier_number:
-        conditions.append(f"FSupplierID.FNumber = {quote_eq(p.supplier_number)}")
+        conditions.append(eq("FSupplierID.FNumber", p.supplier_number))
     if p.document_status:
-        conditions.append(f"FDocumentStatus = {quote_eq(p.document_status)}")
+        conditions.append(eq("FDocumentStatus", p.document_status))
     if p.min_amount is not None:
-        conditions.append(f"FAmount >= {fmt_number(p.min_amount)}")
+        conditions.append(ge("FAmount", p.min_amount))
     if p.bill_no:
-        conditions.append(f"FBillNo = {quote_eq(p.bill_no)}")
+        conditions.append(eq("FBillNo", p.bill_no))
     if p.order_date:
-        conditions.append(f"FDate = {quote_eq(p.order_date)}")
+        conditions.append(eq("FDate", p.order_date))
     if p.material_number:
-        conditions.append(f"FMaterialId.FNumber = {quote_eq(p.material_number)}")
+        conditions.append(eq("FMaterialId.FNumber", p.material_number))
     if p.min_quantity is not None:
-        conditions.append(f"FQty >= {fmt_number(p.min_quantity)}")
-    return " AND ".join(conditions)
+        conditions.append(ge("FQty", p.min_quantity))
+    return FilterExpression(conditions=tuple(conditions))
 
 
 PURCHASE_ORDER_TOOL = QueryToolBinding(
-    tool_name="kingdee_query_purchase_order",
+    tool_name=QUERY_PURCHASE_ORDER,
     tool_description=(
         "按条件查询采购订单列表（金蝶 PUR_PurchaseOrder）。"
         "何时用：用户询问采购订单、到货状态、某供应商的订单时。"
         "所有参数可选；供应商仅支持按编码过滤，只有名称时请先用"
-        " kingdee_query_supplier 查编码。返回单据编号/日期/供应商/状态/金额。"
+        " erp_query_supplier 查编码。返回单据编号/日期/供应商/状态/金额。"
     ),
     endpoint=PURCHASE_ORDER,
     params_model=PurchaseOrderParams,

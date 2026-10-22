@@ -54,7 +54,7 @@ def _tool_call(name: str, arguments: str) -> dict[str, Any]:
 
 def _order_tool() -> ToolSpec:
     return ToolSpec(
-        name="kingdee_query_sales_order",
+        name="erp_query_sales_order",
         description="按条件查询销售订单",
         parameters={"type": "object", "properties": {"limit": {"type": "integer"}}},
     )
@@ -81,9 +81,7 @@ async def test_plan_parses_tool_calls_and_sends_auth_header() -> None:
     route = respx.post(_URL).mock(
         return_value=httpx.Response(
             200,
-            json=_body(
-                _message(tool_calls=[_tool_call("kingdee_query_sales_order", '{"limit": 5}')])
-            ),
+            json=_body(_message(tool_calls=[_tool_call("erp_query_sales_order", '{"limit": 5}')])),
         )
     )
     async with _provider() as provider:
@@ -91,7 +89,7 @@ async def test_plan_parses_tool_calls_and_sends_auth_header() -> None:
     assert route.called
     assert route.calls.last.request.headers["Authorization"] == f"Bearer {_API_KEY}"
     assert isinstance(result, PlanResult)
-    assert result.tool_calls[0].tool_name == "kingdee_query_sales_order"
+    assert result.tool_calls[0].tool_name == "erp_query_sales_order"
     assert result.tool_calls[0].arguments == {"limit": 5}
 
 
@@ -115,7 +113,7 @@ async def test_plan_serializes_tool_specs_to_openai_schema() -> None:
     sent = json.loads(route.calls.last.request.content)
     assert sent["model"] == "deepseek-chat"
     assert sent["tools"][0]["type"] == "function"
-    assert sent["tools"][0]["function"]["name"] == "kingdee_query_sales_order"
+    assert sent["tools"][0]["function"]["name"] == "erp_query_sales_order"
 
 
 @respx.mock
@@ -306,9 +304,7 @@ async def test_real_provider_passes_contract_suite() -> None:
         # 1) plan → tool_calls；2) reflect → JSON；3) generate → 文本；4) summarize → JSON
         httpx.Response(
             200,
-            json=_body(
-                _message(tool_calls=[_tool_call("kingdee_query_sales_order", '{"limit": 5}')])
-            ),
+            json=_body(_message(tool_calls=[_tool_call("erp_query_sales_order", '{"limit": 5}')])),
         ),
         httpx.Response(
             200, json=_body(_message(content=json.dumps({"continue_execution": False})))

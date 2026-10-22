@@ -12,13 +12,13 @@ from typing import cast
 
 from pydantic import Field, field_validator
 
+from erp import FilterCondition, FilterExpression, eq, ge
+from erp.tool_names import QUERY_SALES_ORDER
 from kingdee.endpoints.base import (
     EndpointDescriptor,
     EndpointParams,
     FieldDescriptor,
     QueryToolBinding,
-    fmt_number,
-    quote_eq,
     validate_document_status,
 )
 from models.base import KingPilotBaseModel
@@ -135,7 +135,7 @@ SAL_ORDER = EndpointDescriptor(
 
 # ── 查询工具绑定（M2-T03）：结构化参数 + FilterString 组装 ──
 # 注意：客户过滤只提供 FCustomerID.FNumber（白名单语义「可查 ≠ 可过滤」）——
-# LLM 手上通常是客户名称，名称→编码的转换交给 kingdee_query_customer 工具
+# LLM 手上通常是客户名称，名称→编码的转换交给 erp_query_customer 工具
 # 多步完成，这是 Agent 编排职责，不在工具内偷偷用名称过滤。
 
 
@@ -178,38 +178,38 @@ _ENTRY_FIELD_KEYS: tuple[str, ...] = (
 )
 
 
-def build_sales_order_field_keys(params: KingPilotBaseModel) -> str | None:
+def build_sales_order_field_keys(params: KingPilotBaseModel) -> tuple[str, ...] | None:
     """参数 → FieldKeys；不展开明细时返回 None（走端点默认表头字段）。"""
     p = cast(SalesOrderParams, params)
     if not p.include_entries:
         return None
-    return ",".join((*SAL_ORDER.default_field_keys, *_ENTRY_FIELD_KEYS))
+    return (*SAL_ORDER.default_field_keys, *_ENTRY_FIELD_KEYS)
 
 
-def build_sales_order_filter(params: KingPilotBaseModel) -> str:
-    """参数 → FilterString；全部条件字段均在 SAL_ORDER.filterable_fields 内。"""
+def build_sales_order_filter(params: KingPilotBaseModel) -> FilterExpression:
+    """参数 → FilterExpression；全部条件字段均在 SAL_ORDER.filterable_fields 内。"""
     p = cast(SalesOrderParams, params)
-    conditions: list[str] = []
+    conditions: list[FilterCondition] = []
     if p.customer_number:
-        conditions.append(f"FCustomerID.FNumber = {quote_eq(p.customer_number)}")
+        conditions.append(eq("FCustomerID.FNumber", p.customer_number))
     if p.document_status:
-        conditions.append(f"FDocumentStatus = {quote_eq(p.document_status)}")
+        conditions.append(eq("FDocumentStatus", p.document_status))
     if p.min_amount is not None:
-        conditions.append(f"FBillAllAmount >= {fmt_number(p.min_amount)}")
+        conditions.append(ge("FBillAllAmount", p.min_amount))
     if p.bill_no:
-        conditions.append(f"FBillNo = {quote_eq(p.bill_no)}")
+        conditions.append(eq("FBillNo", p.bill_no))
     if p.order_date:
-        conditions.append(f"FDate = {quote_eq(p.order_date)}")
-    return " AND ".join(conditions)
+        conditions.append(eq("FDate", p.order_date))
+    return FilterExpression(conditions=tuple(conditions))
 
 
 SAL_ORDER_TOOL = QueryToolBinding(
-    tool_name="kingdee_query_sales_order",
+    tool_name=QUERY_SALES_ORDER,
     tool_description=(
         "按条件查询销售订单列表（金蝶 SAL_Order）。"
         "何时用：用户询问销售订单、订单状态、某客户的订单时。"
         "所有参数可选；客户仅支持按编码过滤，只有客户名称时请先用"
-        " kingdee_query_customer 查编码。默认返回单据编号/日期/客户/状态/金额；"
+        " erp_query_customer 查编码。默认返回单据编号/日期/客户/状态/金额；"
         "用户问「用了哪些物料、明细、数量、单价」时必须置 include_entries=true，"
         "返回物料编码/物料名称/数量/含税单价/交货日期（按明细行展开）。"
     ),

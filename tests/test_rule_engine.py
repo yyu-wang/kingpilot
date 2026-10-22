@@ -50,22 +50,19 @@ def test_write_tool_scope_infers_target_write_tool() -> None:
 
     assert (
         engine.match_write_tool_scope("帮我创建一张采购订单：供应商 SUP001")
-        == "kingdee_create_purchase_order"
+        == "erp_create_purchase_order"
     )
-    assert engine.match_write_tool_scope("删除采购订单 PO000004") == "kingdee_delete_purchase_order"
-    assert engine.match_write_tool_scope("删除销售订单 SO000004") == "kingdee_delete_sales_order"
+    assert engine.match_write_tool_scope("删除采购订单 PO000004") == "erp_delete_purchase_order"
+    assert engine.match_write_tool_scope("删除销售订单 SO000004") == "erp_delete_sales_order"
     assert (
         engine.match_write_tool_scope("给采购订单 PO000001 做入库：供应商 SUP001")
-        == "kingdee_create_purchase_inbound"
+        == "erp_create_purchase_inbound"
     )
     assert (
-        engine.match_write_tool_scope("审核采购入库单 CGRK000001")
-        == "kingdee_audit_purchase_inbound"
+        engine.match_write_tool_scope("审核采购入库单 CGRK000001") == "erp_audit_purchase_inbound"
     )
-    assert (
-        engine.match_write_tool_scope("反审核采购订单 PO000001") == "kingdee_unaudit_purchase_order"
-    )
-    assert engine.match_write_tool_scope("提交采购订单 PO000004") == "kingdee_submit_purchase_order"
+    assert engine.match_write_tool_scope("反审核采购订单 PO000001") == "erp_unaudit_purchase_order"
+    assert engine.match_write_tool_scope("提交采购订单 PO000004") == "erp_submit_purchase_order"
 
 
 def test_write_tool_scope_ignores_read_and_unknown_intents() -> None:
@@ -84,20 +81,20 @@ def test_write_plan_completes_bill_state_transition() -> None:
     assert plan is not None
     assert plan.intent == "write_unaudit"
     call = plan.plan.tool_calls[0]
-    assert call.tool_name == "kingdee_unaudit_sales_order"
+    assert call.tool_name == "erp_unaudit_sales_order"
     assert call.arguments == {"bill_no": "SO900001"}
 
     audit = engine.match_write_plan("审核销售订单 SO900001")
     assert audit is not None
-    assert audit.plan.tool_calls[0].tool_name == "kingdee_audit_sales_order"
+    assert audit.plan.tool_calls[0].tool_name == "erp_audit_sales_order"
 
     submit = engine.match_write_plan("提交采购订单 PO000004")
     assert submit is not None
-    assert submit.plan.tool_calls[0].tool_name == "kingdee_submit_purchase_order"
+    assert submit.plan.tool_calls[0].tool_name == "erp_submit_purchase_order"
 
     delete = engine.match_write_plan("删除采购入库单 CGRK000001")
     assert delete is not None
-    assert delete.plan.tool_calls[0].tool_name == "kingdee_delete_purchase_inbound"
+    assert delete.plan.tool_calls[0].tool_name == "erp_delete_purchase_inbound"
 
 
 def test_write_plan_requires_bill_no_and_only_bill_actions() -> None:
@@ -118,7 +115,7 @@ def test_write_plan_respects_available_tools() -> None:
 
     assert (
         engine.match_write_plan(
-            "反审核销售订单 SO900001", available_tools={"kingdee_query_sales_order"}
+            "反审核销售订单 SO900001", available_tools={"erp_query_sales_order"}
         )
         is None
     )
@@ -128,6 +125,31 @@ def test_knowledge_intent_is_not_downgraded_to_erp() -> None:
     """M9-T09：流程/步骤类知识问题不降级为 ERP 查询。"""
     assert _match("销售订单审核流程是什么？") is None
     assert _match("库存盘点的操作步骤") is None
+
+
+def test_knowledge_plan_targets_kb_search() -> None:
+    """知识意图且 LLM 未调工具时，确定性补 kb_search。"""
+    engine = RuleEngine()
+
+    plan = engine.match_knowledge_plan("快递一直不更新怎么办？")
+
+    assert plan is not None
+    assert plan.intent == "knowledge"
+    call = plan.plan.tool_calls[0]
+    assert call.tool_name == "kb_search"
+    assert call.arguments == {"query": "快递一直不更新怎么办？"}
+
+
+def test_knowledge_plan_requires_knowledge_intent_and_visible_tool() -> None:
+    engine = RuleEngine()
+
+    assert engine.match_knowledge_plan("你好") is None
+    # 带明确业务编码时按 ERP 查询，不补知识检索
+    assert engine.match_knowledge_plan("怎么查采购订单 PO000001") is None
+    assert (
+        engine.match_knowledge_plan("怎么发货", available_tools={"erp_query_sales_order"}) is None
+    )
+    assert engine.match_knowledge_plan("怎么发货", available_tools={"kb_search"}) is not None
 
 
 def test_explicit_business_code_still_matches() -> None:

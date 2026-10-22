@@ -42,11 +42,11 @@ def test_build_execution_summary_flags_needs_more_steps() -> None:
 def test_observation_messages_success_carries_structured_result() -> None:
     """成功结果以 user 角色回灌（tool 角色缺 tool_call_id 会被厂商 API 拒绝）。"""
     messages = observation_messages(
-        [_execution("kingdee_query_customer", result={"rows": [{"FNumber": "CUS001"}]})]
+        [_execution("erp_query_customer", result={"rows": [{"FNumber": "CUS001"}]})]
     )
     assert len(messages) == 1
     assert messages[0].role == "user"
-    assert "kingdee_query_customer" in messages[0].content
+    assert "erp_query_customer" in messages[0].content
     assert "CUS001" in messages[0].content
     assert messages[0].content.startswith("工具结果")
 

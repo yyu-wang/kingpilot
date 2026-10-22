@@ -21,14 +21,16 @@ import time
 from collections.abc import Callable, Coroutine
 from enum import StrEnum
 from types import TracebackType
-from typing import Any, Literal, Self
+from typing import Any, Literal, Self, cast
 
 import httpx
 
 from config.settings import Settings
+from erp.types import BillQuerySpec
 from infrastructure.exceptions import KingdeeAPIError, KingdeeAuthError, KingdeeRateLimitError
 from infrastructure.secrets import SecretProvider
 from kingdee.auth import KingdeeAuth
+from kingdee.filter_string import render_filter_expression
 from models.kingdee import (
     ActionResult,
     BillQueryParams,
@@ -126,6 +128,42 @@ class KingdeeClient:
         """关闭自建的连接池（注入的客户端由调用方负责）。"""
         if self._owns_http:
             await self._http.aclose()
+
+    # ── ErpClient 协议实现（中性面） ──
+
+    async def query(self, spec: BillQuerySpec) -> BillQueryResult:
+        """实现 ``ErpClient.query``：FilterExpression → FilterString → ``execute_bill_query``。
+
+        本方法是工具层/AgentCore 的统一入口；``execute_bill_query`` 保留为金蝶
+        私有协议面（integration 测试与既有单测仍走它，零改动）。
+        """
+        filter_string = render_filter_expression(spec.filter)
+        params = BillQueryParams(
+            form_id=spec.form_id,
+            field_keys=",".join(spec.field_keys),
+            filter_string=filter_string,
+            order_string=spec.order_by,
+            start_row=spec.start_row,
+            limit=spec.limit,
+        )
+        return await self.execute_bill_query(params)
+
+    async def invoke_action(
+        self,
+        action: str,
+        form_id: str,
+        *,
+        model: dict[str, Any] | None = None,
+        bill_no: str = "",
+    ) -> ActionResult:
+        """实现 ``ErpClient.invoke_action``：薄委托 ``execute_action``。
+
+        非法 ``action`` 由 ``execute_action`` 内部 ``_ACTION_PATHS.get`` 拒绝，
+        本层不重复校验（避免双重防线）。
+        """
+        return await self.execute_action(
+            cast(KingdeeWriteAction, action), form_id, model=model, bill_no=bill_no
+        )
 
     # ── 公开 API ──
 

@@ -9,6 +9,7 @@ from typing import Any, cast
 from agent.core import AgentCore
 from agent.tools import ToolDefinition, ToolRegistry, ToolType
 from config.settings import Settings
+from erp import FilterExpression
 from governance.semantic_cache import (
     SemanticCache,
     build_cache_key,
@@ -37,7 +38,7 @@ class _EchoTool(ToolDefinition):
     """假工具：固定返回一行，不碰金蝶 client。"""
 
     async def execute(
-        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+        self, client: Any, arguments: dict[str, Any], *, row_filter: FilterExpression | None = None
     ) -> BillQueryResult:
         return BillQueryResult(form_id="ECHO", field_keys=["echo"], rows=[{"echo": "ok"}])
 
@@ -53,7 +54,7 @@ def _registry(tool_type: ToolType = "query") -> ToolRegistry:
         _EchoTool(
             spec=spec,
             params_model=_EchoParams,
-            build_filter=lambda _p: "",
+            build_filter=lambda _p: FilterExpression(),
             endpoint=SAL_ORDER,
             tool_type=tool_type,
             action="save" if tool_type == "write" else "",

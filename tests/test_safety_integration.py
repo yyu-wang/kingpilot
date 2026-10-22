@@ -17,10 +17,11 @@ from agent.tools import (
     build_default_registry,
 )
 from config.settings import Settings
+from erp import BillQuerySpec, FilterExpression, eq
 from kingdee.client import KingdeeClient
 from kingdee.endpoints.base import EndpointDescriptor, EndpointParams, FieldDescriptor
 from models.base import KingPilotBaseModel
-from models.kingdee import BillQueryParams, BillQueryResult, JsonScalar
+from models.kingdee import BillQueryResult, JsonScalar
 from models.llm import PlanResult, ToolCallDecision, ToolSpec
 from models.user import UserContext
 from safety.engine import SafetyLayer
@@ -40,13 +41,13 @@ class FakeIO:
 
 
 class _FakeClient:
-    """记录查询并固定返回一行数据的假客户端。"""
+    """记录查询并固定返回一行数据的假客户端（T05 起收中性 BillQuerySpec）。"""
 
     def __init__(self) -> None:
-        self.queries: list[BillQueryParams] = []
+        self.queries: list[BillQuerySpec] = []
 
-    async def execute_bill_query(self, params: BillQueryParams) -> BillQueryResult:
-        self.queries.append(params)
+    async def query(self, spec: BillQuerySpec) -> BillQueryResult:
+        self.queries.append(spec)
         row: dict[str, JsonScalar] = {
             "FID": "100001",
             "FNumber": "CUS001",
@@ -54,8 +55,8 @@ class _FakeClient:
             "FBillNo": "SO1",
         }
         return BillQueryResult(
-            form_id=params.form_id,
-            field_keys=params.field_keys.split(","),
+            form_id=spec.form_id,
+            field_keys=list(spec.field_keys),
             rows=[row],
         )
 
@@ -69,13 +70,15 @@ class _BillParams(EndpointParams):
     bill_no: str = Field(default="", description="单据编号")
 
 
-def _empty_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _empty_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
-def _bill_filter(params: KingPilotBaseModel) -> str:
+def _bill_filter(params: KingPilotBaseModel) -> FilterExpression:
     p = cast(_BillParams, params)
-    return f"FBillNo = '{p.bill_no}'" if p.bill_no else ""
+    if not p.bill_no:
+        return FilterExpression()
+    return FilterExpression(conditions=(eq("FBillNo", p.bill_no),))
 
 
 def _endpoint(form_id: str) -> EndpointDescriptor:
@@ -132,10 +135,10 @@ _WRITE_TOOL = _tool(
     required=("customer_number",),
 )
 
-_FINANCE_QUERY = _tool("kingdee_query_finance_vouchers", "GL_Voucher")
+_FINANCE_QUERY = _tool("erp_query_finance_vouchers", "GL_Voucher")
 
 _FINANCE_WRITE = _tool(
-    "kingdee_delete_finance_voucher",
+    "erp_delete_finance_voucher",
     "GL_Voucher",
     tool_type="write",
     action="delete",
@@ -180,7 +183,7 @@ def _core(
 
 
 async def test_blocked_plan_returns_blocked_response() -> None:
-    provider = FakeProvider(plan_queue=[_plan("kingdee_query_finance_vouchers", {"bill_no": "V1"})])
+    provider = FakeProvider(plan_queue=[_plan("erp_query_finance_vouchers", {"bill_no": "V1"})])
     core, client = _core(provider)
 
     response = await core.run("帮我查一下凭证", UserContext(user_id="u001", role="operator"))
@@ -220,7 +223,7 @@ async def test_read_only_plan_returns_advice_without_execution() -> None:
     provider = FakeProvider(
         plan_queue=[
             _plan(
-                "kingdee_delete_finance_voucher",
+                "erp_delete_finance_voucher",
                 {"customer_number": "100001", "amount": 1_000_000},
             )
         ]
@@ -243,12 +246,12 @@ async def test_visible_tools_exclude_finance_for_operator() -> None:
     await core.run("你好", UserContext(user_id="u001", role="operator"))
 
     names = [spec.name for spec in provider.last_plan_tools]
-    assert "kingdee_query_finance_vouchers" not in names
-    assert "kingdee_query_sales_order" in names
+    assert "erp_query_finance_vouchers" not in names
+    assert "erp_query_sales_order" in names
 
 
 async def test_row_filter_is_injected_into_execution() -> None:
-    provider = FakeProvider(plan_queue=[_plan("kingdee_query_sales_order", {"bill_no": "SO1"})])
+    provider = FakeProvider(plan_queue=[_plan("erp_query_sales_order", {"bill_no": "SO1"})])
     core, client = _core(provider)
     user = UserContext(user_id="u001", role="operator", data_scope={"org_ids": ["ORG001"]})
 
@@ -258,4 +261,7 @@ async def test_row_filter_is_injected_into_execution() -> None:
     assert response.trace is not None
     assert len(response.trace.tool_executions) == 1
     assert client.queries
-    assert client.queries[-1].filter_string == ("FBillNo = 'SO1' AND FSaleOrgId.FNumber = 'ORG001'")
+    # LLM 侧条件在前，服务端可信行过滤按 AND 语义追加在后（D5）
+    assert client.queries[-1].filter == FilterExpression(
+        conditions=(eq("FBillNo", "SO1"), eq("FSaleOrgId.FNumber", "ORG001"))
+    )

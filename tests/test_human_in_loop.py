@@ -229,11 +229,11 @@ async def test_blocked_permission_does_not_prompt() -> None:
 def test_build_action_summary() -> None:
     calls = [
         ToolCallDecision(
-            tool_name="kingdee_create_sales_order",
+            tool_name="erp_create_sales_order",
             arguments={"customer_number": "CUS001", "quantity": 20.0, "note": ""},
         ),
         ToolCallDecision(
-            tool_name="kingdee_submit_sales_order",
+            tool_name="erp_submit_sales_order",
             arguments={"bill_no": "SO000004"},
         ),
     ]

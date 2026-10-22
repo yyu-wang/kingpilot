@@ -12,6 +12,7 @@ from typing import cast
 from pydantic import Field
 
 from agent.tools import ToolDefinition, ToolRegistry
+from erp import FilterExpression
 from kingdee.client import KingdeeClient
 from kingdee.endpoints.base import EndpointDescriptor, EndpointParams, FieldDescriptor
 from ledger.write_ledger import SqliteWriteLedgerStore, WriteLedger
@@ -55,13 +56,13 @@ class _Params(EndpointParams):
     bill_no: str = Field(default="", description="单据编号")
 
 
-def _empty_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _empty_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
 _FINANCE_TOOL = ToolDefinition(
     spec=ToolSpec(
-        name="kingdee_query_finance_vouchers",
+        name="erp_query_finance_vouchers",
         description="财务凭证查询",
         parameters=_Params.model_json_schema(),
     ),

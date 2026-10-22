@@ -18,6 +18,7 @@ import asyncio
 import sys
 
 from config.settings import Settings
+from erp import FilterExpression, eq
 from infrastructure.exceptions import KingPilotError
 from kingdee.client import KingdeeClient
 from kingdee.endpoints import SAL_ORDER
@@ -60,12 +61,13 @@ def _print_table(result: BillQueryResult) -> None:
 
 async def run_query(server_url: str) -> None:
     """执行一次完整查询并打印（拆成纯函数：集成测试直接 import 调用，不 subprocess 跑脚本）。"""
-    params = SAL_ORDER.to_query_params(
-        filter_string="FDocumentStatus = 'C'",  # 已审核单（Guard 2 白名单校验属 M4，此处硬编码安全值）
+    spec = SAL_ORDER.to_query_params(
+        # 已审核单（Guard 2 白名单校验属 M4，此处硬编码安全值）
+        filter=FilterExpression(conditions=(eq("FDocumentStatus", "C"),)),
         limit=_QUERY_LIMIT,
     )
     async with KingdeeClient(_build_settings(server_url)) as client:
-        result = await client.execute_bill_query(params)
+        result = await client.query(spec)
     _print_table(result)
 
 

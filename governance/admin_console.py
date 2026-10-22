@@ -1,7 +1,7 @@
 """管理后台服务：订单变更审计 + 测试数据集浏览。
 
 设计取舍：
-- **不直连沙箱内存库**：当前数据统一走 ``KingdeeClient.execute_bill_query``，
+- **不直连沙箱内存库**：当前数据统一走 ``ErpClient.query``，
   与生产/仿真的协议路径一致，切换真环境无需改管理后台。
 - **只读**：本服务不提供写操作，避免成为绕过审批与账本的第二入口。
 - **过滤在服务端完成**：变更记录按账本字段过滤；数据集按关键字做行级过滤，
@@ -17,8 +17,8 @@ from typing import Any
 
 from loguru import logger
 
+from erp.protocol import ErpClient
 from infrastructure.exceptions import KingdeeError
-from kingdee.client import KingdeeClient
 from kingdee.endpoints.base import EndpointDescriptor
 from kingdee.endpoints.bd_customer import CUSTOMER
 from kingdee.endpoints.bd_material import BD_MATERIAL
@@ -35,6 +35,7 @@ from models.admin import (
     DatasetResponse,
     FieldChange,
 )
+from models.kingdee import JsonScalar
 from models.ledger import WriteRecord
 
 _MAX_DATASET_ROWS = 2_000
@@ -137,7 +138,7 @@ DATASETS: dict[str, DatasetSpec] = {
 class AdminConsoleService:
     """管理后台只读查询服务。"""
 
-    def __init__(self, client: KingdeeClient, ledger: WriteLedger) -> None:
+    def __init__(self, client: ErpClient, ledger: WriteLedger) -> None:
         self._client = client
         self._ledger = ledger
 
@@ -180,17 +181,25 @@ class AdminConsoleService:
         if spec is None:
             raise KeyError(kind)
         resolved_limit = min(max(limit, 1), _MAX_DATASET_ROWS)
-        result = await self._client.execute_bill_query(
-            spec.endpoint.to_query_params(
-                field_keys=",".join(spec.fields),
-                order_string=_time_order(spec.fields),
-                limit=resolved_limit,
+        all_rows: list[dict[str, JsonScalar]] = []
+        # BillQuerySpec.limit 上限 100 是 LLM 可见面约束；管理后台为内部特权
+        # 读取方，按 100 一页内部翻页直到凑够上限或读到短页（无更多数据）
+        while len(all_rows) < resolved_limit:
+            page = await self._client.query(
+                spec.endpoint.to_query_params(
+                    field_keys=spec.fields,
+                    order_by=_time_order(spec.fields),
+                    start_row=len(all_rows),
+                    limit=min(100, resolved_limit - len(all_rows)),
+                )
             )
-        )
+            all_rows.extend(page.rows)
+            if len(page.rows) < 100:
+                break
         keyword = query.strip().lower()
         rows = [
             row
-            for row in result.rows
+            for row in all_rows
             if not keyword or any(keyword in str(value).lower() for value in row.values())
         ]
         return DatasetResponse(

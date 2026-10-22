@@ -9,12 +9,13 @@ from typing import cast
 
 from pydantic import Field
 
+from erp import FilterExpression, eq
+from erp.tool_names import QUERY_INVENTORY
 from kingdee.endpoints.base import (
     EndpointDescriptor,
     EndpointParams,
     FieldDescriptor,
     QueryToolBinding,
-    quote_eq,
 )
 from models.base import KingPilotBaseModel
 
@@ -55,16 +56,16 @@ class InventoryParams(EndpointParams):
     material_number: str = Field(default="", description="物料编码精确匹配（如 MAT001）")
 
 
-def build_inventory_filter(params: KingPilotBaseModel) -> str:
-    """参数 → FilterString；条件字段均在 INVENTORY.filterable_fields 内。"""
+def build_inventory_filter(params: KingPilotBaseModel) -> FilterExpression:
+    """参数 → FilterExpression；条件字段均在 INVENTORY.filterable_fields 内。"""
     p = cast(InventoryParams, params)
     if p.material_number:
-        return f"FMaterialId.FNumber = {quote_eq(p.material_number)}"
-    return ""
+        return FilterExpression(conditions=(eq("FMaterialId.FNumber", p.material_number),))
+    return FilterExpression()
 
 
 INVENTORY_TOOL = QueryToolBinding(
-    tool_name="kingdee_query_inventory",
+    tool_name=QUERY_INVENTORY,
     tool_description=(
         "按物料编码查询即时库存（金蝶 STK_Inventory）。"
         "何时用：用户询问某物料的库存量/分布在哪些仓库时。"

@@ -11,12 +11,13 @@ from typing import cast
 
 from pydantic import Field
 
+from erp import FilterExpression, like
+from erp.tool_names import QUERY_CUSTOMER
 from kingdee.endpoints.base import (
     EndpointDescriptor,
     EndpointParams,
     FieldDescriptor,
     QueryToolBinding,
-    quote_like,
 )
 from models.base import KingPilotBaseModel
 
@@ -52,16 +53,16 @@ class CustomerParams(EndpointParams):
     name: str = Field(default="", description="客户名称（模糊匹配，可只给部分字）")
 
 
-def build_customer_filter(params: KingPilotBaseModel) -> str:
-    """参数 → FilterString；条件字段均在 CUSTOMER.filterable_fields 内。"""
+def build_customer_filter(params: KingPilotBaseModel) -> FilterExpression:
+    """参数 → FilterExpression；条件字段均在 CUSTOMER.filterable_fields 内。"""
     p = cast(CustomerParams, params)
     if p.name:
-        return f"FName LIKE {quote_like(p.name)}"
-    return ""
+        return FilterExpression(conditions=(like("FName", p.name),))
+    return FilterExpression()
 
 
 CUSTOMER_TOOL = QueryToolBinding(
-    tool_name="kingdee_query_customer",
+    tool_name=QUERY_CUSTOMER,
     tool_description=(
         "按名称模糊查询客户基础资料（金蝶 BD_Customer）。"
         "何时用：需要把客户名称换成客户编码时（订单类查询只支持编码过滤）。"

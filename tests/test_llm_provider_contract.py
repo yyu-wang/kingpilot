@@ -29,7 +29,7 @@ from tests.fakes import FakeProvider, unavailable_plan_provider
 async def run_provider_contract(provider: LLMProvider) -> None:
     """正常路径契约：四个方法签名与返回形状（对任意实现跑同一组断言）。"""
     context = LLMContext(messages=[LLMMessage(role="user", content="查最近 5 笔销售订单")])
-    tools = [ToolSpec(name="kingdee_query_sales_order", description="查询销售订单")]
+    tools = [ToolSpec(name="erp_query_sales_order", description="查询销售订单")]
 
     plan = await provider.plan(context, tools)
     assert isinstance(plan, PlanResult)
@@ -66,7 +66,7 @@ async def test_contract_suite_on_fake_provider() -> None:
         plan_queue=[
             PlanResult(
                 tool_calls=[
-                    ToolCallDecision(tool_name="kingdee_query_sales_order", arguments={"limit": 5})
+                    ToolCallDecision(tool_name="erp_query_sales_order", arguments={"limit": 5})
                 ]
             )
         ]

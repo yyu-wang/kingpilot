@@ -15,7 +15,7 @@
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from loguru import logger
@@ -32,8 +32,8 @@ from config.permission_rules import (
     DomainAccess,
     WriteRule,
 )
+from erp import FilterCondition, FilterExpression, eq
 from infrastructure.exceptions import ToolError
-from kingdee.endpoints.base import quote_eq
 from models.audit import AuditEvent
 from models.base import ROLE_LABELS
 from models.llm import ToolSpec
@@ -63,19 +63,23 @@ class PermissionDecision:
     reason: str = ""
     domain: DataDomain | None = None
     access_type: AccessType = "read"
-    row_filter: str = ""
+    # 行级过滤（结构化表达式，空 = 无行限制）；执行期与 LLM 侧条件按 AND 合并
+    row_filter: FilterExpression = field(default_factory=FilterExpression)
     denied_fields: tuple[str, ...] = ()
     required_approvers: tuple[str, ...] = ()
     rule_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        """转 JSON 可序列化的审计字典。"""
+        """转 JSON 可序列化的审计字典（row_filter 序列化为厂商中立的条件列表）。"""
         return {
             "allowed": self.allowed,
             "reason": self.reason,
             "domain": self.domain.value if self.domain is not None else "",
             "access_type": self.access_type,
-            "row_filter": self.row_filter,
+            "row_filter": [
+                {"field": c.field, "op": c.op.value, "value": c.value}
+                for c in self.row_filter.conditions
+            ],
             "denied_fields": list(self.denied_fields),
             "required_approvers": list(self.required_approvers),
             "rule_id": self.rule_id,
@@ -243,32 +247,34 @@ class PermissionEngine:
             rule_id=rule_id,
         )
 
-    def _build_row_filter(self, user: UserContext, form_id: str) -> tuple[str, str | None]:
-        """构造行级过滤；失败返回 (空串, 拒绝原因)。"""
-        parts: list[str] = []
+    def _build_row_filter(
+        self, user: UserContext, form_id: str
+    ) -> tuple[FilterExpression, str | None]:
+        """构造行级过滤表达式；失败返回 (空表达式, 拒绝原因)。"""
+        conditions: list[FilterCondition] = []
 
         org_ids = _str_list(user.data_scope.get("org_ids"))
         if org_ids:
             if len(org_ids) > 1:
-                return "", "多组织行级过滤暂未支持，请指定单一组织"
-            field = self._row_scope_fields.get(form_id)
-            if field is None:
-                return "", f"{form_id} 未配置组织级行过滤字段"
-            quoted = _quote_value(org_ids[0])
-            if quoted is None:
-                return "", "组织标识包含非法字符"
-            parts.append(f"{field} = {quoted}")
+                return FilterExpression(), "多组织行级过滤暂未支持，请指定单一组织"
+            field_name = self._row_scope_fields.get(form_id)
+            if field_name is None:
+                return FilterExpression(), f"{form_id} 未配置组织级行过滤字段"
+            condition = _eq_condition(field_name, org_ids[0])
+            if condition is None:
+                return FilterExpression(), "组织标识包含非法字符"
+            conditions.append(condition)
 
         if bool(user.data_scope.get("owner_only")):
             owner_field = self._row_owner_fields.get(form_id)
             if owner_field is None:
-                return "", f"{form_id} 未配置负责人行过滤字段"
-            quoted = _quote_value(user.user_id)
-            if quoted is None:
-                return "", "用户标识包含非法字符"
-            parts.append(f"{owner_field} = {quoted}")
+                return FilterExpression(), f"{form_id} 未配置负责人行过滤字段"
+            condition = _eq_condition(owner_field, user.user_id)
+            if condition is None:
+                return FilterExpression(), "用户标识包含非法字符"
+            conditions.append(condition)
 
-        return " AND ".join(parts), None
+        return FilterExpression(conditions=tuple(conditions)), None
 
     def _match_write_rules(
         self,
@@ -412,9 +418,9 @@ def _str_list(value: Any) -> list[str]:
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
-def _quote_value(value: str) -> str | None:
-    """行过滤字面量；单引号等非法字符返回 None（fail-closed）。"""
+def _eq_condition(field_name: str, value: str) -> FilterCondition | None:
+    """行过滤等值条件；单引号等非法字符返回 None（fail-closed）。"""
     try:
-        return quote_eq(value)
+        return eq(field_name, value)
     except ValueError:
         return None

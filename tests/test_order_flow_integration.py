@@ -14,8 +14,8 @@ from models.agent import AgentTrace
 from models.base import SagaStatus
 from models.user import UserContext
 
-_CREATE = "kingdee_create_sales_order"
-_SUBMIT = "kingdee_submit_sales_order"
+_CREATE = "erp_create_sales_order"
+_SUBMIT = "erp_submit_sales_order"
 
 
 async def test_create_then_submit_with_snapshots_and_ledger(

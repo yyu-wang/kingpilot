@@ -970,7 +970,7 @@
           <div class="lane-head">
             <div class="ln">LAYER 05</div>
             <div class="lt">能力与 ERP 适配</div>
-            <div class="ld">工具 / 端点 / 客户端 / 事务 / RAG</div>
+            <div class="ld">契约 / 工具 / 端点 / 客户端 / 事务 / RAG</div>
           </div>
           <div class="lane-track">
             <div class="node" style="--lane: var(--l5);">
@@ -981,15 +981,15 @@
             </div>
             <div class="node" style="--lane: var(--l5);">
               <div class="node-kicker">Endpoints</div>
-              <div class="node-title">金蝶端点描述符</div>
-              <div class="node-code">kingdee/endpoints/*.py</div>
-              <div class="chips"><span>form_id</span><span>字段白名单</span><span>可查 ≠ 可过滤</span><span>FilterString</span></div>
+              <div class="node-title">ERP 端点描述符（金蝶适配）</div>
+              <div class="node-code">erp/descriptors.py · kingdee/endpoints/*.py</div>
+              <div class="chips"><span>form_id</span><span>字段白名单</span><span>可查 ≠ 可过滤</span><span>FilterExpression</span></div>
             </div>
             <div class="node" style="--lane: var(--l5);">
               <div class="node-kicker">ERP Client</div>
-              <div class="node-title">KingdeeClient</div>
+              <div class="node-title">KingdeeClient（ErpClient 实现）</div>
               <div class="node-code">kingdee/client.py · auth.py</div>
-              <div class="chips"><span>LoginBySign SHA-256</span><span>Cookie 会话</span><span>信号量 5</span><span>退避重试</span></div>
+              <div class="chips"><span>query / invoke_action</span><span>LoginBySign SHA-256</span><span>Cookie 会话</span><span>退避重试</span></div>
             </div>
             <div class="node" style="--lane: var(--l5);">
               <div class="node-kicker">Transactions</div>
@@ -1195,7 +1195,7 @@ flowchart TB
 
     P2 --> G1["Guard 0 · Permission<br/>工具/域/行/列"]
     G1 --> G2["Guard 1 · Schema<br/>Pydantic model_validate"]
-    G2 --> G3["Guard 2 · Filter<br/>受限文法 + 黑名单"]
+    G2 --> G3["Guard 2 · Filter<br/>白名单 + 值类型"]
     G3 --> G4["Guard 3 · Entity<br/>名称 → 金蝶 FID"]
     G4 --> G5["Guard 4 · Limit<br/>limit ≤ 10000 + 禁止无条件查询"]
     G5 --> G6["Guard 5 · Param<br/>业务必填 + 内码校验"]
@@ -1244,7 +1244,7 @@ flowchart TB
             <tr><td>Phase 0</td><td>租户上下文 → 压缩判定 → 三层快照 → 实体锚点</td><td><code>AgentCore._phase0_memory</code> · <code>agent/memory_compressor.py</code></td><td>token 估算 CJK=1 / 其他 4 字符；12000 上限、0.7 预警、保留 6 轮；压缩失败放行</td></tr>
             <tr><td>Phase 1</td><td>声明可见工具 → LLM 规划 → 空规划规则补全 → 只读计划缓存</td><td><code>_phase1_plan</code> · <code>agent/providers.py</code></td><td>OpenAI function calling；temperature 0；Schema 由 Pydantic 自动生成；SHA-256 缓存键</td></tr>
             <tr><td>Phase 2</td><td>六道 Guard → 权限判定 → 风险评分 → HITL / 审批</td><td><code>safety/engine.py</code> · <code>safety/guard*.py</code></td><td>首个拦截即短路；Guard 抛异常按拦截处理；任一调用被拦则整批不执行</td></tr>
-            <tr><td>Phase 3</td><td>执行已审查调用；错误记入 <code>ToolExecution</code> 不中断</td><td><code>_phase3_execute</code> · <code>agent/tools.py</code></td><td>Pydantic 复核；端点层组装 FilterString；row_filter 在 Guard 之后追加</td></tr>
+            <tr><td>Phase 3</td><td>执行已审查调用；错误记入 <code>ToolExecution</code> 不中断</td><td><code>_phase3_execute</code> · <code>agent/tools.py</code></td><td>Pydantic 复核；端点层组装 <code>FilterExpression</code>；<code>row_filter</code> 在 Guard 之后按 AND 合并</td></tr>
             <tr><td>Phase 4a</td><td>把本步结果交给 LLM 判断是否续跑</td><td><code>agent/reflection.py</code></td><td>只传本步执行记录；<code>next_input</code> 必须是完整可执行指令；最多 5 步</td></tr>
             <tr><td>Phase 4b</td><td>基于全部执行摘要生成答复</td><td><code>_phase4_generate</code></td><td>PromptRegistry 灰度；摘要之外禁止编造数字/单据号</td></tr>
             <tr><td>Phase 4.5</td><td>知识引用强制；无命中固定文案</td><td><code>governance/rag/answer.py</code></td><td>只认 <code>kb_search.hits</code> 原文；不合规时用 top1 原文兜底</td></tr>
@@ -1300,8 +1300,8 @@ flowchart TB
         <div class="pipe">
           <div class="step">GUARD 2</div>
           <h4>FilterGuard</h4>
-          <p>对组装后的 FilterString 做受限文法校验：只允许 AND、比较符、LIKE；引号掩码后匹配 SQL 黑名单。</p>
-          <div class="chips"><span>regex</span><span>字段白名单</span><span>防注入</span></div>
+          <p>校验工具组装出的<strong>结构化条件</strong>：字段必须命中端点 <code>filterable_fields</code>；值类型必须与字段类型匹配（数值字段收数值、日期须 <code>YYYY-MM-DD</code>、<code>LIKE</code> 不可用于数值字段）。危险模式黑名单已下沉到适配器渲染器做自检。</p>
+          <div class="chips"><span>FilterExpression</span><span>字段白名单</span><span>值类型匹配</span></div>
         </div>
         <div class="pipe">
           <div class="step">GUARD 3</div>
@@ -1334,7 +1334,7 @@ flowchart TB
           <tbody>
             <tr><td>1 · 工具层</td><td><code>allow_tools / deny_tools</code>，deny 优先；未授权工具根本不下发给 LLM</td><td><code>UserContext</code></td><td><code>SafetyLayer.visible_tools</code>（拦截点 1）</td></tr>
             <tr><td>2 · 数据域</td><td>表单 → 域 → 角色可见/可写矩阵；销售、采购、库存、财务、人事、生产六域</td><td><code>config/permission_rules.py</code></td><td><code>PermissionEngine.domain_filter</code> + <code>check</code></td></tr>
-            <tr><td>3 · 行级</td><td><code>data_scope.org_ids / owner_only</code> 生成可信行过滤表达式，执行前追加到 FilterString</td><td><code>ROW_SCOPE_FIELD_MAP</code> · <code>ROW_OWNER_FIELD_MAP</code></td><td><code>GuardedCall.row_filter</code> → <code>ToolDefinition.execute</code></td></tr>
+            <tr><td>3 · 行级</td><td><code>data_scope.org_ids / owner_only</code> 生成可信行过滤表达式，执行前按 AND 合并进 <code>FilterExpression</code></td><td><code>ROW_SCOPE_FIELD_MAP</code> · <code>ROW_OWNER_FIELD_MAP</code></td><td><code>GuardedCall.row_filter</code> → <code>ToolDefinition.execute</code></td></tr>
             <tr><td>4 · 列级</td><td>财务账号、薪资、身份证等禁用字段在结果出口统一剔除</td><td><code>COLUMN_DENY_MAP</code></td><td><code>AgentCore._execute_one</code> → <code>apply_column_filter</code></td></tr>
           </tbody>
         </table>
@@ -1741,22 +1741,23 @@ flowchart TB
         <table>
           <thead><tr><th>包</th><th>模块</th><th>行数</th><th>职责</th><th>关键入口</th></tr></thead>
           <tbody>
-            <tr><td><code>config/</code></td><td>14</td><td>924</td><td>唯一配置入口与全部规则表：模型、权限、风险、RAG、审批、告警、门禁、租户</td><td><code>settings.py</code> · <code>model_registry.py</code></td></tr>
-            <tr><td><code>kingdee/</code></td><td>19</td><td>3,089</td><td>ERP 协议模型、端点描述符、签名客户端、幂等 / Saga / 快照 / 写协调、证据链</td><td><code>client.py</code> · <code>endpoints/base.py</code> · <code>write_coordinator.py</code></td></tr>
-            <tr><td><code>agent/</code></td><td>16</td><td>3,801</td><td>Phase 0–6 主循环、单轮管道、LLM 协议与实现、工具注册、三层记忆、会话、降级、幻觉</td><td><code>core.py</code> · <code>tools.py</code> · <code>providers.py</code></td></tr>
-            <tr><td><code>api/</code></td><td>15</td><td>1,786</td><td>FastAPI 服务、API Key 认证、会话 / Trace / 审批 / 看板 / Badcase / 管理后台 / SSE</td><td><code>app.py</code> · <code>deps.py</code> · <code>routes.py</code></td></tr>
-            <tr><td><code>safety/</code></td><td>14</td><td>2,468</td><td>六道 Guard、四层权限、风险评分、HITL、审批网关协议、DLP、字段脱敏</td><td><code>engine.py</code> · <code>permission_engine.py</code></td></tr>
-            <tr><td><code>governance/</code></td><td>22</td><td>3,944</td><td>审批状态机、预算 / 成本、语义缓存、Prompt 灰度、Badcase、看板、抽样、门禁、RAG、评测</td><td><code>approval.py</code> · <code>rag/</code> · <code>cost_engine.py</code></td></tr>
+            <tr><td><code>config/</code></td><td>14</td><td>932</td><td>唯一配置入口与全部规则表：模型、权限、风险、RAG、审批、告警、门禁、租户</td><td><code>settings.py</code> · <code>model_registry.py</code></td></tr>
+            <tr><td><code>erp/</code></td><td>11</td><td>820</td><td>厂商中立契约：过滤表达式、中性查询请求、端点描述、工具绑定、工具名常量、客户端工厂、用友骨架</td><td><code>types.py</code> · <code>protocol.py</code> · <code>factory.py</code> · <code>yonyou/</code></td></tr>
+            <tr><td><code>kingdee/</code></td><td>22</td><td>3,285</td><td>金蝶参考适配器：签名客户端、FilterString 渲染、端点描述、幂等 / Saga / 快照 / 写协调、证据链</td><td><code>client.py</code> · <code>filter_string.py</code> · <code>write_coordinator.py</code></td></tr>
+            <tr><td><code>agent/</code></td><td>16</td><td>3,921</td><td>Phase 0–6 主循环、单轮管道、LLM 协议与实现、工具注册、三层记忆、会话、降级、幻觉</td><td><code>core.py</code> · <code>tools.py</code> · <code>providers.py</code></td></tr>
+            <tr><td><code>api/</code></td><td>15</td><td>1,817</td><td>FastAPI 服务、API Key 认证、会话 / Trace / 审批 / 看板 / Badcase / 管理后台 / SSE</td><td><code>app.py</code> · <code>deps.py</code> · <code>routes.py</code></td></tr>
+            <tr><td><code>safety/</code></td><td>14</td><td>2,492</td><td>六道 Guard、四层权限、风险评分、HITL、审批网关协议、DLP、字段脱敏</td><td><code>engine.py</code> · <code>permission_engine.py</code></td></tr>
+            <tr><td><code>governance/</code></td><td>22</td><td>3,970</td><td>审批状态机、预算 / 成本、语义缓存、Prompt 灰度、Badcase、看板、抽样、门禁、RAG、评测</td><td><code>approval.py</code> · <code>rag/</code> · <code>cost_engine.py</code></td></tr>
             <tr><td><code>ledger/</code></td><td>4</td><td>580</td><td>append-only 写账本、SHA-256 哈希链、字段 diff、证据链报告</td><td><code>write_ledger.py</code> · <code>hash_chain.py</code></td></tr>
             <tr><td><code>observability/</code></td><td>5</td><td>850</td><td>Trace JSON 落盘、JSONL 审计、滑动窗口告警、死信文件服务</td><td><code>tracing.py</code> · <code>audit.py</code></td></tr>
-            <tr><td><code>models/</code></td><td>17</td><td>1,328</td><td>全项目唯一数据形状：Agent、LLM、工具、金蝶、记忆、审计、账本、审批、RAG、租户</td><td><code>agent.py</code> · <code>llm.py</code> · <code>kingdee.py</code></td></tr>
+            <tr><td><code>models/</code></td><td>17</td><td>1,342</td><td>全项目唯一数据形状：Agent、LLM、工具、金蝶、记忆、审计、账本、审批、RAG、租户</td><td><code>agent.py</code> · <code>llm.py</code> · <code>kingdee.py</code></td></tr>
             <tr><td><code>infrastructure/</code></td><td>5</td><td>743</td><td>异常层次、loguru 初始化与 PII 掩码、密钥提供者、租户上下文与路径</td><td><code>exceptions.py</code> · <code>secrets.py</code> · <code>tenancy.py</code></td></tr>
-            <tr><td><code>sandbox/</code></td><td>10</td><td>2,504</td><td>本地 K3Cloud 契约仿真：登录验签、查询引擎、过滤解析、三个可变内存库</td><td><code>kingdee_stub/app.py</code></td></tr>
+            <tr><td><code>sandbox/</code></td><td>10</td><td>2,507</td><td>本地 K3Cloud 契约仿真：登录验签、查询引擎、过滤解析、三个可变内存库</td><td><code>kingdee_stub/app.py</code></td></tr>
             <tr><td><code>evals/</code></td><td>3</td><td>55</td><td>版本化评测集加载与兼容导出；数据文件在 <code>datasets/v1/</code></td><td><code>dataset.py</code></td></tr>
-            <tr><td><code>scripts/</code></td><td>6</td><td>463</td><td>评测、门禁、RAG 摄入、金蝶冒烟、沙箱演示等运维 CLI</td><td><code>eval_tool_selection.py</code> · <code>release_gate.py</code></td></tr>
+            <tr><td><code>scripts/</code></td><td>6</td><td>465</td><td>评测、门禁、RAG 摄入、金蝶冒烟、沙箱演示等运维 CLI</td><td><code>eval_tool_selection.py</code> · <code>release_gate.py</code></td></tr>
             <tr><td><code>api/static/</code></td><td>7</td><td>3,433</td><td>零构建对话工作台与管理后台（HTML / CSS / Vanilla JS + favicon）</td><td><code>index.html</code> · <code>admin/</code></td></tr>
             <tr><td><code>prompts/</code></td><td>5</td><td>33</td><td>generate / reflect / summarize 三个 Prompt 家族与灰度配置</td><td><code>rollout.json</code></td></tr>
-            <tr><td><code>tests/</code></td><td>107</td><td>23,003</td><td>102 个 <code>test_*.py</code> + conftest / fakes / API helpers / 金蝶与 RAG fixtures</td><td><code>conftest.py</code> · <code>fakes.py</code></td></tr>
+            <tr><td><code>tests/</code></td><td>109</td><td>24,195</td><td>104 个 <code>test_*.py</code> + conftest / fakes / API helpers / 金蝶与 RAG fixtures</td><td><code>conftest.py</code> · <code>fakes.py</code></td></tr>
             <tr><td><code>docs/</code></td><td>17</td><td>—</td><td>实现方案、开发计划、12 份 M9 详细设计、M8 回归报告、手工测试清单</td><td><code>开发计划.md</code></td></tr>
           </tbody>
         </table>
@@ -1769,7 +1770,7 @@ flowchart TB
       </div>
 
       <details class="pkg">
-        <summary><span class="pkg-name">config/</span><span class="pkg-role">配置与规则表</span><span class="pkg-meta">13 模块 · 924 行</span></summary>
+        <summary><span class="pkg-name">config/</span><span class="pkg-role">配置与规则表</span><span class="pkg-meta">13 模块 · 932 行</span></summary>
         <div class="pkg-body">
           <table>
             <thead><tr><th>文件</th><th>职责</th><th>关键符号</th></tr></thead>
@@ -1793,19 +1794,41 @@ flowchart TB
       </details>
 
       <details class="pkg">
-        <summary><span class="pkg-name">kingdee/</span><span class="pkg-role">ERP 协议与写事务</span><span class="pkg-meta">18 模块 · 3,089 行</span></summary>
+        <summary><span class="pkg-name">erp/</span><span class="pkg-role">厂商中立契约</span><span class="pkg-meta">9 模块 · 820 行</span></summary>
+        <div class="pkg-body">
+          <table>
+            <thead><tr><th>文件</th><th>职责</th><th>关键符号</th></tr></thead>
+            <tbody>
+              <tr><td>types.py</td><td>中性过滤与查询类型：条件、表达式、查询请求、操作符闭集</td><td><code>FilterOp</code> · <code>FilterCondition</code> · <code>FilterExpression</code> · <code>BillQuerySpec</code></td></tr>
+              <tr><td>protocol.py</td><td>客户端契约（runtime_checkable Protocol）；厂商用结构化子类型满足，无需继承</td><td><code>ErpClient</code></td></tr>
+              <tr><td>conditions.py</td><td>条件构造助手；构造期拒绝单引号（纵深防御第一层）</td><td><code>eq</code> · <code>ge</code> · <code>like</code> · <code>_check_value</code></td></tr>
+              <tr><td>descriptors.py</td><td>端点描述符：可选字段与可过滤字段两套白名单；查询规格组装</td><td><code>EndpointDescriptor</code> · <code>FieldDescriptor</code> · <code>FieldType</code></td></tr>
+              <tr><td>bindings.py</td><td>查询 / 写工具绑定与参数基类（由各厂商端点层声明）</td><td><code>QueryToolBinding</code> · <code>WriteToolBinding</code> · <code>EndpointParams</code> · <code>EntityReference</code></td></tr>
+              <tr><td>tool_names.py</td><td>21 个工具名常量与（对象, 动作）查表；规则引擎与补偿映射共用</td><td><code>QUERY_TOOL_NAMES</code> · <code>WRITE_TOOL_NAMES</code> · <code>write_tool_name</code></td></tr>
+              <tr><td>factory.py</td><td>按 <code>settings.erp_vendor</code> 构造客户端；厂商包在函数内延迟导入，保持契约层依赖单向</td><td><code>build_erp_client</code> · <code>SUPPORTED_VENDORS</code></td></tr>
+              <tr><td>yonyou/client.py</td><td>用友骨架：实现协议三方法，未接入时 fail-closed（不返回伪装成功的空结果）</td><td><code>YonyouClient</code> · <code>YonyouNotConfiguredError</code></td></tr>
+              <tr><td>yonyou/endpoints.py</td><td>用友采购订单端点示例：两套字段白名单、默认列与排序（字段拼写 INFERRED）</td><td><code>PURCHASE_ORDER</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <details class="pkg">
+        <summary><span class="pkg-name">kingdee/</span><span class="pkg-role">金蝶参考适配器</span><span class="pkg-meta">20 模块 · 3,285 行</span></summary>
         <div class="pkg-body">
           <table>
             <thead><tr><th>文件</th><th>职责</th><th>关键符号</th></tr></thead>
             <tbody>
               <tr><td>auth.py</td><td>LoginBySign 签名登录；Cookie 会话；25 分钟 TTL；双重检查锁</td><td><code>KingdeeAuth</code> · <code>_build_sign</code> · <code>ensure_session</code> · <code>invalidate</code></td></tr>
-              <tr><td>client.py</td><td>ExecuteBillQuery / 五种写动作；三道失败分类；退避 + 信号量</td><td><code>KingdeeClient</code> · <code>_classify</code> · <code>_backoff</code></td></tr>
+              <tr><td>client.py</td><td>实现 <code>ErpClient</code>：query / invoke_action / aclose；五种写动作；三道失败分类；退避 + 信号量</td><td><code>KingdeeClient</code> · <code>query</code> · <code>invoke_action</code> · <code>_classify</code></td></tr>
+              <tr><td>filter_string.py</td><td><code>FilterExpression</code> → <code>FilterString</code> 渲染；危险模式自检 + round-trip 校验（防渲染器自身 bug）</td><td><code>render_filter_expression</code> · <code>parse_filter_string</code> · <code>_DANGEROUS_PATTERNS</code> · <code>_mask_quoted</code></td></tr>
               <tr><td>entity_lookup.py</td><td>写前实体存在性预检：FID → FNumber → FName → LIKE</td><td><code>KingdeeEntityLookup</code> · <code>EntityLookupResult</code></td></tr>
               <tr><td>idempotency.py</td><td>canonical JSON + SHA-256 幂等键；时间桶；per-key 锁</td><td><code>IdempotencyService</code> · <code>build_idempotency_key</code> · <code>InMemoryIdempotencyStore</code></td></tr>
               <tr><td>saga.py</td><td>顺序执行、失败倒序补偿、状态机、补偿映射</td><td><code>SagaOrchestrator</code> · <code>SagaStep</code> · <code>SagaResult</code></td></tr>
               <tr><td>snapshot.py</td><td>销售/采购/入库写前与写后快照</td><td><code>KingdeeSnapshotProvider</code></td></tr>
               <tr><td>write_coordinator.py</td><td>幂等 + Saga + 快照 + 账本 + 证据链的统一写入口</td><td><code>WriteCoordinator</code> · <code>WriteOperation</code> · <code>_LedgeredExecutor</code></td></tr>
-              <tr><td>endpoints/base.py</td><td>端点描述符、可选/可过滤字段、参数模型、FilterString 组装</td><td><code>EndpointDescriptor</code> · <code>EndpointParams</code> · <code>QueryToolBinding</code> · <code>WriteToolBinding</code> · <code>quote_eq</code></td></tr>
+              <tr><td>endpoints/base.py</td><td>兼容薄壳：从 <code>erp/</code> re-export 描述符与绑定类型，并 re-export 渲染器字面量助手</td><td><code>EndpointDescriptor</code> · <code>EndpointParams</code> · <code>QueryToolBinding</code> · <code>quote_eq</code></td></tr>
+              <tr><td>endpoints/labels.py</td><td>写工具与参数的中文展示名（审批卡片 / 确认摘要共用）</td><td><code>tool_label</code> · <code>param_label</code> · <code>entity_label</code></td></tr>
               <tr><td>endpoints/bd_customer.py</td><td>客户查询端点与工具绑定</td><td><code>CUSTOMER</code> · <code>CUSTOMER_TOOL</code></td></tr>
               <tr><td>endpoints/bd_supplier.py</td><td>供应商查询端点与工具绑定</td><td><code>SUPPLIER</code> · <code>SUPPLIER_TOOL</code></td></tr>
               <tr><td>endpoints/bd_material.py</td><td>物料端点；只用于 Guard 3 实体预检，不注册为 LLM 工具</td><td><code>BD_MATERIAL</code></td></tr>
@@ -1822,7 +1845,7 @@ flowchart TB
       </details>
 
       <details class="pkg" open>
-        <summary><span class="pkg-name">agent/</span><span class="pkg-role">主循环、工具、记忆、LLM</span><span class="pkg-meta">15 模块 · 3,801 行</span></summary>
+        <summary><span class="pkg-name">agent/</span><span class="pkg-role">主循环、工具、记忆、LLM</span><span class="pkg-meta">15 模块 · 3,921 行</span></summary>
         <div class="pkg-body">
           <table>
             <thead><tr><th>文件</th><th>职责</th><th>关键符号</th></tr></thead>
@@ -1848,7 +1871,7 @@ flowchart TB
       </details>
 
       <details class="pkg">
-        <summary><span class="pkg-name">api/</span><span class="pkg-role">HTTP 服务与运营接口</span><span class="pkg-meta">14 模块 · 1,786 行</span></summary>
+        <summary><span class="pkg-name">api/</span><span class="pkg-role">HTTP 服务与运营接口</span><span class="pkg-meta">14 模块 · 1,817 行</span></summary>
         <div class="pkg-body">
           <table>
             <thead><tr><th>文件</th><th>职责</th><th>关键符号 / 路由</th></tr></thead>
@@ -1873,7 +1896,7 @@ flowchart TB
       </details>
 
       <details class="pkg">
-        <summary><span class="pkg-name">safety/</span><span class="pkg-role">护栏、权限、风险、DLP</span><span class="pkg-meta">13 模块 · 2,468 行</span></summary>
+        <summary><span class="pkg-name">safety/</span><span class="pkg-role">护栏、权限、风险、DLP</span><span class="pkg-meta">13 模块 · 2,492 行</span></summary>
         <div class="pkg-body">
           <table>
             <thead><tr><th>文件</th><th>职责</th><th>关键符号</th></tr></thead>
@@ -1881,7 +1904,7 @@ flowchart TB
               <tr><td>engine.py</td><td>安全层门面：可见工具、Guard 管道、权限、风险、HITL / 审批</td><td><code>SafetyLayer</code> · <code>GuardedCall</code> · <code>SafetyVerdict</code></td></tr>
               <tr><td>guard.py</td><td>Guard 协议、结果、顺序管道、异常 fail-closed、短路</td><td><code>Guard</code> · <code>GuardResult</code> · <code>GuardPipeline</code></td></tr>
               <tr><td>guard_schema.py</td><td>Guard 1：工具名白名单 + Pydantic 参数校验</td><td><code>SchemaGuard</code></td></tr>
-              <tr><td>guard_sql.py</td><td>Guard 2：FilterString 受限文法 + SQL 黑名单 + 字段白名单</td><td><code>FilterGuard</code> · <code>FilterSyntaxError</code></td></tr>
+              <tr><td>guard_sql.py</td><td>Guard 2：FilterExpression 字段白名单 + 值类型匹配（不再接触任何查询方言）</td><td><code>FilterGuard</code></td></tr>
               <tr><td>guard_entity.py</td><td>Guard 3：写操作实体存在性预检与名称→FID 换码</td><td><code>EntityPreflightGuard</code></td></tr>
               <tr><td>guard_limit.py</td><td>Guard 4：分页上限 10000；禁止无条件查询</td><td><code>LimitGuard</code></td></tr>
               <tr><td>guard_params.py</td><td>Guard 5：写操作业务必填项 + 引用字段内码校验</td><td><code>ParamGuard</code></td></tr>
@@ -1897,7 +1920,7 @@ flowchart TB
       </details>
 
       <details class="pkg">
-        <summary><span class="pkg-name">governance/</span><span class="pkg-role">审批、成本、RAG、评测</span><span class="pkg-meta">19 模块 · 3,944 行</span></summary>
+        <summary><span class="pkg-name">governance/</span><span class="pkg-role">审批、成本、RAG、评测</span><span class="pkg-meta">19 模块 · 3,970 行</span></summary>
         <div class="pkg-body">
           <table>
             <thead><tr><th>文件</th><th>职责</th><th>关键符号</th></tr></thead>
@@ -1956,7 +1979,7 @@ flowchart TB
       </details>
 
       <details class="pkg">
-        <summary><span class="pkg-name">models/</span><span class="pkg-role">全项目数据形状</span><span class="pkg-meta">16 模块 · 1,328 行</span></summary>
+        <summary><span class="pkg-name">models/</span><span class="pkg-role">全项目数据形状</span><span class="pkg-meta">16 模块 · 1,342 行</span></summary>
         <div class="pkg-body">
           <table>
             <thead><tr><th>文件</th><th>职责</th><th>关键符号</th></tr></thead>
@@ -1998,20 +2021,19 @@ flowchart TB
       </details>
 
       <details class="pkg">
-        <summary><span class="pkg-name">sandbox/</span><span class="pkg-role">K3Cloud 契约仿真</span><span class="pkg-meta">8 模块 · 2,504 行</span></summary>
+        <summary><span class="pkg-name">sandbox/</span><span class="pkg-role">K3Cloud 契约仿真</span><span class="pkg-meta">8 模块 · 2,507 行</span></summary>
         <div class="pkg-body">
           <table>
             <thead><tr><th>文件</th><th>职责</th><th>关键符号</th></tr></thead>
             <tbody>
               <tr><td>kingdee_stub/app.py</td><td>FastAPI ASGI 替身：登录验签、查询、写动作、错误信封、Cookie</td><td><code>app</code> · <code>LoginBySign</code> · <code>ExecuteBillQuery</code></td></tr>
               <tr><td>kingdee_stub/dataset.py</td><td>固定种子程序化生成 130 条销售订单及采购/入库数据</td><td><code>ORDERS</code> · <code>PURCHASE_ORDERS</code> · <code>PURCHASE_INBOUND_ROWS</code></td></tr>
-              <tr><td>kingdee_stub/filter_parser.py</td><td>受限 FilterString 解析；与 Guard 2 形成双重拒绝</td><td><code>FilterSyntaxError</code> · <code>parse_filter</code></td></tr>
+              <tr><td>kingdee_stub/filter_parser.py</td><td>受限 FilterString 解析：查询执行用，同时作为适配器渲染器 round-trip 自检的兜底</td><td><code>FilterSyntaxError</code> · <code>parse_filter</code></td></tr>
               <tr><td>kingdee_stub/query_engine.py</td><td>按 FormId 注册；字段投影、过滤、排序、分页</td><td><code>query</code> · <code>FORM_REGISTRY</code></td></tr>
               <tr><td>kingdee_stub/store.py</td><td>销售订单可变内存库（增删改查）</td><td><code>OrderStore</code></td></tr>
               <tr><td>kingdee_stub/purchase_order_store.py</td><td>采购订单可变内存库</td><td><code>PurchaseOrderStore</code></td></tr>
               <tr><td>kingdee_stub/inbound_store.py</td><td>采购入库可变内存库</td><td><code>InboundStore</code></td></tr>
-              <tr><td>kingdee_stub/__main__.py</td><td>沙箱启动入口</td><td><code>main</code></td></tr>
-              <tr><td>kingdee_stub/__init__.py</td><td>沙箱应用与配置工厂导出</td><td><code>app</code> · <code>sandbox_settings</code></td></tr>
+              <tr><td>kingdee_stub/__main__.py</td><td>沙箱启动入口；<code>sandbox_settings</code> 由包 <code>__init__.py</code> 导出</td><td><code>main</code></td></tr>
             </tbody>
           </table>
         </div>
@@ -2032,7 +2054,7 @@ flowchart TB
       </details>
 
       <details class="pkg">
-        <summary><span class="pkg-name">scripts/</span><span class="pkg-role">运维与验收 CLI</span><span class="pkg-meta">5 模块 · 463 行</span></summary>
+        <summary><span class="pkg-name">scripts/</span><span class="pkg-role">运维与验收 CLI</span><span class="pkg-meta">5 模块 · 465 行</span></summary>
         <div class="pkg-body">
           <table>
             <thead><tr><th>文件</th><th>职责</th><th>关键符号</th></tr></thead>
@@ -2071,7 +2093,7 @@ flowchart TB
       </details>
 
       <details class="pkg">
-        <summary><span class="pkg-name">tests/</span><span class="pkg-role">测试与契约 fixtures</span><span class="pkg-meta">107 文件 · 23,003 行</span></summary>
+        <summary><span class="pkg-name">tests/</span><span class="pkg-role">测试与契约 fixtures</span><span class="pkg-meta">109 文件 · 24,195 行</span></summary>
         <div class="pkg-body">
           <table>
             <thead><tr><th>文件 / 目录</th><th>职责</th><th>覆盖重点</th></tr></thead>
@@ -2179,8 +2201,8 @@ flowchart TB
       <div class="grid-3">
         <div class="card red">
           <div class="k">Boundary 01</div>
-          <h4>LLM 永远不接触 FilterString</h4>
-          <p>工具参数是结构化对象；FilterString 只在端点层组装。LLM 只能选值，不能拼 SQL，这是防注入的核心边界。</p>
+          <h4>LLM 永远不接触查询方言</h4>
+          <p>工具参数是结构化对象；端点层产出 <code>FilterExpression</code>，<code>FilterString</code> 只在适配器内部渲染。LLM 只能选值，连字符串都不产生——这是防注入的核心边界。</p>
         </div>
         <div class="card red">
           <div class="k">Boundary 02</div>
@@ -2258,31 +2280,31 @@ flowchart TB
         <table>
           <thead><tr><th>类型</th><th>工具名</th><th>form_id</th><th>动作</th><th>关键约束 / 说明</th></tr></thead>
           <tbody>
-            <tr><td><span class="tag q">QUERY</span></td><td><code>kingdee_query_sales_order</code></td><td><code>SAL_Order</code></td><td>查询</td><td>20 个可选字段；<code>include_entries</code> 展开明细；默认按 <code>FBillNo</code> 排序</td></tr>
-            <tr><td><span class="tag q">QUERY</span></td><td><code>kingdee_query_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td>查询</td><td>10 个字段；供应商/日期/状态过滤</td></tr>
-            <tr><td><span class="tag q">QUERY</span></td><td><code>kingdee_query_purchase_inbound</code></td><td><code>STK_InStock</code></td><td>查询</td><td>11 个字段；供应商/仓库/物料/实收数量</td></tr>
-            <tr><td><span class="tag q">QUERY</span></td><td><code>kingdee_query_customer</code></td><td><code>BD_Customer</code></td><td>查询</td><td>编码/名称/简称；默认按编码排序</td></tr>
-            <tr><td><span class="tag q">QUERY</span></td><td><code>kingdee_query_supplier</code></td><td><code>BD_Supplier</code></td><td>查询</td><td>编码/名称/简称；默认按编码排序</td></tr>
-            <tr><td><span class="tag q">QUERY</span></td><td><code>kingdee_query_inventory</code></td><td><code>STK_Inventory</code></td><td>查询</td><td>物料编码/名称、仓库、<code>FBaseQty</code> 即时库存</td></tr>
+            <tr><td><span class="tag q">QUERY</span></td><td><code>erp_query_sales_order</code></td><td><code>SAL_Order</code></td><td>查询</td><td>20 个可选字段；<code>include_entries</code> 展开明细；默认按 <code>FBillNo</code> 排序</td></tr>
+            <tr><td><span class="tag q">QUERY</span></td><td><code>erp_query_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td>查询</td><td>10 个字段；供应商/日期/状态过滤</td></tr>
+            <tr><td><span class="tag q">QUERY</span></td><td><code>erp_query_purchase_inbound</code></td><td><code>STK_InStock</code></td><td>查询</td><td>11 个字段；供应商/仓库/物料/实收数量</td></tr>
+            <tr><td><span class="tag q">QUERY</span></td><td><code>erp_query_customer</code></td><td><code>BD_Customer</code></td><td>查询</td><td>编码/名称/简称；默认按编码排序</td></tr>
+            <tr><td><span class="tag q">QUERY</span></td><td><code>erp_query_supplier</code></td><td><code>BD_Supplier</code></td><td>查询</td><td>编码/名称/简称；默认按编码排序</td></tr>
+            <tr><td><span class="tag q">QUERY</span></td><td><code>erp_query_inventory</code></td><td><code>STK_Inventory</code></td><td>查询</td><td>物料编码/名称、仓库、<code>FBaseQty</code> 即时库存</td></tr>
             <tr><td><span class="tag k">LOCAL</span></td><td><code>kb_search</code></td><td>—</td><td>检索</td><td>BM25 知识检索；参数 <code>query</code> + <code>limit 1–10</code>；不支持行级过滤</td></tr>
 
-            <tr><td><span class="tag w">WRITE</span></td><td><code>kingdee_create_sales_order</code></td><td><code>SAL_Order</code></td><td><code>save</code></td><td>客户/物料实体引用；数量 ≤ 1e6；含税单价 ≤ 1e8；备注 ≤ 200</td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_submit_sales_order</code></td><td><code>SAL_Order</code></td><td><code>submit</code></td><td><code>bill_no</code> 匹配 <code>^SO\d{6}$</code>；Z/A → B</td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_audit_sales_order</code></td><td><code>SAL_Order</code></td><td><code>audit</code></td><td>同上；B → C</td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_unaudit_sales_order</code></td><td><code>SAL_Order</code></td><td><code>unaudit</code></td><td>同上；C → A；必须有写前快照</td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_delete_sales_order</code></td><td><code>SAL_Order</code></td><td><code>delete</code></td><td>Z/A 才可删；必须有写前快照；高风险 +40</td></tr>
+            <tr><td><span class="tag w">WRITE</span></td><td><code>erp_create_sales_order</code></td><td><code>SAL_Order</code></td><td><code>save</code></td><td>客户/物料实体引用；数量 ≤ 1e6；含税单价 ≤ 1e8；备注 ≤ 200</td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_submit_sales_order</code></td><td><code>SAL_Order</code></td><td><code>submit</code></td><td><code>bill_no</code> 匹配 <code>^SO\d{6}$</code>；Z/A → B</td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_audit_sales_order</code></td><td><code>SAL_Order</code></td><td><code>audit</code></td><td>同上；B → C</td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_unaudit_sales_order</code></td><td><code>SAL_Order</code></td><td><code>unaudit</code></td><td>同上；C → A；必须有写前快照</td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_delete_sales_order</code></td><td><code>SAL_Order</code></td><td><code>delete</code></td><td>Z/A 才可删；必须有写前快照；高风险 +40</td></tr>
 
-            <tr><td><span class="tag w">WRITE</span></td><td><code>kingdee_create_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td><code>save</code></td><td>供应商/物料实体引用；数量/单价/日期/备注</td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_submit_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td><code>submit</code></td><td><code>bill_no</code> 匹配 <code>^PO\d{6}$</code></td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_audit_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td><code>audit</code></td><td>状态流转与销售订单一致</td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_unaudit_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td><code>unaudit</code></td><td>必须能查到写前快照</td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_delete_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td><code>delete</code></td><td>Z/A 才可删；高风险</td></tr>
+            <tr><td><span class="tag w">WRITE</span></td><td><code>erp_create_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td><code>save</code></td><td>供应商/物料实体引用；数量/单价/日期/备注</td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_submit_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td><code>submit</code></td><td><code>bill_no</code> 匹配 <code>^PO\d{6}$</code></td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_audit_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td><code>audit</code></td><td>状态流转与销售订单一致</td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_unaudit_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td><code>unaudit</code></td><td>必须能查到写前快照</td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_delete_purchase_order</code></td><td><code>PUR_PurchaseOrder</code></td><td><code>delete</code></td><td>Z/A 才可删；高风险</td></tr>
 
-            <tr><td><span class="tag w">WRITE</span></td><td><code>kingdee_create_purchase_inbound</code></td><td><code>STK_InStock</code></td><td><code>save</code></td><td>源单 <code>^PO\d{6}$</code>；供应商必须一致；物料/仓库必须存在</td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_submit_purchase_inbound</code></td><td><code>STK_InStock</code></td><td><code>submit</code></td><td><code>bill_no</code> 匹配 <code>^CGRK\d{6}$</code></td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_audit_purchase_inbound</code></td><td><code>STK_InStock</code></td><td><code>audit</code></td><td>B → C；写入账本并生成证据链</td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_unaudit_purchase_inbound</code></td><td><code>STK_InStock</code></td><td><code>unaudit</code></td><td>C → A；必须有写前快照</td></tr>
-            <tr><td><span class="tag w">ACTION</span></td><td><code>kingdee_delete_purchase_inbound</code></td><td><code>STK_InStock</code></td><td><code>delete</code></td><td>Z/A 才可删；高风险</td></tr>
+            <tr><td><span class="tag w">WRITE</span></td><td><code>erp_create_purchase_inbound</code></td><td><code>STK_InStock</code></td><td><code>save</code></td><td>源单 <code>^PO\d{6}$</code>；供应商必须一致；物料/仓库必须存在</td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_submit_purchase_inbound</code></td><td><code>STK_InStock</code></td><td><code>submit</code></td><td><code>bill_no</code> 匹配 <code>^CGRK\d{6}$</code></td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_audit_purchase_inbound</code></td><td><code>STK_InStock</code></td><td><code>audit</code></td><td>B → C；写入账本并生成证据链</td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_unaudit_purchase_inbound</code></td><td><code>STK_InStock</code></td><td><code>unaudit</code></td><td>C → A；必须有写前快照</td></tr>
+            <tr><td><span class="tag w">ACTION</span></td><td><code>erp_delete_purchase_inbound</code></td><td><code>STK_InStock</code></td><td><code>delete</code></td><td>Z/A 才可删；高风险</td></tr>
           </tbody>
         </table>
       </div>

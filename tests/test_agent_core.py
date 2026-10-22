@@ -13,6 +13,7 @@ from agent.core import AgentCore
 from agent.memory import MemoryStore
 from agent.tools import ToolDefinition, ToolRegistry
 from config.settings import Settings
+from erp import FilterExpression
 from kingdee.endpoints import SAL_ORDER
 from kingdee.endpoints.base import EndpointParams
 from models.kingdee import ActionResult, BillQueryResult
@@ -29,7 +30,7 @@ from tests.fakes import FakeProvider
 
 _ECHO_TOOL_NAME = "echo_test_tool"
 _CUSTOMER_TOOL_NAME = "customer_query_tool"
-_SALES_TOOL_NAME = "kingdee_query_sales_order"
+_SALES_TOOL_NAME = "erp_query_sales_order"
 
 
 class _CustomerParams(EndpointParams):
@@ -40,7 +41,7 @@ class _CustomerTool(ToolDefinition):
     """FakeTool：返回 BD_Customer 结果（含 CUS001），验证实体抽取入图。"""
 
     async def execute(
-        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+        self, client: Any, arguments: dict[str, Any], *, row_filter: FilterExpression | None = None
     ) -> BillQueryResult:
         return BillQueryResult(
             form_id="BD_Customer",
@@ -60,7 +61,7 @@ def _make_customer_registry() -> ToolRegistry:
         _CustomerTool(
             spec=spec,
             params_model=_CustomerParams,
-            build_filter=lambda _p: "",
+            build_filter=lambda _p: FilterExpression(),
             endpoint=SAL_ORDER,
         )
     )
@@ -71,15 +72,15 @@ class _EchoParams(EndpointParams):
     """空参数模型（limit 由 EndpointParams 提供）。"""
 
 
-def _echo_build_filter(params: Any) -> str:
-    return ""
+def _echo_build_filter(params: Any) -> FilterExpression:
+    return FilterExpression()
 
 
 class _EchoTool(ToolDefinition):
     """FakeTool：覆盖 execute 返回固定结果，不碰金蝶 client。"""
 
     async def execute(
-        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+        self, client: Any, arguments: dict[str, Any], *, row_filter: FilterExpression | None = None
     ) -> BillQueryResult:
         return BillQueryResult(form_id="ECHO", field_keys=["echo"], rows=[{"echo": "ok"}])
 
@@ -106,7 +107,7 @@ class _SalesTool(ToolDefinition):
     """FakeTool：返回固定销售订单行，验证规则引擎补全后的执行链路。"""
 
     async def execute(
-        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+        self, client: Any, arguments: dict[str, Any], *, row_filter: FilterExpression | None = None
     ) -> BillQueryResult:
         return BillQueryResult(
             form_id="SAL_Order",
@@ -126,14 +127,14 @@ def _make_sales_registry() -> ToolRegistry:
         _SalesTool(
             spec=spec,
             params_model=_CustomerParams,
-            build_filter=lambda _p: "",
+            build_filter=lambda _p: FilterExpression(),
             endpoint=SAL_ORDER,
         )
     )
     return registry
 
 
-_ACTION_TOOL_NAME = "kingdee_unaudit_sales_order"
+_ACTION_TOOL_NAME = "erp_unaudit_sales_order"
 
 
 class _BillActionParams(EndpointParams):
@@ -146,7 +147,7 @@ class _ActionTool(ToolDefinition):
     """FakeTool：写动作工具，固定返回成功（不碰金蝶 client）。"""
 
     async def execute(
-        self, client: Any, arguments: dict[str, Any], *, row_filter: str = ""
+        self, client: Any, arguments: dict[str, Any], *, row_filter: FilterExpression | None = None
     ) -> ActionResult:
         return ActionResult(
             success=True,
@@ -166,10 +167,46 @@ def _make_action_registry() -> ToolRegistry:
         _ActionTool(
             spec=spec,
             params_model=_BillActionParams,
-            build_filter=lambda _p: "",
+            build_filter=lambda _p: FilterExpression(),
             endpoint=SAL_ORDER,
             tool_type="action",
             action="unaudit",
+        )
+    )
+    return registry
+
+
+_PURCHASE_AUDIT_TOOL_NAME = "erp_audit_purchase_order"
+_KB_TOOL_NAME = "kb_search"
+
+
+def _make_planning_registry() -> ToolRegistry:
+    """查询 + 采购审核写工具 + kb_search，用于覆盖/补全测试。"""
+    registry = _make_sales_registry()
+    registry.register(
+        _ActionTool(
+            spec=ToolSpec(
+                name=_PURCHASE_AUDIT_TOOL_NAME,
+                description="测试采购审核工具：固定返回成功",
+                parameters=_BillActionParams.model_json_schema(),
+            ),
+            params_model=_BillActionParams,
+            build_filter=lambda _p: FilterExpression(),
+            endpoint=SAL_ORDER,
+            tool_type="write",
+            action="audit",
+        )
+    )
+    registry.register(
+        _EchoTool(
+            spec=ToolSpec(
+                name=_KB_TOOL_NAME,
+                description="测试知识检索工具：固定返回一行",
+                parameters=_CustomerParams.model_json_schema(),
+            ),
+            params_model=_CustomerParams,
+            build_filter=lambda _p: FilterExpression(),
+            endpoint=SAL_ORDER,
         )
     )
     return registry
@@ -256,6 +293,63 @@ async def test_empty_plan_is_completed_by_rule_engine_for_write_intent() -> None
     assert trace.llm_planning["rule_fallback"] == {
         "intent": "write_unaudit",
         "reason": "llm_plan_empty",
+    }
+
+
+async def test_explicit_write_action_overrides_read_only_plan() -> None:
+    """LLM 把「审核采购订单」规划成查询时，规则引擎纠正为写工具。"""
+    provider = FakeProvider(
+        plan_queue=[_plan(_SALES_TOOL_NAME)],
+        response_queue=["已提交审批"],
+    )
+    core = AgentCore(provider, _make_planning_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("审核采购订单 PO900001")
+
+    trace = response.trace
+    assert trace is not None
+    assert [execution.tool_name for execution in trace.tool_executions] == [
+        _PURCHASE_AUDIT_TOOL_NAME
+    ]
+    assert trace.tool_executions[0].parameters == {"bill_no": "PO900001"}
+    assert trace.llm_planning["rule_override"] == {
+        "intent": "write_audit",
+        "reason": "explicit_write_action",
+    }
+
+
+async def test_question_about_write_action_is_not_overridden() -> None:
+    """带疑问词的咨询句不能被覆盖成写操作。"""
+    provider = FakeProvider(
+        plan_queue=[_plan(_SALES_TOOL_NAME)],
+        response_queue=["需要具备审核权限"],
+    )
+    core = AgentCore(provider, _make_planning_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("审核采购订单 PO900001 需要什么条件？")
+
+    trace = response.trace
+    assert trace is not None
+    assert "rule_override" not in trace.llm_planning
+    assert trace.tool_executions[0].tool_name == _SALES_TOOL_NAME
+
+
+async def test_empty_plan_knowledge_question_calls_kb_search() -> None:
+    """知识意图且 LLM 未调工具时，补 kb_search，避免无引用作答。"""
+    provider = FakeProvider(
+        plan_queue=[PlanResult(tool_calls=[])],
+        response_queue=["见知识库"],
+    )
+    core = AgentCore(provider, _make_planning_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("快递一直不更新怎么办？")
+
+    trace = response.trace
+    assert trace is not None
+    assert trace.tool_executions[0].tool_name == _KB_TOOL_NAME
+    assert trace.llm_planning["rule_fallback"] == {
+        "intent": "knowledge",
+        "reason": "knowledge_intent",
     }
 
 
@@ -686,3 +780,31 @@ async def test_phase5_uses_session_history_for_cross_turn_reference() -> None:
     assert trace is not None
     assert trace.hallucination_detected is False
     assert response.hallucination_warning is False
+
+
+async def test_empty_generation_is_retried_once() -> None:
+    """LLM 偶发空答复：重试一次并采用第二次结果。"""
+    provider = FakeProvider(
+        plan_queue=[_plan()],
+        response_queue=["", "第二次答复"],
+    )
+    core = AgentCore(provider, _make_echo_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("你好")
+
+    assert response.content == "第二次答复"
+    assert provider.generate_calls == 2
+
+
+async def test_empty_generation_falls_back_after_retry() -> None:
+    """两次都为空时返回可读兜底文案，避免前端收到空 final。"""
+    provider = FakeProvider(
+        plan_queue=[_plan()],
+        response_queue=["", "   "],
+    )
+    core = AgentCore(provider, _make_echo_registry(), client=None, settings=_settings())  # type: ignore[arg-type]
+
+    response = await core.run("你好")
+
+    assert response.content == "抱歉，本次没有生成有效答复，请重试或换个问法。"
+    assert provider.generate_calls == 2

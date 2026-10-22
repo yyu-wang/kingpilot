@@ -4,14 +4,14 @@
 
 | 工具 | 动作 | 状态迁移 |
 |------|------|----------|
-| kingdee_create_purchase_order | save | → Z |
-| kingdee_submit_purchase_order | submit | Z/A → B |
-| kingdee_audit_purchase_order | audit | B → C |
-| kingdee_unaudit_purchase_order | unaudit | C → A |
-| kingdee_delete_purchase_order | delete | Z/A → 删除 |
+| erp_create_purchase_order | save | → Z |
+| erp_submit_purchase_order | submit | Z/A → B |
+| erp_audit_purchase_order | audit | B → C |
+| erp_unaudit_purchase_order | unaudit | C → A |
+| erp_delete_purchase_order | delete | Z/A → 删除 |
 
 与采购入库单的区别：本模块是「向供应商下单」；到货入库请用
-``kingdee_create_purchase_inbound``。
+``erp_create_purchase_inbound``。
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import Field
 
+from erp.tool_names import CREATE_PURCHASE_ORDER, OBJ_PURCHASE_ORDER, WRITE_TOOL_NAMES
 from kingdee.endpoints.base import (
     EntityReference,
     WriteRemoteRunner,
@@ -30,7 +31,8 @@ from models.base import KingPilotBaseModel
 from models.kingdee import ActionResult
 
 if TYPE_CHECKING:
-    from kingdee.client import KingdeeClient, KingdeeWriteAction
+    from erp.protocol import ErpClient
+    from kingdee.client import KingdeeWriteAction
 
 _BILL_NO_PATTERN = r"^PO\d{6}$"
 _DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}$"
@@ -74,7 +76,7 @@ def _reference(value: str) -> dict[str, Any]:
     return {"FID": int(text)} if text.isdigit() else {"FNumber": text}
 
 
-async def create_purchase_order(client: KingdeeClient, params: KingPilotBaseModel) -> ActionResult:
+async def create_purchase_order(client: ErpClient, params: KingPilotBaseModel) -> ActionResult:
     """Save：创建一张暂存采购订单。"""
     p = cast(PurchaseOrderCreateParams, params)
     model: dict[str, Any] = {
@@ -87,15 +89,15 @@ async def create_purchase_order(client: KingdeeClient, params: KingPilotBaseMode
         model["FDate"] = p.order_date
     if p.note:
         model["FNote"] = p.note
-    return await client.execute_action("save", PURCHASE_ORDER.form_id, model=model)
+    return await client.invoke_action("save", PURCHASE_ORDER.form_id, model=model)
 
 
 def _action_runner(action: KingdeeWriteAction) -> WriteRemoteRunner:
     """生成状态流转执行器（四个动作结构相同）。"""
 
-    async def runner(client: KingdeeClient, params: KingPilotBaseModel) -> ActionResult:
+    async def runner(client: ErpClient, params: KingPilotBaseModel) -> ActionResult:
         p = cast(PurchaseOrderActionParams, params)
-        return await client.execute_action(action, PURCHASE_ORDER.form_id, bill_no=p.bill_no)
+        return await client.invoke_action(action, PURCHASE_ORDER.form_id, bill_no=p.bill_no)
 
     return runner
 
@@ -116,7 +118,7 @@ _ACTION_DESCRIPTIONS: dict[str, str] = {
 
 
 CREATE_PURCHASE_ORDER_TOOL = WriteToolBinding(
-    tool_name="kingdee_create_purchase_order",
+    tool_name=CREATE_PURCHASE_ORDER,
     tool_description=_CREATE_DESCRIPTION,
     endpoint=PURCHASE_ORDER,
     params_model=PurchaseOrderCreateParams,
@@ -138,7 +140,7 @@ CREATE_PURCHASE_ORDER_TOOL = WriteToolBinding(
 
 def _action_binding(action: KingdeeWriteAction) -> WriteToolBinding:
     return WriteToolBinding(
-        tool_name=f"kingdee_{action}_purchase_order",
+        tool_name=WRITE_TOOL_NAMES[(OBJ_PURCHASE_ORDER, action)],
         tool_description=_ACTION_DESCRIPTIONS[action],
         endpoint=PURCHASE_ORDER,
         params_model=PurchaseOrderActionParams,

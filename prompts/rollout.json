@@ -1,6 +1,6 @@
 {
   "generate": {
-    "active": "v2",
+    "active": "v3",
     "rollout": {}
   },
   "reflect": {

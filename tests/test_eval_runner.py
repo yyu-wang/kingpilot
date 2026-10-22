@@ -12,8 +12,8 @@ from infrastructure.exceptions import LLMUnavailableError
 from models.llm import PlanResult, ToolCallDecision
 from tests.fakes import FakeProvider
 
-_SAL = "kingdee_query_sales_order"
-_INV = "kingdee_query_inventory"
+_SAL = "erp_query_sales_order"
+_INV = "erp_query_inventory"
 
 
 def _q(expected: str | None = _SAL, qid: str = "T-01") -> EvalQuestion:
@@ -67,7 +67,7 @@ def test_check_params_rejects_unknown_field() -> None:
 
 def test_check_params_unknown_tool_returns_none() -> None:
     """幻觉工具名无 schema 可校验 → None（不适用）。"""
-    assert check_params(build_default_registry(), "kingdee_query_bogus", {}) is None
+    assert check_params(build_default_registry(), "erp_query_bogus", {}) is None
 
 
 # ── run_evaluation 集成（FakeProvider 剧本）──
@@ -101,7 +101,7 @@ async def test_run_evaluation_params_valid_flag() -> None:
             PlanResult(
                 tool_calls=[ToolCallDecision(tool_name=_SAL, arguments={"bill_no": "SO001"})]
             ),
-            _plan("kingdee_query_bogus"),
+            _plan("erp_query_bogus"),
         ]
     )
     questions = [_q(qid="A"), _q(qid="B")]

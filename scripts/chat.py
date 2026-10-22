@@ -29,6 +29,8 @@ def _sandbox_settings(server_url: str) -> Settings:
     """在真实 .env 配置上覆盖金蝶侧字段（LLM 密钥/路由保持不变）。"""
     return get_settings().model_copy(
         update={
+            # 沙箱是金蝶 K3Cloud 契约仿真，厂商固定为 kingdee
+            "erp_vendor": "kingdee",
             "kingdee_server_url": server_url,
             "kingdee_acct_id": SANDBOX_ACCT_ID,
             "kingdee_user": SANDBOX_USER,

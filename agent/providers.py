@@ -182,7 +182,7 @@ class OpenAICompatibleProvider:
             "查询销售订单」这类完整指令；\n"
             "3) next_input 必须完整、可独立执行，禁止只给名称/编码等片段；\n"
             "4) 结果为空且参数可能有误（例如把客户名称当成客户编码）→ next_input 指明"
-            "先用 kingdee_query_customer 按名称查询客户编码；\n"
+            "先用 erp_query_customer 按名称查询客户编码；\n"
             "5) 不要重复刚执行过的相同调用与参数。"
         )
         messages = [

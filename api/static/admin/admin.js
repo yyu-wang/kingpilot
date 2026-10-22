@@ -527,7 +527,7 @@ function openChangeDrawer(item) {
   body.append(section('快照', [snapshots]));
 
   body.append(section('工具参数', [jsonBlock(item.tool_params)]));
-  body.append(section('金蝶响应', [jsonBlock(item.api_response)]));
+  body.append(section('ERP 响应', [jsonBlock(item.api_response)]));
   body.append(section('记录哈希', [buildNode('p', 'mono', item.record_hash || '—')]));
 }
 

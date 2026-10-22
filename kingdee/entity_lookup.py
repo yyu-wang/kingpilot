@@ -20,9 +20,10 @@
 from dataclasses import dataclass
 from typing import Protocol
 
+from erp import FilterExpression, eq, like
+from erp.protocol import ErpClient
 from infrastructure.exceptions import KingdeeError
-from kingdee.client import KingdeeClient
-from kingdee.endpoints.base import EndpointDescriptor, quote_eq, quote_like
+from kingdee.endpoints.base import EndpointDescriptor
 from kingdee.endpoints.bd_customer import CUSTOMER
 from kingdee.endpoints.bd_material import BD_MATERIAL
 from kingdee.endpoints.bd_supplier import SUPPLIER
@@ -90,7 +91,7 @@ _ENTITY_SPECS: dict[str, _EntitySpec] = {
 class KingdeeEntityLookup:
     """基于金蝶 ExecuteBillQuery 的实体解析实现（只读，无缓存）。"""
 
-    def __init__(self, client: KingdeeClient) -> None:
+    def __init__(self, client: ErpClient) -> None:
         self._client = client
 
     async def lookup(
@@ -113,12 +114,14 @@ class KingdeeEntityLookup:
 
         # 1) 内码精确：纯数字标识视为 FID（LLM 可能直接给内码）
         if text.isdigit():
-            by_id = await self._query(spec, f"{spec.id_field} = {text}", limit=1)
+            by_id = await self._query(
+                spec, FilterExpression(conditions=(eq(spec.id_field, float(text)),)), limit=1
+            )
             if by_id:
                 return _found(spec, by_id[0], fallback=text)
 
         # 2) 业务编号精确
-        by_number = await self._query(spec, f"{spec.number_field} = {_quote_exact(text)}", limit=1)
+        by_number = await self._query(spec, _exact(spec.number_field, text), limit=1)
         if by_number:
             return _found(spec, by_number[0], fallback=text)
 
@@ -126,9 +129,7 @@ class KingdeeEntityLookup:
             return EntityLookupResult(found=False)
 
         # 3) 名称精确；命中多条 = 有歧义，交给用户消歧
-        by_name = await self._query(
-            spec, f"{spec.name_field} = {_quote_exact(text)}", limit=_AMBIGUITY_LIMIT
-        )
+        by_name = await self._query(spec, _exact(spec.name_field, text), limit=_AMBIGUITY_LIMIT)
         if len(by_name) == 1:
             return _found(spec, by_name[0], fallback=text)
         if len(by_name) > 1:
@@ -138,42 +139,36 @@ class KingdeeEntityLookup:
             )
 
         # 4) 名称模糊候选
-        fuzzy = await self._query(
-            spec,
-            f"{spec.name_field} LIKE {_quote_fuzzy(text)}",
-            limit=_SUGGESTION_LIMIT,
-        )
+        fuzzy = await self._query(spec, _fuzzy(spec.name_field, text), limit=_SUGGESTION_LIMIT)
         return EntityLookupResult(
             found=False,
             candidates=tuple(description for row in fuzzy if (description := _describe(spec, row))),
         )
 
     async def _query(
-        self, spec: _EntitySpec, filter_string: str, *, limit: int
+        self, spec: _EntitySpec, filter: FilterExpression, *, limit: int
     ) -> list[dict[str, JsonScalar]]:
         """执行一次受限查询；字段集固定为 内码 + 编号 + 名称（去重）、保序。"""
         fields = [spec.id_field, spec.number_field]
         if spec.name_field not in fields:
             fields.append(spec.name_field)
-        query = spec.endpoint.to_query_params(
-            field_keys=",".join(fields), filter_string=filter_string, limit=limit
-        )
-        result = await self._client.execute_bill_query(query)
+        query = spec.endpoint.to_query_params(field_keys=tuple(fields), filter=filter, limit=limit)
+        result = await self._client.query(query)
         return result.rows
 
 
-def _quote_exact(value: str) -> str:
-    """等值字面量；非法字符（单引号）归一为业务错误，避免裸 ValueError 外泄。"""
+def _exact(field: str, value: str) -> FilterExpression:
+    """等值过滤表达式；非法字符（单引号）归一为业务错误，避免裸 ValueError 外泄。"""
     try:
-        return quote_eq(value)
+        return FilterExpression(conditions=(eq(field, value),))
     except ValueError as exc:
         raise KingdeeError("实体标识包含非法字符", context={"value_length": len(value)}) from exc
 
 
-def _quote_fuzzy(value: str) -> str:
-    """模糊字面量；同上。"""
+def _fuzzy(field: str, value: str) -> FilterExpression:
+    """模糊过滤表达式；同上。"""
     try:
-        return quote_like(value)
+        return FilterExpression(conditions=(like(field, value),))
     except ValueError as exc:
         raise KingdeeError("实体标识包含非法字符", context={"value_length": len(value)}) from exc
 

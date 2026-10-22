@@ -77,7 +77,7 @@ async def test_mark_extracts_question_and_masks_pii(tmp_path: Path) -> None:
 
     record = await service.mark(
         trace_id=trace_id,
-        expected_tool="kingdee_query_customer",
+        expected_tool="erp_query_customer",
         reason="手机 13800138000 应查客户却查了订单",
         category="badcase",
         expected_behavior="联系 13800138000 后再查",
@@ -98,7 +98,7 @@ async def test_same_trace_is_idempotent(tmp_path: Path) -> None:
 
     first = await service.mark(
         trace_id=trace_id,
-        expected_tool="kingdee_query_customer",
+        expected_tool="erp_query_customer",
         reason="选错工具",
         category="badcase",
         expected_behavior="",
@@ -106,7 +106,7 @@ async def test_same_trace_is_idempotent(tmp_path: Path) -> None:
     )
     second = await service.mark(
         trace_id=trace_id,
-        expected_tool="kingdee_query_sales_order",
+        expected_tool="erp_query_sales_order",
         reason="再次标记",
         category="badcase",
         expected_behavior="",
@@ -154,7 +154,7 @@ async def test_dlp_hit_is_rejected_without_writing(tmp_path: Path) -> None:
     with pytest.raises(BadcaseError) as blocked:
         await service.mark(
             trace_id=trace_id,
-            expected_tool="kingdee_query_customer",
+            expected_tool="erp_query_customer",
             reason="选错工具",
             category="badcase",
             expected_behavior="",
@@ -176,7 +176,7 @@ async def test_export_appends_to_existing_dataset_and_is_idempotent(tmp_path: Pa
 
     record = await service.mark(
         trace_id=trace_id,
-        expected_tool="kingdee_query_sales_order",
+        expected_tool="erp_query_sales_order",
         reason="选错工具",
         category="badcase",
         expected_behavior="先按客户编码过滤",
@@ -196,7 +196,7 @@ async def test_export_appends_to_existing_dataset_and_is_idempotent(tmp_path: Pa
         for question in dataset.questions
         if question.question_id == exported.exported_question_id
     )
-    assert exported_case.expected_tool == "kingdee_query_sales_order"
+    assert exported_case.expected_tool == "erp_query_sales_order"
 
     again = await service.export(record.badcase_id, dataset_version="v1", user=_ADMIN)
     assert again.exported_question_id == exported.exported_question_id
@@ -214,7 +214,7 @@ async def test_duplicate_question_and_tool_is_rejected(tmp_path: Path) -> None:
 
     first = await service.mark(
         trace_id=first_trace,
-        expected_tool="kingdee_query_customer",
+        expected_tool="erp_query_customer",
         reason="选错工具",
         category="badcase",
         expected_behavior="",
@@ -222,7 +222,7 @@ async def test_duplicate_question_and_tool_is_rejected(tmp_path: Path) -> None:
     )
     second = await service.mark(
         trace_id=second_trace,
-        expected_tool="kingdee_query_customer",
+        expected_tool="erp_query_customer",
         reason="同样的问题",
         category="badcase",
         expected_behavior="",
@@ -245,7 +245,7 @@ async def test_corrupt_dataset_fails_closed(tmp_path: Path) -> None:
 
     record = await service.mark(
         trace_id=trace_id,
-        expected_tool="kingdee_query_customer",
+        expected_tool="erp_query_customer",
         reason="选错工具",
         category="badcase",
         expected_behavior="",
@@ -263,7 +263,7 @@ async def test_corrupt_badcase_file_is_skipped_in_list(tmp_path: Path) -> None:
     service = _service(tmp_path, traces)
     record = await service.mark(
         trace_id=trace_id,
-        expected_tool="kingdee_query_customer",
+        expected_tool="erp_query_customer",
         reason="选错工具",
         category="badcase",
         expected_behavior="",
@@ -284,7 +284,7 @@ async def test_audit_detail_does_not_contain_question_text(tmp_path: Path) -> No
     service = _service(tmp_path, traces, audit=audit)
     record = await service.mark(
         trace_id=trace_id,
-        expected_tool="kingdee_query_customer",
+        expected_tool="erp_query_customer",
         reason="应查客户却查了订单",
         category="badcase",
         expected_behavior="先换客户编码",

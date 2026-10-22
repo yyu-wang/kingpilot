@@ -72,12 +72,12 @@ async def test_tool_call_round_trip_fills_trace() -> None:
     _mock_kingdee([_SALES_ROW])
 
     response = await _run(
-        _plan(("kingdee_query_sales_order", {"limit": 2, "document_status": "C"})),
+        _plan(("erp_query_sales_order", {"limit": 2, "document_status": "C"})),
         "已为您查到 1 笔销售订单",
     )
 
     execution = response.trace.tool_executions[0]
-    assert execution.tool_name == "kingdee_query_sales_order"
+    assert execution.tool_name == "erp_query_sales_order"
     assert execution.error is None
     assert execution.result["rows"][0]["FBillNo"] == "SO000001"  # 金额字符串原样在 result 内
     assert response.content == "已为您查到 1 笔销售订单"
@@ -88,7 +88,7 @@ async def test_tool_call_round_trip_fills_trace() -> None:
 @respx.mock
 async def test_unknown_tool_recorded_not_raised() -> None:
     """LLM 幻觉工具名：记入 error 继续走完链路，不 crash（D2）。"""
-    response = await _run(_plan(("kingdee_query_ufo", {})), "该工具暂不可用")
+    response = await _run(_plan(("erp_query_ufo", {})), "该工具暂不可用")
     assert "未知工具" in response.trace.tool_executions[0].error
     assert response.content == "该工具暂不可用"  # 答复仍生成（LLM 拿错误上下文解释）
 
@@ -96,7 +96,7 @@ async def test_unknown_tool_recorded_not_raised() -> None:
 @respx.mock
 async def test_invalid_arguments_recorded_not_raised() -> None:
     """坏参数在工具层 fail-closed，错误回填不中断。"""
-    response = await _run(_plan(("kingdee_query_sales_order", {"bogus": 1})), "参数有误")
+    response = await _run(_plan(("erp_query_sales_order", {"bogus": 1})), "参数有误")
     assert "参数校验失败" in response.trace.tool_executions[0].error
 
 
@@ -113,16 +113,16 @@ async def test_multiple_tool_calls_executed_in_order() -> None:
 
     response = await _run(
         _plan(
-            ("kingdee_query_sales_order", {"limit": 1}),
-            ("kingdee_query_inventory", {"material_number": "MAT001"}),
+            ("erp_query_sales_order", {"limit": 1}),
+            ("erp_query_inventory", {"material_number": "MAT001"}),
         ),
         "已为您查询订单与库存",
     )
 
     executions = response.trace.tool_executions
     assert [e.tool_name for e in executions] == [
-        "kingdee_query_sales_order",
-        "kingdee_query_inventory",
+        "erp_query_sales_order",
+        "erp_query_inventory",
     ]
     assert all(e.error is None for e in executions)
     assert executions[0].result["form_id"] == "SAL_Order"
@@ -147,7 +147,7 @@ async def test_trace_captures_planning_and_latency() -> None:
     """trace 审计字段：llm_planning 记录决策，耗时非负，默认用户 local_dev/viewer。"""
     _mock_kingdee([_SALES_ROW])
 
-    response = await _run(_plan(("kingdee_query_sales_order", {"limit": 1})), "好的")
+    response = await _run(_plan(("erp_query_sales_order", {"limit": 1})), "好的")
 
     assert len(response.trace.llm_planning["tool_calls"]) == 1
     assert response.trace.total_latency_ms >= 0
@@ -161,7 +161,7 @@ async def test_custom_user_context_flows_into_trace() -> None:
     _mock_kingdee([_SALES_ROW])
 
     response = await _run(
-        _plan(("kingdee_query_sales_order", {"limit": 1})),
+        _plan(("erp_query_sales_order", {"limit": 1})),
         "好的",
         user_context=UserContext(user_id="u001", role="admin"),
     )

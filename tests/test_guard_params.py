@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import Field
 
 from agent.tools import EntityReference, ToolDefinition, ToolRegistry, build_default_registry
+from erp import FilterExpression
 from kingdee.endpoints.base import EndpointParams
 from kingdee.endpoints.sal_order import SAL_ORDER
 from kingdee.entity_lookup import EntityLookupResult
@@ -27,8 +28,8 @@ class _WriteParams(EndpointParams):
     note: str = Field(default="", description="备注")
 
 
-def _empty_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _empty_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
 def _write_tool(
@@ -60,10 +61,10 @@ _WRITE_TOOL = _write_tool(
     references=(_CUSTOMER_REF,),
 )
 
-_NO_RULES_TOOL = _write_tool("kingdee_create_without_rules", required=())
+_NO_RULES_TOOL = _write_tool("erp_create_without_rules", required=())
 
 _OPTIONAL_REF_TOOL = _write_tool(
-    "kingdee_create_optional_customer",
+    "erp_create_optional_customer",
     required=("note",),
     references=(_CUSTOMER_REF,),
 )
@@ -102,7 +103,7 @@ def _context(tool_name: str, arguments: dict[str, Any]) -> GuardContext:
 
 
 async def test_query_tool_is_skipped() -> None:
-    result = await ParamGuard(_registry()).check(_context("kingdee_query_sales_order", {}))
+    result = await ParamGuard(_registry()).check(_context("erp_query_sales_order", {}))
 
     assert result.passed is True
     assert result.detail["skipped"] is True
@@ -110,7 +111,7 @@ async def test_query_tool_is_skipped() -> None:
 
 async def test_write_tool_without_required_rules_blocked() -> None:
     result = await ParamGuard(_registry()).check(
-        _context("kingdee_create_without_rules", {"customer_number": "100001"})
+        _context("erp_create_without_rules", {"customer_number": "100001"})
     )
 
     assert result.passed is False
@@ -229,7 +230,7 @@ async def test_non_scalar_reference_blocked() -> None:
 
 async def test_optional_reference_blank_is_skipped() -> None:
     result = await ParamGuard(_registry()).check(
-        _context("kingdee_create_optional_customer", {"customer_number": "", "note": "加急"})
+        _context("erp_create_optional_customer", {"customer_number": "", "note": "加急"})
     )
 
     assert result.passed is True

@@ -16,7 +16,7 @@ from governance.cost_engine import RoutingProvider
 from models.llm import LLMContext, LLMMessage, PlanResult, ToolSpec
 
 _ORDER_TOOL = ToolSpec(
-    name="kingdee_query_sales_order",
+    name="erp_query_sales_order",
     description=(
         "按条件查询销售订单列表。参数 limit 为返回条数上限（整数，1-100）。"
         "仅当用户明确要查销售订单时调用。"
@@ -51,7 +51,7 @@ async def test_real_llm_plan_selects_tool() -> None:
         await provider.aclose()
     assert isinstance(result, PlanResult)
     assert result.tool_calls, "模型未选择任何工具"
-    assert result.tool_calls[0].tool_name == "kingdee_query_sales_order"
+    assert result.tool_calls[0].tool_name == "erp_query_sales_order"
 
 
 @pytest.mark.integration

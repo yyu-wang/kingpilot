@@ -15,6 +15,7 @@ from agent.tools import (
 from api.app import create_app
 from api.deps import AppDeps
 from config.settings import Settings
+from erp import FilterExpression
 from governance.approval import ApprovalService
 from governance.approval_executor import ApprovalExecution
 from kingdee.client import KingdeeClient
@@ -39,8 +40,8 @@ _ADMIN = {"user_id": "admin", "role": "admin", "data_scope": {}}
 _VIEWER = {"user_id": "viewer", "role": "viewer", "data_scope": {}}
 
 
-def _no_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _no_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
 def _write_registry() -> ToolRegistry:
@@ -48,7 +49,7 @@ def _write_registry() -> ToolRegistry:
     registry.register(
         ToolDefinition(
             spec=ToolSpec(
-                name="kingdee_delete_sales_order",
+                name="erp_delete_sales_order",
                 description="删除销售订单（测试写工具）",
                 parameters=SalesOrderParams.model_json_schema(),
             ),
@@ -83,7 +84,7 @@ def _provider() -> FakeProvider:
             PlanResult(
                 tool_calls=[
                     ToolCallDecision(
-                        tool_name="kingdee_delete_sales_order",
+                        tool_name="erp_delete_sales_order",
                         arguments={"bill_no": "SO000001"},
                     )
                 ]
@@ -192,7 +193,7 @@ async def test_manual_execute_permissions(
             trace_id="trace-manual",
             session_id="sess-manual",
             requester=UserContext(user_id="alice", role="salesperson"),
-            tool_name="kingdee_delete_sales_order",
+            tool_name="erp_delete_sales_order",
             arguments={"bill_no": "SO000001"},
             summary="删除销售订单 SO000001",
             form_id="SAL_Order",

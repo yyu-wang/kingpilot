@@ -17,14 +17,27 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Any
 
+from agent.knowledge import KB_SEARCH_TOOL
+from erp.tool_names import (
+    OBJ_PURCHASE_INBOUND,
+    OBJ_PURCHASE_ORDER,
+    OBJ_SALES_ORDER,
+    QUERY_CUSTOMER,
+    QUERY_INVENTORY,
+    QUERY_PURCHASE_INBOUND,
+    QUERY_PURCHASE_ORDER,
+    QUERY_SALES_ORDER,
+    QUERY_SUPPLIER,
+    write_tool_name,
+)
 from models.llm import PlanResult, ToolCallDecision
 
-SALES_ORDER_TOOL = "kingdee_query_sales_order"
-PURCHASE_ORDER_TOOL = "kingdee_query_purchase_order"
-PURCHASE_INBOUND_TOOL = "kingdee_query_purchase_inbound"
-CUSTOMER_TOOL = "kingdee_query_customer"
-SUPPLIER_TOOL = "kingdee_query_supplier"
-INVENTORY_TOOL = "kingdee_query_inventory"
+SALES_ORDER_TOOL = QUERY_SALES_ORDER
+PURCHASE_ORDER_TOOL = QUERY_PURCHASE_ORDER
+PURCHASE_INBOUND_TOOL = QUERY_PURCHASE_INBOUND
+CUSTOMER_TOOL = QUERY_CUSTOMER
+SUPPLIER_TOOL = QUERY_SUPPLIER
+INVENTORY_TOOL = QUERY_INVENTORY
 
 _SO_RE = re.compile(r"\b(SO\d+)\b", re.IGNORECASE)
 _PO_RE = re.compile(r"\b(PO\d+)\b", re.IGNORECASE)
@@ -170,7 +183,7 @@ class RuleEngine:
             return None
         for keyword, form in _WRITE_FORM_KEYWORDS:
             if keyword in text:
-                return f"kingdee_{action}_{form}"
+                return write_tool_name(form, action)
         return None
 
     def match_write_plan(
@@ -202,10 +215,31 @@ class RuleEngine:
         # 「反审核销售订单 PO000001」这类单据类型与单号前缀矛盾的输入不猜
         if keyword_form is not None and keyword_form != bill_form:
             return None
+        tool_name = write_tool_name(bill_form, action)
+        if tool_name is None:
+            return None
         return _build(
-            f"kingdee_{action}_{bill_form}",
+            tool_name,
             {"bill_no": bill_no},
             f"write_{action}",
+            available_tools,
+        )
+
+    def match_knowledge_plan(
+        self, user_input: str, *, available_tools: Collection[str] | None = None
+    ) -> FallbackPlan | None:
+        """知识意图且 LLM 未调工具时，补一次 ``kb_search``。
+
+        Why：模型可能凭常识回答流程/时效问题，绕过知识库导致没有引用。
+        这里只补检索，不生成内容；引用仍由 Phase 4.5 强制校验。
+        """
+        text = user_input.strip()
+        if not text or not _is_knowledge_intent(text):
+            return None
+        return _build(
+            KB_SEARCH_TOOL,
+            {"query": text[:200]},
+            "knowledge",
             available_tools,
         )
 
@@ -291,16 +325,16 @@ def _extract_status(text: str) -> str | None:
 
 # 写意图 → 单据类型（顺序重要：「入库」优先于「采购」）
 _WRITE_FORM_KEYWORDS: tuple[tuple[str, str], ...] = (
-    ("入库", "purchase_inbound"),
-    ("采购", "purchase_order"),
-    ("销售", "sales_order"),
+    ("入库", OBJ_PURCHASE_INBOUND),
+    ("采购", OBJ_PURCHASE_ORDER),
+    ("销售", OBJ_SALES_ORDER),
 )
 
 # 单号前缀 → 单据类型（用于「动作 + 单号」的确定性补全）
 _BILL_NO_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("purchase_inbound", _CGRK_RE),
-    ("sales_order", _SO_RE),
-    ("purchase_order", _PO_RE),
+    (OBJ_PURCHASE_INBOUND, _CGRK_RE),
+    (OBJ_SALES_ORDER, _SO_RE),
+    (OBJ_PURCHASE_ORDER, _PO_RE),
 )
 
 # 只补全「仅需单号」的状态流转动作；创建类参数多，仍交给 LLM

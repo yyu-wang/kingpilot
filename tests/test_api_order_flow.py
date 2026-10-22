@@ -48,12 +48,12 @@ def _plan(tool_name: str, arguments: dict[str, Any]) -> PlanResult:
 def _provider() -> FakeProvider:
     return FakeProvider(
         plan_queue=[
-            _plan("kingdee_create_sales_order", _CREATE_ARGS),
-            _plan("kingdee_submit_sales_order", {"bill_no": "SO900001"}),
-            _plan("kingdee_audit_sales_order", {"bill_no": "SO900001"}),
-            _plan("kingdee_unaudit_sales_order", {"bill_no": "SO900001"}),
-            _plan("kingdee_delete_sales_order", {"bill_no": "SO900001"}),
-            _plan("kingdee_create_sales_order", _CREATE_ARGS),
+            _plan("erp_create_sales_order", _CREATE_ARGS),
+            _plan("erp_submit_sales_order", {"bill_no": "SO900001"}),
+            _plan("erp_audit_sales_order", {"bill_no": "SO900001"}),
+            _plan("erp_unaudit_sales_order", {"bill_no": "SO900001"}),
+            _plan("erp_delete_sales_order", {"bill_no": "SO900001"}),
+            _plan("erp_create_sales_order", _CREATE_ARGS),
         ]
     )
 

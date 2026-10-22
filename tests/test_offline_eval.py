@@ -23,8 +23,8 @@ from infrastructure.exceptions import EvaluationError, LLMUnavailableError
 from models.llm import LLMContext, PlanResult, ToolCallDecision, ToolSpec
 from tests.fakes import FakeProvider
 
-_SAL = "kingdee_query_sales_order"
-_INV = "kingdee_query_inventory"
+_SAL = "erp_query_sales_order"
+_INV = "erp_query_inventory"
 
 
 def _question(qid: str = "T-01", expected: str | None = _SAL) -> EvalQuestion:

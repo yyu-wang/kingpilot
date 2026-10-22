@@ -1,7 +1,7 @@
 """物料基础资料（BD_Material）端点描述（M9-T13）。
 
 只作为**写操作实体预检**的数据源（Guard 3 把物料编码/名称换成内码），
-不注册为 LLM 查询工具——物料查询需求仍走 ``kingdee_query_inventory``。
+不注册为 LLM 查询工具——物料查询需求仍走 ``erp_query_inventory``。
 
 **全部字段 INFERRED**：与其它端点一致，字段拼写待真环境联调时复核。
 """

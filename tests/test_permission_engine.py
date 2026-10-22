@@ -12,6 +12,7 @@ from pydantic import Field
 
 from agent.tools import ToolDefinition, ToolRegistry, ToolType, build_default_registry
 from config.permission_rules import DataDomain, WriteRule
+from erp import FilterExpression, eq
 from kingdee.endpoints.base import EndpointDescriptor, EndpointParams, FieldDescriptor
 from models.base import KingPilotBaseModel, Role
 from models.llm import ToolSpec
@@ -28,8 +29,8 @@ class _Params(EndpointParams):
     amount: float = Field(default=0.0, description="金额（元）")
 
 
-def _empty_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _empty_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
 def _endpoint(form_id: str) -> EndpointDescriptor:
@@ -80,23 +81,23 @@ def _context(tool_name: str, user: UserContext) -> GuardContext:
     )
 
 
-_FINANCE_TOOL = _tool("kingdee_query_finance_vouchers", "GL_Voucher")
-_HR_TOOL = _tool("kingdee_query_employees", "BAS_Employee")
-_SALES_WRITE = _tool("kingdee_create_sales_order", "SAL_Order", tool_type="write", action="save")
+_FINANCE_TOOL = _tool("erp_query_finance_vouchers", "GL_Voucher")
+_HR_TOOL = _tool("erp_query_employees", "BAS_Employee")
+_SALES_WRITE = _tool("erp_create_sales_order", "SAL_Order", tool_type="write", action="save")
 _PURCHASE_WRITE = _tool(
-    "kingdee_create_purchase_order",
+    "erp_create_purchase_order",
     "PUR_PurchaseOrder",
     tool_type="write",
     action="save",
 )
 _PRODUCTION_DELETE = _tool(
-    "kingdee_delete_production_order",
+    "erp_delete_production_order",
     "PRD_Order",
     tool_type="write",
     action="delete",
 )
 _PRODUCTION_SAVE = _tool(
-    "kingdee_create_production_order",
+    "erp_create_production_order",
     "PRD_Order",
     tool_type="write",
     action="save",
@@ -104,7 +105,7 @@ _PRODUCTION_SAVE = _tool(
 
 
 def _sales_query() -> ToolDefinition:
-    return build_default_registry().get("kingdee_query_sales_order")
+    return build_default_registry().get("erp_query_sales_order")
 
 
 # ── 场景 7：越权查询拦截 ──
@@ -128,10 +129,10 @@ def test_domain_filter_excludes_finance_for_operator() -> None:
 
     names = [spec.name for spec in engine.domain_filter(_user("operator"), tools)]
 
-    assert "kingdee_query_finance_vouchers" not in names
-    assert "kingdee_query_sales_order" in names
-    assert "kingdee_query_purchase_order" in names
-    assert "kingdee_query_inventory" in names
+    assert "erp_query_finance_vouchers" not in names
+    assert "erp_query_sales_order" in names
+    assert "erp_query_purchase_order" in names
+    assert "erp_query_inventory" in names
 
 
 def test_admin_sees_all_domains() -> None:
@@ -140,7 +141,7 @@ def test_admin_sees_all_domains() -> None:
 
     names = [spec.name for spec in engine.domain_filter(_user("admin"), tools)]
 
-    assert "kingdee_query_finance_vouchers" in names
+    assert "erp_query_finance_vouchers" in names
 
 
 # ── 工具层与未知配置 ──
@@ -148,16 +149,12 @@ def test_admin_sees_all_domains() -> None:
 
 def test_domain_filter_respects_tool_lists_and_unknowns() -> None:
     engine = PermissionEngine()
-    denied_user = UserContext(
-        user_id="u001", role="operator", deny_tools=["kingdee_query_sales_order"]
-    )
-    allow_user = UserContext(
-        user_id="u001", role="operator", allow_tools=["kingdee_query_customer"]
-    )
+    denied_user = UserContext(user_id="u001", role="operator", deny_tools=["erp_query_sales_order"])
+    allow_user = UserContext(user_id="u001", role="operator", allow_tools=["erp_query_customer"])
     ghost = UserContext.model_construct(user_id="u001", role=cast(Role, "ghost"))
-    unknown = _tool("kingdee_query_unknown", "UNKNOWN_FORM")
+    unknown = _tool("erp_query_unknown", "UNKNOWN_FORM")
     sales = _sales_query()
-    customer = build_default_registry().get("kingdee_query_customer")
+    customer = build_default_registry().get("erp_query_customer")
 
     denied_names = [spec.name for spec in engine.domain_filter(denied_user, [sales])]
     allowed_names = [spec.name for spec in engine.domain_filter(allow_user, [sales, customer])]
@@ -165,7 +162,7 @@ def test_domain_filter_respects_tool_lists_and_unknowns() -> None:
     unknown_names = [spec.name for spec in engine.domain_filter(_user("operator"), [unknown])]
 
     assert denied_names == []
-    assert allowed_names == ["kingdee_query_customer"]
+    assert allowed_names == ["erp_query_customer"]
     assert ghost_names == []
     assert unknown_names == []
 
@@ -180,7 +177,7 @@ def test_unknown_role_denied() -> None:
 
 
 def test_unknown_form_denied() -> None:
-    tool = _tool("kingdee_query_unknown", "UNKNOWN_FORM")
+    tool = _tool("erp_query_unknown", "UNKNOWN_FORM")
 
     decision = PermissionEngine().check(_user("operator"), tool, {})
 
@@ -189,7 +186,7 @@ def test_unknown_form_denied() -> None:
 
 
 def test_deny_tools_takes_precedence() -> None:
-    user = UserContext(user_id="u001", role="operator", deny_tools=["kingdee_query_sales_order"])
+    user = UserContext(user_id="u001", role="operator", deny_tools=["erp_query_sales_order"])
 
     decision = PermissionEngine().check(user, _sales_query(), {})
 
@@ -198,12 +195,10 @@ def test_deny_tools_takes_precedence() -> None:
 
 
 def test_allow_tools_whitelist() -> None:
-    user = UserContext(user_id="u001", role="operator", allow_tools=["kingdee_query_customer"])
+    user = UserContext(user_id="u001", role="operator", allow_tools=["erp_query_customer"])
 
     denied = PermissionEngine().check(user, _sales_query(), {})
-    allowed = PermissionEngine().check(
-        user, build_default_registry().get("kingdee_query_customer"), {}
-    )
+    allowed = PermissionEngine().check(user, build_default_registry().get("erp_query_customer"), {})
 
     assert denied.allowed is False
     assert "允许列表" in denied.reason
@@ -239,14 +234,14 @@ def test_row_filter_single_org() -> None:
     decision = PermissionEngine().check(_user("operator", org_ids=["ORG001"]), _sales_query(), {})
 
     assert decision.allowed is True
-    assert decision.row_filter == "FSaleOrgId.FNumber = 'ORG001'"
+    assert decision.row_filter == FilterExpression(conditions=(eq("FSaleOrgId.FNumber", "ORG001"),))
 
 
 def test_row_filter_owner_only() -> None:
     decision = PermissionEngine().check(_user("operator", owner_only=True), _sales_query(), {})
 
     assert decision.allowed is True
-    assert decision.row_filter == "FSaleEmpId = 'u001'"
+    assert decision.row_filter == FilterExpression(conditions=(eq("FSaleEmpId", "u001"),))
 
 
 def test_row_filter_combines_org_and_owner() -> None:
@@ -254,7 +249,9 @@ def test_row_filter_combines_org_and_owner() -> None:
         _user("operator", org_ids=["ORG001"], owner_only=True), _sales_query(), {}
     )
 
-    assert decision.row_filter == ("FSaleOrgId.FNumber = 'ORG001' AND FSaleEmpId = 'u001'")
+    assert decision.row_filter == FilterExpression(
+        conditions=(eq("FSaleOrgId.FNumber", "ORG001"), eq("FSaleEmpId", "u001"))
+    )
 
 
 def test_multi_org_row_filter_denied() -> None:
@@ -267,7 +264,7 @@ def test_multi_org_row_filter_denied() -> None:
 
 
 def test_row_filter_requires_field_mapping() -> None:
-    customer = build_default_registry().get("kingdee_query_customer")
+    customer = build_default_registry().get("erp_query_customer")
 
     decision = PermissionEngine().check(_user("operator", org_ids=["ORG001"]), customer, {})
 
@@ -276,7 +273,7 @@ def test_row_filter_requires_field_mapping() -> None:
 
 
 def test_owner_filter_requires_field_mapping() -> None:
-    customer = build_default_registry().get("kingdee_query_customer")
+    customer = build_default_registry().get("erp_query_customer")
 
     decision = PermissionEngine().check(_user("operator", owner_only=True), customer, {})
 
@@ -301,7 +298,7 @@ def test_illegal_org_identifier_denied() -> None:
 
 
 def test_form_whitelist_denied() -> None:
-    customer = build_default_registry().get("kingdee_query_customer")
+    customer = build_default_registry().get("erp_query_customer")
 
     decision = PermissionEngine().check(_user("operator", form_ids=["SAL_Order"]), customer, {})
 

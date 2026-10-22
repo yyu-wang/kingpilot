@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import Field
 
 from agent.tools import EntityReference, ToolDefinition, ToolRegistry, build_default_registry
+from erp import FilterExpression
 from infrastructure.exceptions import KingdeeAPIError
 from kingdee.endpoints.base import EndpointParams
 from kingdee.endpoints.sal_order import SAL_ORDER
@@ -33,8 +34,8 @@ class _StrictParams(EndpointParams):
     order_no: str = Field(default="", description="订单编号")
 
 
-def _empty_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _empty_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
 _WRITE_TOOL = ToolDefinition(
@@ -56,7 +57,7 @@ _WRITE_TOOL = ToolDefinition(
 
 _NO_RULES_WRITE_TOOL = ToolDefinition(
     spec=ToolSpec(
-        name="kingdee_create_without_rules",
+        name="erp_create_without_rules",
         description="测试用：未声明实体引用的写工具",
         parameters=_WriteParams.model_json_schema(),
     ),
@@ -128,7 +129,7 @@ async def test_read_only_tool_is_skipped() -> None:
     lookup = FakeLookup(error=RuntimeError("查询工具不应触发实体解析"))
 
     result = await EntityPreflightGuard(_registry(), lookup).check(
-        _context("kingdee_query_sales_order", {})
+        _context("erp_query_sales_order", {})
     )
 
     assert result.passed is True
@@ -138,7 +139,7 @@ async def test_read_only_tool_is_skipped() -> None:
 
 async def test_write_tool_without_entity_rules_blocked() -> None:
     result = await EntityPreflightGuard(_registry(), FakeLookup()).check(
-        _context("kingdee_create_without_rules", {"customer_number": "CUS001"})
+        _context("erp_create_without_rules", {"customer_number": "CUS001"})
     )
 
     assert result.passed is False

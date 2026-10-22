@@ -17,8 +17,9 @@ from pydantic import ValidationError
 
 from agent.knowledge import KB_SEARCH_TOOL, KnowledgeParams, KnowledgeService
 from config.settings import get_settings
+from erp.protocol import ErpClient
+from erp.types import FilterExpression
 from infrastructure.exceptions import ToolError
-from kingdee.client import KingdeeClient
 from kingdee.endpoints.base import (
     EndpointDescriptor,
     EndpointParams,
@@ -59,8 +60,8 @@ ToolType = Literal["query", "write", "action"]
 # 本地工具执行器：接收已校验参数，返回结构化结果（M9-T09）
 LocalRunner = Callable[[KingPilotBaseModel], Awaitable[Any]]
 
-# 远程写执行器：经 KingdeeClient 调用 DynamicFormService（M9-T13）
-RemoteRunner = Callable[[KingdeeClient, KingPilotBaseModel], Awaitable[Any]]
+# 远程写执行器：经 ErpClient.invoke_action 调用厂商写接口（M9-T13）
+RemoteRunner = Callable[[ErpClient, KingPilotBaseModel], Awaitable[Any]]
 
 # 工具执行结果：金蝶查询 / 本地知识检索 / 写操作
 ToolResult = BillQueryResult | KnowledgeSearchResult | ActionResult
@@ -97,8 +98,9 @@ class ToolDefinition:
     """一个可执行工具：LLM 侧声明（ToolSpec）+ 参数模型 + 执行入口。
 
     两种形态：
-    - **金蝶端点工具**：``endpoint`` + ``build_filter``，执行走 KingdeeClient
-    - **本地工具**（M9-T09）：``runner``，执行不经金蝶，如 ``kb_search``
+    - **ERP 端点工具**：``endpoint`` + ``build_filter``（产 FilterExpression），
+      执行走 ``ErpClient.query``（厂商适配器内部翻译为各自查询方言）
+    - **本地工具**（M9-T09）：``runner``，执行不经 ERP，如 ``kb_search``
 
     ``tool_type`` / ``entity_references`` / ``required_parameters`` 是 M4 护栏的
     元数据：查询工具保持默认值，写/动作工具显式声明并由 Guard 3/5 校验。
@@ -106,9 +108,9 @@ class ToolDefinition:
 
     spec: ToolSpec
     params_model: type[KingPilotBaseModel]
-    build_filter: Callable[[KingPilotBaseModel], str] | None = None
+    build_filter: Callable[[KingPilotBaseModel], FilterExpression] | None = None
     # 可选：按参数决定 FieldKeys（如展开明细行）；None = 用端点默认字段
-    build_field_keys: Callable[[KingPilotBaseModel], str | None] | None = None
+    build_field_keys: Callable[[KingPilotBaseModel], tuple[str, ...] | None] | None = None
     endpoint: EndpointDescriptor | None = None
     runner: LocalRunner | None = None
     remote_runner: RemoteRunner | None = None
@@ -126,7 +128,7 @@ class ToolDefinition:
 
     @property
     def is_local(self) -> bool:
-        """是否本地执行器（无金蝶 endpoint，不产生 FilterString）。"""
+        """是否本地执行器（无 ERP endpoint，不产生过滤表达式）。"""
         return self.runner is not None
 
     @property
@@ -136,16 +138,17 @@ class ToolDefinition:
 
     async def execute(
         self,
-        client: KingdeeClient,
+        client: ErpClient,
         arguments: dict[str, Any],
         *,
-        row_filter: str = "",
+        row_filter: FilterExpression | None = None,
     ) -> ToolResult:
         """校验参数 → 本地执行或组装过滤条件查询。
 
         Args:
-            row_filter: 可信行级过滤（M4 权限引擎产出）。在 Guard 校验之后追加，
-                因此不参与 Guard 2 的文法校验；为空表示不注入。
+            row_filter: 可信行级过滤（M4 权限引擎产出，结构化表达式）。
+                在 Guard 校验之后按条件追加合并，因此不参与 Guard 2 的校验；
+                None 表示不注入。
 
         Raises:
             ToolError: 参数校验失败（含未知参数）、过滤值被组装层拒绝；
@@ -164,7 +167,7 @@ class ToolDefinition:
             ) from exc
 
         if self.runner is not None:
-            if row_filter:
+            if row_filter is not None:
                 raise ToolError(
                     f"本地工具不支持行级过滤: {self.spec.name}",
                     context={"tool": self.spec.name},
@@ -178,7 +181,7 @@ class ToolDefinition:
             return result
 
         if self.remote_runner is not None:
-            if row_filter:
+            if row_filter is not None:
                 # 行级过滤只定义在读查询上；写操作带着行过滤执行语义不明，fail-closed
                 raise ToolError(
                     f"写操作暂不支持行级过滤: {self.spec.name}",
@@ -199,7 +202,7 @@ class ToolDefinition:
             )
 
         try:
-            filter_string = self.build_filter(params)
+            filter_expr = self.build_filter(params)
         except ValueError as exc:
             # 组装层拒绝（如单引号注入尝试）——归一为 ToolError，保持调用方单一接法
             raise ToolError(
@@ -207,17 +210,20 @@ class ToolDefinition:
                 context={"tool": self.spec.name},
             ) from exc
 
-        if row_filter:
-            filter_string = f"{filter_string} AND {row_filter}" if filter_string else row_filter
+        if row_filter is not None:
+            # 行级过滤是服务端可信条件，与 LLM 侧条件按 AND 语义合并（D5）
+            filter_expr = FilterExpression(
+                conditions=(*filter_expr.conditions, *row_filter.conditions)
+            )
 
         # EndpointParams 保证 limit 存在；isinstance 收窄供 mypy 取属性
         if not isinstance(params, EndpointParams):
             raise ToolError(f"参数模型 {type(params).__name__} 未继承 EndpointParams")
         field_keys = self.build_field_keys(params) if self.build_field_keys is not None else None
-        query = self.endpoint.to_query_params(
-            field_keys=field_keys, filter_string=filter_string, limit=params.limit
+        spec = self.endpoint.to_query_params(
+            field_keys=field_keys, filter=filter_expr, limit=params.limit
         )
-        return await client.execute_bill_query(query)
+        return await client.query(spec)
 
 
 class ToolRegistry:

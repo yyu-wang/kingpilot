@@ -27,7 +27,7 @@ _ORDER_ROWS: list[dict[str, object]] = [
 
 def _orders_execution(rows: list[dict[str, object]] | None = None) -> ToolExecution:
     return ToolExecution(
-        tool_name="kingdee_query_sales_order",
+        tool_name="erp_query_sales_order",
         parameters={"limit": 10},
         result={
             "form_id": "SAL_Order",
@@ -39,7 +39,7 @@ def _orders_execution(rows: list[dict[str, object]] | None = None) -> ToolExecut
 
 def _failed_execution(parameters: dict[str, object] | None = None) -> ToolExecution:
     return ToolExecution(
-        tool_name="kingdee_query_sales_order",
+        tool_name="erp_query_sales_order",
         parameters=parameters or {},
         error="金蝶业务错误",
     )

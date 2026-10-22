@@ -12,13 +12,13 @@ from typing import cast
 
 from pydantic import Field, field_validator
 
+from erp import FilterCondition, FilterExpression, eq, ge
+from erp.tool_names import QUERY_PURCHASE_INBOUND
 from kingdee.endpoints.base import (
     EndpointDescriptor,
     EndpointParams,
     FieldDescriptor,
     QueryToolBinding,
-    fmt_number,
-    quote_eq,
     validate_document_status,
 )
 from models.base import KingPilotBaseModel
@@ -117,36 +117,36 @@ class PurchaseInboundParams(EndpointParams):
     _check_status = field_validator("document_status")(validate_document_status)
 
 
-def build_purchase_inbound_filter(params: KingPilotBaseModel) -> str:
-    """参数 → FilterString；条件字段均在 PURCHASE_INBOUND.filterable_fields 内。"""
+def build_purchase_inbound_filter(params: KingPilotBaseModel) -> FilterExpression:
+    """参数 → FilterExpression；条件字段均在 PURCHASE_INBOUND.filterable_fields 内。"""
     p = cast(PurchaseInboundParams, params)
-    conditions: list[str] = []
+    conditions: list[FilterCondition] = []
     if p.bill_no:
-        conditions.append(f"FBillNo = {quote_eq(p.bill_no)}")
+        conditions.append(eq("FBillNo", p.bill_no))
     if p.supplier_number:
-        conditions.append(f"FSupplierID.FNumber = {quote_eq(p.supplier_number)}")
+        conditions.append(eq("FSupplierID.FNumber", p.supplier_number))
     if p.material_number:
-        conditions.append(f"FMaterialId.FNumber = {quote_eq(p.material_number)}")
+        conditions.append(eq("FMaterialId.FNumber", p.material_number))
     if p.warehouse_name:
-        conditions.append(f"FStockId.FName = {quote_eq(p.warehouse_name)}")
+        conditions.append(eq("FStockId.FName", p.warehouse_name))
     if p.document_status:
-        conditions.append(f"FDocumentStatus = {quote_eq(p.document_status)}")
+        conditions.append(eq("FDocumentStatus", p.document_status))
     if p.order_date:
-        conditions.append(f"FDate = {quote_eq(p.order_date)}")
+        conditions.append(eq("FDate", p.order_date))
     if p.source_bill_no:
-        conditions.append(f"FSrcBillNo = {quote_eq(p.source_bill_no)}")
+        conditions.append(eq("FSrcBillNo", p.source_bill_no))
     if p.min_quantity is not None:
-        conditions.append(f"FRealQty >= {fmt_number(p.min_quantity)}")
-    return " AND ".join(conditions)
+        conditions.append(ge("FRealQty", p.min_quantity))
+    return FilterExpression(conditions=tuple(conditions))
 
 
 PURCHASE_INBOUND_TOOL = QueryToolBinding(
-    tool_name="kingdee_query_purchase_inbound",
+    tool_name=QUERY_PURCHASE_INBOUND,
     tool_description=(
         "查询采购入库单（金蝶 STK_InStock），即采购订单到货后仓库实际收货入库的记录。"
         "何时用：用户询问采购入库单、到货入库记录、某采购订单收了多少货、"
         "某供应商/物料/仓库的入库情况时。"
-        "采购订单本身请用 kingdee_query_purchase_order；"
+        "采购订单本身请用 erp_query_purchase_order；"
         "可按入库单号、供应商编码、物料编码、仓库、状态、入库日期、源采购订单号、"
         "实收数量下限过滤。返回入库单号/日期/供应商/仓库/物料/实收数量/状态。"
         "状态含义：Z 暂存、A 创建、B 审核中、C 已审核（已入库）、D 重新审核；"

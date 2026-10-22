@@ -48,6 +48,14 @@ class Settings(BaseSettings):
     env: Literal["dev", "test", "prod"] = Field(default="dev")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(default="INFO")
 
+    # ── ERP 适配层（厂商选择）──
+    # 工厂按此值构造客户端（erp/factory.py）；新增厂商只需加一个分支
+    erp_vendor: str = Field(
+        default="kingdee",
+        min_length=1,
+        description="ERP 厂商标识：kingdee（默认，已实现）/ yonyou（骨架）",
+    )
+
     # ── 金蝶云星空（沙箱 / 生产）──
     kingdee_server_url: str = Field(default="", description="如 https://xxx.ik3cloud.com")
     kingdee_acct_id: str = Field(default="", description="账套 ID")

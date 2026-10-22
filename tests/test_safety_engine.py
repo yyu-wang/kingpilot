@@ -15,10 +15,11 @@ from agent.tools import (
     ToolType,
     build_default_registry,
 )
+from erp import BillQuerySpec, FilterExpression, eq
 from kingdee.client import KingdeeClient
 from kingdee.endpoints.base import EndpointDescriptor, EndpointParams, FieldDescriptor
 from models.base import KingPilotBaseModel, Role
-from models.kingdee import BillQueryParams, BillQueryResult, JsonScalar
+from models.kingdee import BillQueryResult, JsonScalar
 from models.llm import ToolCallDecision, ToolSpec
 from models.user import UserContext
 from safety.engine import SafetyLayer
@@ -37,13 +38,13 @@ class FakeIO:
 
 
 class _FakeClient:
-    """固定返回一行客户数据的假客户端（实体预检用）。"""
+    """固定返回一行客户数据的假客户端（实体预检用，T05 起收中性 BillQuerySpec）。"""
 
     def __init__(self) -> None:
-        self.queries: list[BillQueryParams] = []
+        self.queries: list[BillQuerySpec] = []
 
-    async def execute_bill_query(self, params: BillQueryParams) -> BillQueryResult:
-        self.queries.append(params)
+    async def query(self, spec: BillQuerySpec) -> BillQueryResult:
+        self.queries.append(spec)
         row: dict[str, JsonScalar] = {
             "FID": "100001",
             "FNumber": "CUS001",
@@ -51,8 +52,8 @@ class _FakeClient:
             "FBillNo": "SO1",
         }
         return BillQueryResult(
-            form_id=params.form_id,
-            field_keys=params.field_keys.split(","),
+            form_id=spec.form_id,
+            field_keys=list(spec.field_keys),
             rows=[row],
         )
 
@@ -60,10 +61,10 @@ class _FakeClient:
 class _EmptyClient:
     """实体预检永远查不到。"""
 
-    async def execute_bill_query(self, params: BillQueryParams) -> BillQueryResult:
+    async def query(self, spec: BillQuerySpec) -> BillQueryResult:
         return BillQueryResult(
-            form_id=params.form_id,
-            field_keys=params.field_keys.split(","),
+            form_id=spec.form_id,
+            field_keys=list(spec.field_keys),
             rows=[],
         )
 
@@ -77,13 +78,15 @@ class _QueryParams(EndpointParams):
     bill_no: str = Field(default="", description="单据编号")
 
 
-def _empty_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _empty_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
-def _bill_filter(params: KingPilotBaseModel) -> str:
+def _bill_filter(params: KingPilotBaseModel) -> FilterExpression:
     p = cast(_QueryParams, params)
-    return f"FBillNo = '{p.bill_no}'" if p.bill_no else ""
+    if not p.bill_no:
+        return FilterExpression()
+    return FilterExpression(conditions=(eq("FBillNo", p.bill_no),))
 
 
 def _endpoint(form_id: str) -> EndpointDescriptor:
@@ -140,10 +143,10 @@ _WRITE_TOOL = _tool(
     required=("customer_number",),
 )
 
-_FINANCE_QUERY = _tool("kingdee_query_finance_vouchers", "GL_Voucher")
+_FINANCE_QUERY = _tool("erp_query_finance_vouchers", "GL_Voucher")
 
 _FINANCE_WRITE = _tool(
-    "kingdee_delete_finance_voucher",
+    "erp_delete_finance_voucher",
     "GL_Voucher",
     tool_type="write",
     action="delete",
@@ -188,8 +191,8 @@ def test_visible_tools_filters_finance_for_operator() -> None:
 
     names = [spec.name for spec in layer.visible_tools(_user("operator"))]
 
-    assert "kingdee_query_finance_vouchers" not in names
-    assert "kingdee_query_sales_order" in names
+    assert "erp_query_finance_vouchers" not in names
+    assert "erp_query_sales_order" in names
 
 
 # ── 拦截与放行 ──
@@ -200,7 +203,7 @@ async def test_review_blocks_finance_for_operator() -> None:
 
     verdict = await layer.review(
         _user("operator"),
-        [_call("kingdee_query_finance_vouchers", {"bill_no": "V1"})],
+        [_call("erp_query_finance_vouchers", {"bill_no": "V1"})],
         "trace-1",
     )
 
@@ -215,18 +218,18 @@ async def test_review_allows_sales_query() -> None:
 
     verdict = await layer.review(
         _user("operator"),
-        [_call("kingdee_query_sales_order", {"bill_no": "SO1"})],
+        [_call("erp_query_sales_order", {"bill_no": "SO1"})],
         "trace-1",
     )
 
     assert verdict.proceed is True
     assert verdict.blocked is False
-    assert verdict.calls[0].tool_name == "kingdee_query_sales_order"
+    assert verdict.calls[0].tool_name == "erp_query_sales_order"
     assert verdict.calls[0].arguments == {"bill_no": "SO1"}
     assert verdict.risk is not None and verdict.risk.level == "auto"
     assert verdict.permission is not None
     assert verdict.hitl is not None and verdict.hitl.approved is True
-    assert len(verdict.guard_records) == 6
+    assert len(verdict.guard_records) == 7
 
 
 async def test_review_empty_calls_proceeds_without_hitl() -> None:
@@ -245,7 +248,7 @@ async def test_guard_records_cover_all_guards() -> None:
 
     verdict = await layer.review(
         _user("operator"),
-        [_call("kingdee_query_sales_order", {"bill_no": "SO1"})],
+        [_call("erp_query_sales_order", {"bill_no": "SO1"})],
         "trace-1",
     )
 
@@ -254,6 +257,7 @@ async def test_guard_records_cover_all_guards() -> None:
         "guard_permission",
         "guard_schema",
         "guard_filter",
+        "guard_business",
         "guard_entity",
         "guard_limit",
         "guard_params",
@@ -281,11 +285,13 @@ async def test_review_applies_row_filter() -> None:
 
     verdict = await layer.review(
         _user("operator", org_ids=["ORG001"]),
-        [_call("kingdee_query_sales_order", {"bill_no": "SO1"})],
+        [_call("erp_query_sales_order", {"bill_no": "SO1"})],
         "trace-1",
     )
 
-    assert verdict.calls[0].row_filter == "FSaleOrgId.FNumber = 'ORG001'"
+    assert verdict.calls[0].row_filter == FilterExpression(
+        conditions=(eq("FSaleOrgId.FNumber", "ORG001"),)
+    )
 
 
 async def test_review_applies_column_deny() -> None:
@@ -293,7 +299,7 @@ async def test_review_applies_column_deny() -> None:
 
     verdict = await layer.review(
         _user("finance_staff"),
-        [_call("kingdee_query_finance_vouchers", {"bill_no": "V1"})],
+        [_call("erp_query_finance_vouchers", {"bill_no": "V1"})],
         "trace-1",
     )
 
@@ -387,7 +393,7 @@ async def test_review_read_only_does_not_execute() -> None:
         _user("finance_staff"),
         [
             _call(
-                "kingdee_delete_finance_voucher",
+                "erp_delete_finance_voucher",
                 {"customer_number": "100001", "amount": 1_000_000},
             )
         ],

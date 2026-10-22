@@ -14,7 +14,7 @@ from safety.guard import GuardContext, GuardPipeline, GuardResult
 
 def _context() -> GuardContext:
     return GuardContext(
-        tool_name="kingdee_query_sales_order",
+        tool_name="erp_query_sales_order",
         arguments={"bill_no": "SO000008"},
         user_context=UserContext(user_id="u001", role="viewer"),
         trace_id="trace-1",

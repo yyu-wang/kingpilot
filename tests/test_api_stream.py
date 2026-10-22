@@ -94,7 +94,7 @@ async def test_tool_events_have_no_payload(
             PlanResult(
                 tool_calls=[
                     ToolCallDecision(
-                        tool_name="kingdee_query_sales_order",
+                        tool_name="erp_query_sales_order",
                         arguments={"bill_no": "SO000001"},
                     )
                 ]

@@ -19,11 +19,11 @@ from safety.permission_engine import PermissionEngine
 from safety.risk_engine import RiskEngine, build_risk_context
 from sandbox import sandbox_settings
 
-_CREATE = "kingdee_create_purchase_inbound"
-_SUBMIT = "kingdee_submit_purchase_inbound"
-_AUDIT = "kingdee_audit_purchase_inbound"
-_UNAUDIT = "kingdee_unaudit_purchase_inbound"
-_DELETE = "kingdee_delete_purchase_inbound"
+_CREATE = "erp_create_purchase_inbound"
+_SUBMIT = "erp_submit_purchase_inbound"
+_AUDIT = "erp_audit_purchase_inbound"
+_UNAUDIT = "erp_unaudit_purchase_inbound"
+_DELETE = "erp_delete_purchase_inbound"
 
 _CREATE_ARGS = {
     "source_bill_no": "PO000001",
@@ -48,12 +48,12 @@ def _context(tool_name: str, arguments: dict[str, Any], role: str = "warehouse")
 
 
 class _RecordingClient:
-    """记录 execute_action 调用参数的客户端替身。"""
+    """记录 invoke_action 调用参数的客户端替身。"""
 
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
 
-    async def execute_action(
+    async def invoke_action(
         self, action: str, form_id: str, *, model: Any = None, bill_no: str = ""
     ) -> ActionResult:
         self.calls.append(

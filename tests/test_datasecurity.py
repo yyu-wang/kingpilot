@@ -9,9 +9,10 @@ from typing import Any, cast
 from agent.core import AgentCore
 from agent.tools import build_default_registry
 from config.settings import Settings
+from erp import BillQuerySpec
 from infrastructure.logger import _inject_trace_id
 from kingdee.client import KingdeeClient
-from models.kingdee import BillQueryParams, BillQueryResult, JsonScalar
+from models.kingdee import BillQueryResult, JsonScalar
 from models.llm import (
     PlanResult,
     ReflectionResult,
@@ -29,7 +30,7 @@ from tests.fakes import FakeProvider
 
 
 class _FakeClient:
-    async def execute_bill_query(self, params: BillQueryParams) -> BillQueryResult:
+    async def query(self, spec: BillQuerySpec) -> BillQueryResult:
         row: dict[str, JsonScalar] = {
             "FBillNo": "SO000008",
             "FPhone": "13812345678",
@@ -38,8 +39,8 @@ class _FakeClient:
             "FAmount": 1000,
         }
         return BillQueryResult(
-            form_id=params.form_id,
-            field_keys=params.field_keys.split(","),
+            form_id=spec.form_id,
+            field_keys=list(spec.field_keys),
             rows=[row],
         )
 
@@ -203,7 +204,7 @@ async def test_agent_core_redacts_tool_result_rows() -> None:
             PlanResult(
                 tool_calls=[
                     ToolCallDecision(
-                        tool_name="kingdee_query_sales_order",
+                        tool_name="erp_query_sales_order",
                         arguments={"bill_no": "SO000008"},
                     )
                 ]

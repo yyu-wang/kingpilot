@@ -733,7 +733,7 @@
               <li><strong>上下文</strong>：<code>agent/memory</code> 的 L1 原文 / L2 摘要 / L3 实体图，外加 <code>memory_compressor</code>。</li>
               <li><strong>企业治理</strong>：<code>tenancy</code>、<code>cost_engine</code>、<code>release_gate</code>、<code>prompt_registry</code>、<code>badcase</code>。</li>
             </ul>
-            <p>只讲三个的话，我选：<strong>安全边界、写一致性、可观测闭环</strong>。因为它们对应企业 Agent 最贵的三类事故：越权/注入、重复写/半成品单据、出了问题查不清。比如安全边界上，LLM 永远不接触 <code>FilterString</code>；写一致性上，幂等键 + Saga 倒序补偿 + 账本证据链；可观测上，一次请求一个 trace，能还原规划、护栏、执行、反思的完整决策树。</p>
+            <p>只讲三个的话，我选：<strong>安全边界、写一致性、可观测闭环</strong>。因为它们对应企业 Agent 最贵的三类事故：越权/注入、重复写/半成品单据、出了问题查不清。比如安全边界上，LLM 永远不接触查询方言——连 <code>FilterString</code> 这个字符串都不产生；写一致性上，幂等键 + Saga 倒序补偿 + 账本证据链；可观测上，一次请求一个 trace，能还原规划、护栏、执行、反思的完整决策树。</p>
             <span class="bonus">「支柱数量不是卖点，能不能指出每个支柱对应的失败场景，才是。」</span>
           </div>
         </article>
@@ -786,7 +786,7 @@
             <span class="answer-label">High-score answer</span>
             <p><strong>最难的不是让模型会调工具，而是把不确定性关进确定性边界。</strong></p>
             <ul>
-              <li>LLM 只输出结构化参数，不产出 <code>FilterString</code>；过滤条件由端点层根据字段白名单组装。</li>
+              <li>LLM 只输出结构化参数，不产出 <code>FilterString</code>；端点层把参数组装成 <code>FilterExpression</code>（结构化条件，不是字符串），方言只在适配器边界内出现。</li>
               <li>服务端 Guard 不信任模型自述：工具类型、参数合法性、实体是否存在、分页上限全部重新校验。</li>
               <li>写操作只允许「单写 + 审批」，再用幂等键、Saga、账本兜住重复与半成品。</li>
               <li>回答质量用规则做幻觉检测，不引入第二个 LLM 当裁判。</li>
@@ -978,15 +978,15 @@
           <p class="focus"><b>考察意图：</b>这是本项目最关键的安全设计，答不出这一点基本会被判定为「只会用框架」。</p>
           <div class="answer">
             <span class="answer-label">High-score answer</span>
-            <p><strong>两条铁律：Schema 单一真源，FilterString 永不经过 LLM。</strong></p>
+            <p><strong>两条铁律：Schema 单一真源，FilterString 永不经过 LLM——更进一步，LLM 侧根本不产生它。</strong></p>
             <ul>
               <li>每个工具的参数模型是 Pydantic 模型，<code>model_json_schema()</code> 直接下发给模型；Guard 1 用的也是同一个模型做 <code>model_validate</code>，所以「给模型看的文档」和「服务端校验器」天然同源。</li>
               <li>参数模型继承 <code>extra="forbid"</code>，未知参数、类型错误、越界 <code>limit</code> 一律拒绝，避免模型「自由发挥」。</li>
-              <li>模型只输出结构化字段（单号、客户、日期、金额区间），端点层 <code>build_filter</code> 负责拼 FilterString；字段必须来自端点的 filterable 白名单。</li>
-              <li>行级过滤 <code>row_filter</code> 由权限引擎生成，在 Guard 之后追加，模型既看不到也改不了。</li>
+              <li>模型只输出结构化字段（单号、客户、日期、金额区间），端点层 <code>build_filter</code> 返回 <code>FilterExpression</code>；<code>FilterString</code> 只在金蝶适配器内部渲染，字段必须来自端点的 filterable 白名单。</li>
+              <li>行级过滤 <code>row_filter</code> 由权限引擎生成，在 Guard 之后按 AND 合并进表达式，模型既看不到也改不了。</li>
               <li>工具类型是服务端事实（query / write / action），不信任模型自述，防止提示注入把写操作伪装成查询。</li>
             </ul>
-            <span class="edge"><b>边界：</b>行过滤是在 Guard 2 之后拼接的，不再过一遍文法校验，安全性依赖权限引擎的构造和 <code>quote_eq</code> 拒绝单引号。新增工具时必须同时维护参数模型和端点字段白名单，这是一处需要靠测试约束的耦合。</span>
+            <span class="edge"><b>边界：</b>行过滤在 Guard 2 之后合并，不再走一遍字段白名单，安全性依赖权限引擎的构造 + 构造期单引号 invariant。新增工具时必须同时维护参数模型和端点字段白名单，这是一处需要靠测试约束的耦合。</span>
             <span class="bonus">「LLM 可以决定查什么，但不能决定怎么拼查询；这是自然语言系统里最重要的一条权限边界。」</span>
           </div>
         </article>
@@ -1147,7 +1147,7 @@
             <div class="pipeline">
               <div class="pipe"><span class="pn">00</span><div><b>PermissionGuard</b><small>工具级 / 角色 / 数据域</small></div></div>
               <div class="pipe"><span class="pn">01</span><div><b>SchemaGuard</b><small>工具白名单 + 参数模型</small></div></div>
-              <div class="pipe"><span class="pn">02</span><div><b>FilterGuard</b><small>受限文法 + 字段白名单</small></div></div>
+              <div class="pipe"><span class="pn">02</span><div><b>FilterGuard</b><small>表达式白名单 + 值类型</small></div></div>
               <div class="pipe"><span class="pn">03</span><div><b>EntityPreflightGuard</b><small>名称 → FID 内码</small></div></div>
               <div class="pipe"><span class="pn">04</span><div><b>LimitGuard</b><small>分页上限 + 禁止无条件查询</small></div></div>
               <div class="pipe"><span class="pn">05</span><div><b>ParamGuard</b><small>写必填 + 引用必须是内码</small></div></div>
@@ -1165,21 +1165,23 @@
         </article>
 
         <article class="q">
-          <div class="q-head"><span class="q-no">24</span><h3 class="q-title">FilterString 校验为什么不用 sqlparse？怎么既防注入又不误杀正常客户名？</h3></div>
+          <div class="q-head"><span class="q-no">24</span><h3 class="q-title">注入防护为什么最终不做字符串校验？为什么不用 sqlparse，也不靠关键字黑名单？</h3></div>
           <div class="q-tags"><span class="tag level">深水区</span><span class="tag topic">注入防护</span><span class="tag">高区分度</span></div>
-          <p class="focus"><b>考察意图：</b>是否理解「语法白名单」比「关键字黑名单」更可靠。</p>
+          <p class="focus"><b>考察意图：</b>能否讲清「消除表达力」比「校验表达」更彻底，以及安全方案为什么会随架构演进换代。</p>
           <div class="answer">
             <span class="answer-label">High-score answer</span>
-            <p><strong>结论：</strong>不解析通用 SQL，而是定义一套只够用的受限文法，再对引号内文本做掩码后匹配黑名单。</p>
+            <p><strong>结论：做到最后是不产生字符串，而不是校验字符串。</strong>这个项目经历了三代方案，每次换代的动机都是把判断从「运行期匹配」推到「类型层表达」。</p>
             <ul>
-              <li>只允许 <code>AND</code> 连接；不支持 <code>OR</code>、<code>NOT</code>、括号分组，遇到就明确报业务错误，不静默忽略。</li>
-              <li>每个条件必须是 <code>field op value</code>，操作符仅限 <code>= &gt; &lt; &gt;= &lt;= &lt;&gt; LIKE</code>，字段允许 <code>A.B</code> 形式，值只能是成对单引号字符串或数值。</li>
-              <li>先把单引号内的字符替换成 <code>~</code> 做等长掩码，再检查注释、分号、<code>UNION</code>、<code>1=1</code>、<code>SLEEP</code> 等危险模式；这样客户名里的「A OR B」不会被误杀。</li>
-              <li>字段必须在端点的 filterable 白名单里；「可显示」和「可过滤」是两套字段集合，例如客户名称可显示，但过滤必须用客户编码。</li>
-              <li>真正的组装发生在端点层，模型不接触原始字符串，这是防注入的第一道保险。</li>
+              <li><b>第一代 · 黑名单</b>：正则匹配 <code>UNION</code>、<code>SLEEP</code>、注释、<code>1=1</code>。问题是永远在跟措辞赛跑，还会误杀客户名里的「A OR B」。</li>
+              <li><b>第二代 · 受限文法</b>：只允许 <code>AND</code> 连接、六种比较符和 <code>LIKE</code>；先把引号内文本做等长掩码，再匹配黑名单。可靠性提升，但解析器必须和渲染器永远保持同步——文法每扩一次就多一个注入面。</li>
+              <li><b>第三代 · 取消语法（当前）</b>：<code>FilterCondition</code> 只有 <code>field</code> + <code>op</code>（7 个枚举）+ <code>value</code>（字符串或数值），没有任何语法表达能力；<code>FilterExpression</code> 是条件元组，语义固定为 AND；<code>BillQuerySpec</code> 全部结构化。危险语法在类型层就无法被表达。</li>
+              <li>单引号在构造期就拒绝（<code>erp/conditions.py</code>），不等渲染——错误离用户输入更近，这是纵深防御的第一层。</li>
+              <li>Guard 2 改成校验<strong>结构化条件</strong>：字段必须命中 <code>filterable_fields</code>；值类型必须与字段类型匹配——数值字段不收字符串、<code>LIKE</code> 不能用于数值字段、日期必须是 <code>YYYY-MM-DD</code>。</li>
+              <li>黑名单没有消失，而是下沉到金蝶渲染器内部做自检（<code>kingdee/filter_string.py</code>）。它防的是渲染器自身的 bug，不是攻击者——职责变了，所以放在哪一层也变了。</li>
+              <li><code>FilterString</code> 只在适配器边界内生成。换成用友或 SAP 时，同一份 <code>FilterExpression</code> 翻译成各自语法即可，安全层零改动。</li>
             </ul>
-            <span class="edge"><b>边界：</b>LIKE 值里的 <code>%</code>、<code>_</code> 没有被限制，可以扩大匹配范围，但不构成注入；<code>A.B</code> 关联字段依赖端点白名单持续维护；行过滤在 Guard 之后拼接，是这套文法之外的可信输入。更彻底的做法是把 FilterString 解析成 AST，再按白名单渲染，而不是字符串拼接。</span>
-            <span class="bonus">「防注入不是把危险词列全，而是让输入根本没有表达危险语法的能力。」</span>
+            <span class="edge"><b>边界：</b>① <code>LIKE</code> 值里的 <code>%</code>、<code>_</code> 仍能扩大匹配范围，这是语义问题不是注入，需要业务侧限定；② 字段白名单回答「这个字段能不能过滤」，不回答「这个人能不能看」，越权归权限引擎；③ 行级过滤在 Guard 之后按 AND 合并，属于可信输入，不走 Guard 2；④ 代价是新增厂商要写一份渲染器——但这正好是适配层要承担的职责。</span>
+            <span class="bonus">「防注入的终点不是把危险词列全，而是让输入根本没有表达危险语法的能力：先限制语法，最后取消语法。」</span>
           </div>
         </article>
 
@@ -1479,7 +1481,7 @@
         <p>如果下面这些问题你能不看稿讲清，基本可以应对 Agent 高级岗的连续追问。</p>
         <ul class="checklist">
           <li>主循环 Phase 0–6 的顺序，以及每个 Phase 的失败处理</li>
-          <li>为什么 LLM 不能直接产出 FilterString</li>
+          <li>为什么安全边界要做到「连 FilterString 都不产生」，三代方案是怎么演进的</li>
           <li>Guard 六道入口的顺序与短路语义</li>
           <li>风险分档阈值与一条 25 万订单的实际得分</li>
           <li>幂等键的组成与时间桶的缺陷</li>

@@ -34,7 +34,7 @@ async def test_pipeline_recent_sales_orders(client: KingdeeClient) -> None:
     response = await _run_pipeline(client, "帮我查一下最近 5 笔销售订单")
 
     execution = response.trace.tool_executions[0]
-    assert execution.tool_name == "kingdee_query_sales_order"
+    assert execution.tool_name == "erp_query_sales_order"
     assert execution.error is None
     assert any(row["FBillNo"] == "SO000001" for row in execution.result["rows"])
     assert response.content  # 自然语言答复非空
@@ -45,7 +45,7 @@ async def test_pipeline_customer_filtered_orders(client: KingdeeClient) -> None:
     response = await _run_pipeline(client, "查一下客户 CUS001 的销售订单")
 
     execution = response.trace.tool_executions[0]
-    assert execution.tool_name == "kingdee_query_sales_order"
+    assert execution.tool_name == "erp_query_sales_order"
     assert execution.error is None
     assert "CUS001" in json.dumps(execution.parameters)
 
@@ -55,6 +55,6 @@ async def test_pipeline_inventory_by_material(client: KingdeeClient) -> None:
     response = await _run_pipeline(client, "MAT001 这个物料的库存有多少")
 
     execution = response.trace.tool_executions[0]
-    assert execution.tool_name == "kingdee_query_inventory"
+    assert execution.tool_name == "erp_query_inventory"
     assert execution.error is None
     assert "MAT001" in json.dumps(execution.parameters)

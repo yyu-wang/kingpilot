@@ -12,9 +12,10 @@ import pytest
 from agent.core import AgentCore
 from agent.tools import build_default_registry
 from config.settings import Settings
+from erp import BillQuerySpec
 from infrastructure.exceptions import LLMUnavailableError
 from kingdee.client import KingdeeClient
-from models.kingdee import BillQueryParams, BillQueryResult, JsonScalar
+from models.kingdee import BillQueryResult, JsonScalar
 from models.user import UserContext
 from safety.engine import SafetyLayer
 from tests.fakes import FakeProvider
@@ -23,73 +24,73 @@ from tests.fakes import FakeProvider
 CASES: tuple[tuple[str, str, dict[str, str], str], ...] = (
     (
         "查订单 SO000008 的交货日期",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
         {"bill_no": "SO000008"},
         "sales_order",
     ),
     (
         "查询销售订单 CUS001 的明细",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
         {"customer_number": "CUS001"},
         "sales_order",
     ),
     (
         "查已审核的销售订单",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
         {"document_status": "C"},
         "sales_order",
     ),
     (
         "查未审核的销售订单",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
         {"document_status": "A"},
         "sales_order",
     ),
     (
         "查订单 SO000009 的金额",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
         {"bill_no": "SO000009"},
         "sales_order",
     ),
     (
         "查采购订单 SUP001 的到货日期",
-        "kingdee_query_purchase_order",
+        "erp_query_purchase_order",
         {"supplier_number": "SUP001"},
         "purchase_order",
     ),
     (
         "查已审核的采购订单",
-        "kingdee_query_purchase_order",
+        "erp_query_purchase_order",
         {"document_status": "C"},
         "purchase_order",
     ),
     (
         "查未审核的采购订单",
-        "kingdee_query_purchase_order",
+        "erp_query_purchase_order",
         {"document_status": "A"},
         "purchase_order",
     ),
     (
         "查物料 MAT001 的库存",
-        "kingdee_query_inventory",
+        "erp_query_inventory",
         {"material_number": "MAT001"},
         "inventory",
     ),
     (
         "查库存 MAT002",
-        "kingdee_query_inventory",
+        "erp_query_inventory",
         {"material_number": "MAT002"},
         "inventory",
     ),
     (
         "查客户 深圳XX科技有限公司",
-        "kingdee_query_customer",
+        "erp_query_customer",
         {"name": "深圳XX科技有限公司"},
         "customer",
     ),
     (
         "查供应商 深圳YY贸易",
-        "kingdee_query_supplier",
+        "erp_query_supplier",
         {"name": "深圳YY贸易"},
         "supplier",
     ),
@@ -98,10 +99,10 @@ CASES: tuple[tuple[str, str, dict[str, str], str], ...] = (
 
 class _FakeClient:
     def __init__(self) -> None:
-        self.queries: list[BillQueryParams] = []
+        self.queries: list[BillQuerySpec] = []
 
-    async def execute_bill_query(self, params: BillQueryParams) -> BillQueryResult:
-        self.queries.append(params)
+    async def query(self, spec: BillQuerySpec) -> BillQueryResult:
+        self.queries.append(spec)
         row: dict[str, JsonScalar] = {
             "FBillNo": "SO000008",
             "FName": "深圳XX科技有限公司",
@@ -115,8 +116,8 @@ class _FakeClient:
             "FBaseQty": "100",
         }
         return BillQueryResult(
-            form_id=params.form_id,
-            field_keys=params.field_keys.split(","),
+            form_id=spec.form_id,
+            field_keys=list(spec.field_keys),
             rows=[row],
         )
 

@@ -13,6 +13,7 @@ from pydantic import Field
 
 from agent.tools import ToolDefinition, ToolType
 from config.risk_rules import RiskRule, RiskTier
+from erp import FilterExpression
 from kingdee.endpoints.base import EndpointParams
 from kingdee.endpoints.sal_order import SAL_ORDER
 from models.base import KingPilotBaseModel
@@ -227,14 +228,14 @@ class _WriteParams(EndpointParams):
     batch_size: int = Field(default=1, description="批量条数")
 
 
-def _empty_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _empty_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
 def _tool(*, tool_type: ToolType, action: str) -> ToolDefinition:
     return ToolDefinition(
         spec=ToolSpec(
-            name="kingdee_create_order",
+            name="erp_create_order",
             description="测试用写工具",
             parameters=_WriteParams.model_json_schema(),
         ),

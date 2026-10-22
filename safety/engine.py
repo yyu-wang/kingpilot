@@ -17,20 +17,22 @@
 """
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
 from agent.tools import ToolRegistry
 from config.permission_rules import DataDomain
+from erp import FilterCondition, FilterExpression, FilterOp
+from erp.protocol import ErpClient
 from infrastructure.exceptions import ToolError
-from kingdee.client import KingdeeClient
 from kingdee.entity_lookup import KingdeeEntityLookup
 from models.llm import ToolCallDecision, ToolSpec
 from models.user import UserContext
 from observability.audit import AuditLogger
 from safety.approval_gateway import ApprovalGateway, ApprovalRequest
 from safety.guard import GuardContext, GuardPipeline, GuardPipelineResult
+from safety.guard_business import InboundPreflightGuard
 from safety.guard_entity import EntityPreflightGuard
 from safety.guard_limit import LimitGuard
 from safety.guard_params import ParamGuard
@@ -57,7 +59,8 @@ class GuardedCall:
 
     tool_name: str
     arguments: Mapping[str, Any]
-    row_filter: str = ""
+    # 行级过滤（结构化表达式，空 = 无行限制）；执行期与 LLM 侧条件按 AND 合并
+    row_filter: FilterExpression = field(default_factory=FilterExpression)
     denied_fields: tuple[str, ...] = ()
 
 
@@ -85,7 +88,7 @@ class SafetyLayer:
     def __init__(
         self,
         tools: ToolRegistry,
-        client: KingdeeClient,
+        client: ErpClient,
         hitl_io: ConfirmationIO,
         *,
         clock: Callable[[], datetime] | None = None,
@@ -106,6 +109,8 @@ class SafetyLayer:
                 PermissionGuard(tools, self._permission),
                 SchemaGuard(tools),
                 FilterGuard(tools),
+                # 业务一致性预检在实体换码前执行：可直接比对用户输入的供应商名称/编码
+                InboundPreflightGuard(client),
                 EntityPreflightGuard(tools, KingdeeEntityLookup(client)),
                 LimitGuard(tools),
                 ParamGuard(tools),
@@ -291,12 +296,38 @@ def _permission_from_record(
             reason=str(detail.get("reason", "")),
             domain=domain,
             access_type=access,
-            row_filter=str(detail.get("row_filter", "")),
+            row_filter=_as_filter_expression(detail.get("row_filter")),
             denied_fields=_as_str_tuple(detail.get("denied_fields")),
             required_approvers=_as_str_tuple(detail.get("required_approvers")),
             rule_id=str(detail.get("rule_id", "")),
         )
     return None
+
+
+def _as_filter_expression(value: Any) -> FilterExpression:
+    """把审计 detail 里的条件列表还原为 FilterExpression；非法形状按空处理。"""
+    if not isinstance(value, (list, tuple)):
+        return FilterExpression()
+    conditions: list[FilterCondition] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        field_name = item.get("field")
+        op_value = item.get("op")
+        condition_value = item.get("value")
+        if not isinstance(field_name, str) or not isinstance(op_value, str):
+            continue
+        if not isinstance(condition_value, (str, int, float)) or isinstance(condition_value, bool):
+            continue
+        try:
+            op = FilterOp(op_value)
+        except ValueError:
+            continue
+        value_arg = (
+            float(condition_value) if isinstance(condition_value, (int, float)) else condition_value
+        )
+        conditions.append(FilterCondition(field=field_name, op=op, value=value_arg))
+    return FilterExpression(conditions=tuple(conditions))
 
 
 def _as_str_tuple(value: Any) -> tuple[str, ...]:
@@ -321,13 +352,15 @@ def _merge_permissions(
     denied_fields = tuple(
         sorted({field for decision in decisions for field in decision.denied_fields})
     )
-    row_filters = [decision.row_filter for decision in decisions if decision.row_filter]
+    row_filter_conditions = tuple(
+        condition for decision in decisions for condition in decision.row_filter.conditions
+    )
     return PermissionDecision(
         allowed=all(decision.allowed for decision in decisions),
         reason="；".join(reasons),
         domain=decisions[0].domain,
         access_type=decisions[0].access_type,
-        row_filter=" AND ".join(row_filters),
+        row_filter=FilterExpression(conditions=row_filter_conditions),
         denied_fields=denied_fields,
         required_approvers=approvers,
         rule_id=decisions[0].rule_id,

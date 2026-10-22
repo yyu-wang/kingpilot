@@ -50,7 +50,7 @@ class LimitGuard:
             )
 
         if tool.tool_type != "query" or tool.is_local:
-            # 写/动作工具无分页参数；本地工具（如 kb_search）没有 FilterString。
+            # 写/动作工具无分页参数；本地工具（如 kb_search）没有过滤表达式。
             # 必须先判类型再读 limit：写工具的参数模型本来就没有 limit。
             return GuardResult.allow(
                 detail={
@@ -84,7 +84,7 @@ class LimitGuard:
             )
 
         try:
-            filter_string = tool.build_filter(params)
+            filter_expr = tool.build_filter(params)
         except ValueError as exc:
             # 组装层拒绝（如过滤值含单引号）——fail-closed
             return GuardResult.block(
@@ -92,7 +92,7 @@ class LimitGuard:
                 detail={"tool": context.tool_name, "error_type": type(exc).__name__},
             )
 
-        if not filter_string.strip():
+        if not filter_expr.conditions:
             return GuardResult.block(
                 "禁止无条件查询（全表扫描）：请提供至少一个过滤条件",
                 detail={

@@ -1,7 +1,17 @@
 """M4-T10：攻击测试集回归（≥50 条，全部必须拦截）。
 
-覆盖：未注册工具、Schema 校验、SQL 注入、字段白名单、无条件查询、
-分页越界、数据域越权、实体幻觉与其它非法输入。
+覆盖：未注册工具、Schema 校验、构造期单引号拒绝、字段白名单、值类型误配、
+无条件查询、分页越界、数据域越权、实体幻觉与其它非法输入。
+
+T05 变更：Guard 2 校验对象从 FilterString 字符串改为结构化 FilterExpression，
+旧版 21 个 raw FilterString 注入样例（sql-* / raw-unclosed / raw-tautology /
+raw-sleep）在本层已失去存在面——
+- 值带单引号的注入在构造期（erp/conditions.py）即被拒绝 → 归一为「组装失败」；
+- UNION/注释/恒真/时间盲注等**字符串形态**无法表达为 FilterCondition，
+  对应黑名单自检下沉为金蝶渲染器内部防线（tests/test_kingdee_filter_string.py）。
+本文件相应把注入面改写为「被污染的组装层」直送结构化条件
+（越权字段 / 类型误配 / 构造期拒绝），攻击预期同步改为
+白名单 / 类型不匹配 / 组装失败 / 参数校验拦截。
 """
 
 from dataclasses import dataclass
@@ -16,7 +26,9 @@ from agent.tools import (
     ToolType,
     build_default_registry,
 )
-from kingdee.endpoints.base import EndpointDescriptor, EndpointParams, FieldDescriptor, quote_eq
+from erp import FilterExpression, eq, like
+from kingdee.endpoints.base import EndpointDescriptor, EndpointParams, FieldDescriptor
+from kingdee.endpoints.sal_order import SAL_ORDER
 from kingdee.entity_lookup import EntityLookupResult
 from models.base import KingPilotBaseModel, Role
 from models.llm import ToolSpec
@@ -39,8 +51,18 @@ class _EmptyLookup:
         return EntityLookupResult(found=False)
 
 
-class _RawParams(EndpointParams):
-    raw: str = Field(default="", description="原始过滤串")
+class _InjectParams(EndpointParams):
+    """被污染组装层的注入载体：直送字段/值构造结构化条件。"""
+
+    field: str = Field(default="", description="要注入的字段名")
+    value: str = Field(default="", description="要注入的过滤值")
+
+
+class _InjectNumParams(EndpointParams):
+    """数值型注入载体（类型误配场景）。"""
+
+    field: str = Field(default="", description="要注入的字段名")
+    value: float = Field(default=0.0, description="要注入的数值")
 
 
 class _WideParams(EndpointParams):
@@ -71,22 +93,37 @@ def _endpoint(form_id: str) -> EndpointDescriptor:
     )
 
 
-def _raw_filter(params: KingPilotBaseModel) -> str:
-    return cast(_RawParams, params).raw
+def _eq_str_filter(params: KingPilotBaseModel) -> FilterExpression:
+    p = cast(_InjectParams, params)
+    return FilterExpression(conditions=(eq(p.field, p.value),))
 
 
-def _wide_filter(params: KingPilotBaseModel) -> str:
+def _like_str_filter(params: KingPilotBaseModel) -> FilterExpression:
+    p = cast(_InjectParams, params)
+    return FilterExpression(conditions=(like(p.field, p.value),))
+
+
+def _eq_num_filter(params: KingPilotBaseModel) -> FilterExpression:
+    p = cast(_InjectNumParams, params)
+    return FilterExpression(conditions=(eq(p.field, p.value),))
+
+
+def _wide_filter(params: KingPilotBaseModel) -> FilterExpression:
     p = cast(_WideParams, params)
-    return f"FBillNo = {quote_eq(p.bill_no)}" if p.bill_no else ""
+    if not p.bill_no:
+        return FilterExpression()
+    return FilterExpression(conditions=(eq("FBillNo", p.bill_no),))
 
 
-def _bill_filter(params: KingPilotBaseModel) -> str:
+def _bill_filter(params: KingPilotBaseModel) -> FilterExpression:
     p = cast(_BillParams, params)
-    return f"FBillNo = {quote_eq(p.bill_no)}" if p.bill_no else ""
+    if not p.bill_no:
+        return FilterExpression()
+    return FilterExpression(conditions=(eq("FBillNo", p.bill_no),))
 
 
-def _empty_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _empty_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
 def _tool(
@@ -116,14 +153,29 @@ def _tool(
     )
 
 
-_RAW_TOOL = _tool(
-    "kingdee_query_raw",
-    "SAL_Order",
-    params_model=_RawParams,
-    build_filter=_raw_filter,
-)
+def _inject_tool(
+    name: str,
+    params_model: type[EndpointParams],
+    build_filter: Any,
+) -> ToolDefinition:
+    """以真实 SAL_ORDER 端点为白名单真相源的注入工具（模拟写错的组装层）。"""
+    return ToolDefinition(
+        spec=ToolSpec(
+            name=name,
+            description="攻击测试工具：直送结构化条件",
+            parameters=params_model.model_json_schema(),
+        ),
+        params_model=params_model,
+        build_filter=build_filter,
+        endpoint=SAL_ORDER,
+    )
+
+
+_INJECT_EQ_TOOL = _inject_tool("erp_query_inject_eq", _InjectParams, _eq_str_filter)
+_INJECT_LIKE_TOOL = _inject_tool("erp_query_inject_like", _InjectParams, _like_str_filter)
+_INJECT_NUM_TOOL = _inject_tool("erp_query_inject_num", _InjectNumParams, _eq_num_filter)
 _WIDE_TOOL = _tool(
-    "kingdee_query_wide",
+    "erp_query_wide",
     "SAL_Order",
     params_model=_WideParams,
     build_filter=_wide_filter,
@@ -141,12 +193,14 @@ _WRITE_TOOL = _tool(
 
 _REGISTRY = build_default_registry()
 for _tool_definition in (
-    _RAW_TOOL,
+    _INJECT_EQ_TOOL,
+    _INJECT_LIKE_TOOL,
+    _INJECT_NUM_TOOL,
     _WIDE_TOOL,
     _WRITE_TOOL,
-    _tool("kingdee_query_finance_vouchers", "GL_Voucher"),
-    _tool("kingdee_query_payables", "AP_Bill"),
-    _tool("kingdee_query_receivables", "AR_Bill"),
+    _tool("erp_query_finance_vouchers", "GL_Voucher"),
+    _tool("erp_query_payables", "AP_Bill"),
+    _tool("erp_query_receivables", "AR_Bill"),
 ):
     _REGISTRY.register(_tool_definition)
 
@@ -171,59 +225,38 @@ class AttackCase:
     expected: str
 
 
-_INJECTIONS = [
-    ("union", "FBillNo = 'SO1' UNION SELECT * FROM T_USER", "UNION"),
-    ("union-lower", "FBillNo = 'SO1' union select * from T_USER", "UNION"),
-    ("semicolon-drop", "FBillNo = 'SO1'; DROP TABLE T_SAL_ORDER", "危险 SQL"),
-    ("line-comment", "FBillNo = 'SO1' -- comment", "注释"),
-    ("block-comment", "FBillNo = 'SO1' /* comment */", "注释"),
-    ("or-tautology", "FBillNo = 'SO1' OR 1=1", "恒真"),
-    ("or-string", "FBillNo = 'SO1' OR '1'='1'", "OR / NOT"),
-    ("tautology", "1=1", "恒真"),
-    ("and-tautology", "FBillNo = 'SO1' AND 1 = 1", "恒真"),
-    ("sleep", "FBillNo = 'SO1' AND SLEEP(5)", "时间盲注"),
-    ("benchmark", "FBillNo = 'SO1' AND BENCHMARK(1000000,MD5(1))", "时间盲注"),
-    ("parentheses", "FBillNo = 'SO1' AND (FQty = 1)", "括号"),
-    ("not", "FBillNo = 'SO1' AND NOT FDocumentStatus = 'A'", "OR / NOT"),
-    ("unclosed", "FBillNo = 'unclosed", "未闭合"),
-    ("field-ref", "FBillNo = FBillNo", "字面量"),
-    ("empty-segment", "FBillNo = 'SO1' AND AND", "无法解析"),
-    ("inner-quote", "FBillNo = 'a''b'", "单引号"),
-    ("backslash", "FBillNo = 'a\\' OR 1=1 --'", "未闭合"),
-]
-
 ATTACK_CASES: list[AttackCase] = [
     # 未注册工具（5）
     AttackCase("unknown-1", "kingdee_drop_table", {}, "operator", "未注册"),
     AttackCase("unknown-2", "query_unknown", {}, "operator", "未注册"),
     AttackCase("unknown-3", "kingdee_sql_exec", {}, "operator", "未注册"),
-    AttackCase("unknown-4", "kingdee_delete_all", {}, "operator", "未注册"),
-    AttackCase("unknown-5", "kingdee_query_secret", {}, "operator", "未注册"),
+    AttackCase("unknown-4", "erp_delete_all", {}, "operator", "未注册"),
+    AttackCase("unknown-5", "erp_query_secret", {}, "operator", "未注册"),
     # Schema 校验（8）
     AttackCase(
         "limit-type",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
         {"bill_no": "SO1", "limit": "abc"},
         "admin",
         "参数校验失败",
     ),
     AttackCase(
         "limit-list",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
         {"bill_no": "SO1", "limit": [1]},
         "admin",
         "参数校验失败",
     ),
     AttackCase(
         "unknown-arg",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
         {"bill_no": "SO1", "sql": "DROP TABLE"},
         "admin",
         "参数校验失败",
     ),
     AttackCase(
         "bad-status",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
         {"document_status": "X"},
         "admin",
         "参数校验失败",
@@ -256,48 +289,211 @@ ATTACK_CASES: list[AttackCase] = [
         "admin",
         "参数校验失败",
     ),
-    # SQL 注入（18）
-    *[
-        AttackCase(f"sql-{name}", "kingdee_query_raw", {"raw": raw}, "admin", expected)
-        for name, raw, expected in _INJECTIONS
-    ],
-    # 字段白名单（5）
-    AttackCase("field-secret", "kingdee_query_raw", {"raw": "FSecret = 'x'"}, "admin", "白名单"),
-    AttackCase("field-id", "kingdee_query_raw", {"raw": "FID = 123"}, "admin", "白名单"),
+    # 构造期单引号拒绝（6）：注入值带引号 → 构造期 ValueError → Guard 2 归一为「组装失败」
     AttackCase(
-        "field-customer-name",
-        "kingdee_query_raw",
-        {"raw": "FCustomerID.FName = '客户A'"},
+        "inject-quote-plain",
+        "erp_query_inject_eq",
+        {"field": "FBillNo", "value": "O'Reilly"},
+        "admin",
+        "组装失败",
+    ),
+    AttackCase(
+        "inject-quote-or",
+        "erp_query_inject_eq",
+        {"field": "FBillNo", "value": "' OR 1=1"},
+        "admin",
+        "组装失败",
+    ),
+    AttackCase(
+        "inject-quote-tautology",
+        "erp_query_inject_eq",
+        {"field": "FBillNo", "value": "a' OR '1'='1' --"},
+        "admin",
+        "组装失败",
+    ),
+    AttackCase(
+        "inject-quote-union",
+        "erp_query_inject_eq",
+        {"field": "FBillNo", "value": "' UNION SELECT * FROM T_USER --"},
+        "admin",
+        "组装失败",
+    ),
+    AttackCase(
+        "inject-quote-drop",
+        "erp_query_inject_eq",
+        {"field": "FBillNo", "value": "x'; DROP TABLE T_SAL_ORDER --"},
+        "admin",
+        "组装失败",
+    ),
+    AttackCase(
+        "inject-quote-like",
+        "erp_query_inject_like",
+        {"field": "FBillNo", "value": "a' OR 1=1"},
+        "admin",
+        "组装失败",
+    ),
+    # 字段白名单（11）：越权字段直送结构化条件 → Guard 2 白名单拦截
+    AttackCase(
+        "field-secret",
+        "erp_query_inject_eq",
+        {"field": "FSecret", "value": "x"},
         "admin",
         "白名单",
     ),
-    AttackCase("field-note", "kingdee_query_raw", {"raw": "FNote = 'x'"}, "admin", "白名单"),
-    AttackCase("field-entry", "kingdee_query_raw", {"raw": "FEntryID = 1"}, "admin", "白名单"),
+    AttackCase(
+        "field-id",
+        "erp_query_inject_eq",
+        {"field": "FID", "value": "x"},
+        "admin",
+        "白名单",
+    ),
+    AttackCase(
+        "field-customer-name",
+        "erp_query_inject_eq",
+        {"field": "FCustomerID.FName", "value": "客户A"},
+        "admin",
+        "白名单",
+    ),
+    AttackCase(
+        "field-note",
+        "erp_query_inject_eq",
+        {"field": "FNote", "value": "x"},
+        "admin",
+        "白名单",
+    ),
+    AttackCase(
+        "field-entry",
+        "erp_query_inject_eq",
+        {"field": "FEntryID", "value": "x"},
+        "admin",
+        "白名单",
+    ),
+    # 危险字符串形态伪装成字段名（无法表达为合法条件，一律不命中白名单）
+    AttackCase(
+        "field-union-tail",
+        "erp_query_inject_eq",
+        {"field": "FBillNo UNION SELECT", "value": "x"},
+        "admin",
+        "白名单",
+    ),
+    AttackCase(
+        "field-drop-tail",
+        "erp_query_inject_eq",
+        {"field": "FBillNo'; DROP TABLE", "value": "x"},
+        "admin",
+        "白名单",
+    ),
+    AttackCase(
+        "field-comment-tail",
+        "erp_query_inject_eq",
+        {"field": "FBillNo --", "value": "x"},
+        "admin",
+        "白名单",
+    ),
+    AttackCase(
+        "field-subquery",
+        "erp_query_inject_eq",
+        {"field": "(SELECT FID FROM T_USER)", "value": "x"},
+        "admin",
+        "白名单",
+    ),
+    AttackCase(
+        "field-tautology",
+        "erp_query_inject_eq",
+        {"field": "1=1", "value": "x"},
+        "admin",
+        "白名单",
+    ),
+    AttackCase(
+        "field-sleep-tail",
+        "erp_query_inject_eq",
+        {"field": "FBillNo' AND SLEEP(5) --", "value": "x"},
+        "admin",
+        "白名单",
+    ),
+    # 值类型误配（5）：Guard 2 类型匹配拦截
+    AttackCase(
+        "type-number-gets-string",
+        "erp_query_inject_eq",
+        {"field": "FBillAllAmount", "value": "很多"},
+        "admin",
+        "类型不匹配",
+    ),
+    AttackCase(
+        "type-string-gets-number",
+        "erp_query_inject_num",
+        {"field": "FBillNo", "value": 123.0},
+        "admin",
+        "类型不匹配",
+    ),
+    AttackCase(
+        "type-like-on-number",
+        "erp_query_inject_like",
+        {"field": "FBillAllAmount", "value": "100"},
+        "admin",
+        "LIKE 不能用于数值字段",
+    ),
+    AttackCase(
+        "type-date-compact",
+        "erp_query_inject_eq",
+        {"field": "FDate", "value": "20260305"},
+        "admin",
+        "YYYY-MM-DD",
+    ),
+    AttackCase(
+        "type-date-slashes",
+        "erp_query_inject_eq",
+        {"field": "FDate", "value": "2026/03/05"},
+        "admin",
+        "YYYY-MM-DD",
+    ),
+    # 注入载体的参数级拦截（3）：Schema 先于 Guard 2 生效
+    AttackCase(
+        "inject-value-list",
+        "erp_query_inject_eq",
+        {"field": "FBillNo", "value": ["x"]},
+        "admin",
+        "参数校验失败",
+    ),
+    AttackCase(
+        "inject-value-int",
+        "erp_query_inject_eq",
+        {"field": "FBillNo", "value": 123},
+        "admin",
+        "参数校验失败",
+    ),
+    AttackCase(
+        "inject-extra-arg",
+        "erp_query_inject_eq",
+        {"field": "FBillNo", "value": "x", "sql": "DROP TABLE"},
+        "admin",
+        "参数校验失败",
+    ),
     # 无条件查询（3）
-    AttackCase("empty-sales", "kingdee_query_sales_order", {}, "admin", "无条件查询"),
-    AttackCase("empty-customer", "kingdee_query_customer", {}, "admin", "无条件查询"),
-    AttackCase("empty-supplier", "kingdee_query_supplier", {}, "admin", "无条件查询"),
+    AttackCase("empty-sales", "erp_query_sales_order", {}, "admin", "无条件查询"),
+    AttackCase("empty-customer", "erp_query_customer", {}, "admin", "无条件查询"),
+    AttackCase("empty-supplier", "erp_query_supplier", {}, "admin", "无条件查询"),
     # 分页越界（4）
     AttackCase(
         "limit-10001",
-        "kingdee_query_wide",
+        "erp_query_wide",
         {"bill_no": "SO1", "limit": 10001},
         "admin",
         "超出允许范围",
     ),
     AttackCase(
-        "limit-zero", "kingdee_query_wide", {"bill_no": "SO1", "limit": 0}, "admin", "超出允许范围"
+        "limit-zero", "erp_query_wide", {"bill_no": "SO1", "limit": 0}, "admin", "超出允许范围"
     ),
     AttackCase(
         "limit-negative",
-        "kingdee_query_wide",
+        "erp_query_wide",
         {"bill_no": "SO1", "limit": -1},
         "admin",
         "超出允许范围",
     ),
     AttackCase(
         "limit-type-wide",
-        "kingdee_query_wide",
+        "erp_query_wide",
         {"bill_no": "SO1", "limit": "abc"},
         "admin",
         "参数校验失败",
@@ -305,22 +501,20 @@ ATTACK_CASES: list[AttackCase] = [
     # 数据域越权（4）
     AttackCase(
         "domain-finance",
-        "kingdee_query_finance_vouchers",
+        "erp_query_finance_vouchers",
         {"bill_no": "V1"},
         "operator",
         "财务数据",
     ),
-    AttackCase(
-        "domain-payables", "kingdee_query_payables", {"bill_no": "AP1"}, "operator", "财务数据"
-    ),
+    AttackCase("domain-payables", "erp_query_payables", {"bill_no": "AP1"}, "operator", "财务数据"),
     AttackCase(
         "domain-receivables",
-        "kingdee_query_receivables",
+        "erp_query_receivables",
         {"bill_no": "AR1"},
         "operator",
         "财务数据",
     ),
-    AttackCase("domain-purchase", "kingdee_query_purchase_order", {}, "viewer", "采购数据"),
+    AttackCase("domain-purchase", "erp_query_purchase_order", {}, "viewer", "采购数据"),
     # 实体幻觉（5）
     AttackCase(
         "entity-fid-miss",
@@ -357,31 +551,20 @@ ATTACK_CASES: list[AttackCase] = [
         "admin",
         "实体预检",
     ),
-    # 其它非法输入（5）
+    # 其它非法输入（2）
     AttackCase(
         "status-zzz",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
         {"document_status": "ZZZ"},
         "admin",
         "参数校验失败",
     ),
     AttackCase(
         "quote-in-value",
-        "kingdee_query_customer",
+        "erp_query_customer",
         {"name": "O'Reilly"},
         "admin",
         "组装失败",
-    ),
-    AttackCase(
-        "raw-unclosed", "kingdee_query_raw", {"raw": "FBillNo = 'unclosed"}, "admin", "未闭合"
-    ),
-    AttackCase("raw-tautology", "kingdee_query_raw", {"raw": "1=1"}, "admin", "恒真"),
-    AttackCase(
-        "raw-sleep",
-        "kingdee_query_raw",
-        {"raw": "FBillNo = 'SO1' AND SLEEP(5)"},
-        "admin",
-        "时间盲注",
     ),
 ]
 

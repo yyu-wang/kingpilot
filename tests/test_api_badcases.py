@@ -70,7 +70,7 @@ async def test_admin_and_manager_can_mark_and_read(
             headers=_headers(_ADMIN_KEY),
             json={
                 "trace_id": admin_trace,
-                "expected_tool": "kingdee_query_customer",
+                "expected_tool": "erp_query_customer",
                 "reason": "手机 13800138000 应查客户却查了订单",
                 "category": "badcase",
                 "expected_behavior": "先换客户编码",
@@ -81,7 +81,7 @@ async def test_admin_and_manager_can_mark_and_read(
             headers=_headers(_MANAGER_KEY),
             json={
                 "trace_id": manager_trace,
-                "expected_tool": "kingdee_query_customer",
+                "expected_tool": "erp_query_customer",
                 "reason": "选错工具",
             },
         )
@@ -166,7 +166,7 @@ async def test_export_creates_loadable_dataset_and_is_idempotent(
             headers=_headers(_ADMIN_KEY),
             json={
                 "trace_id": trace_id,
-                "expected_tool": "kingdee_query_customer",
+                "expected_tool": "erp_query_customer",
                 "reason": "选错工具",
             },
         )
@@ -208,7 +208,7 @@ async def test_duplicate_question_and_tool_returns_conflict(
         first_trace = _save_trace(deps.trace_store, "查一下客户 CUS001")
         second_trace = _save_trace(deps.trace_store, "查一下客户 CUS001")
         payload = {
-            "expected_tool": "kingdee_query_customer",
+            "expected_tool": "erp_query_customer",
             "reason": "选错工具",
         }
         first = await http.post(

@@ -22,13 +22,13 @@ from agent.providers import get_provider
 from agent.session_store import SessionStore
 from agent.tools import build_default_registry
 from config.settings import Settings, get_settings
+from erp.factory import build_erp_client
 from governance.online_sampler import OnlineSampler
 from governance.prompt_registry import PromptRegistry
 from infrastructure.exceptions import KingPilotError, SessionStoreError
 from infrastructure.logger import setup_logging
 from infrastructure.secrets import build_secret_provider
 from infrastructure.tenancy import tenant_paths
-from kingdee.client import KingdeeClient
 from models.tenant import DEFAULT_TENANT
 from observability.alerts import AlertEngine
 from observability.audit import AuditLogger, JsonlAuditSink
@@ -136,7 +136,7 @@ async def _run_session(settings: Settings, store: SessionStore, memory: MemorySt
         print(f"LLM 初始化失败：{exc}（请检查 KINGPILOT_LLM_API_KEY / prompts 目录）")
         return 2
     try:
-        async with KingdeeClient(settings, secrets=secrets) as client:
+        async with build_erp_client(settings, secrets=secrets) as client:
             registry = build_default_registry()
             safety = SafetyLayer(registry, client, CliConfirmationIO(), audit=audit)
             trace_store = TraceStore(paths.trace_dir)

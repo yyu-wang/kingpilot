@@ -14,7 +14,7 @@ from models.base import KingPilotBaseModel
 class ToolExecution(KingPilotBaseModel):
     """单次工具执行记录。"""
 
-    tool_name: str = Field(description="工具名称（如 'kingdee_query_sales_order'）")
+    tool_name: str = Field(description="工具名称（如 'erp_query_sales_order'）")
     parameters: dict[str, Any] = Field(description="调用参数（脱敏后）")
     result: Any = Field(default=None, description="执行结果（成功时）")
     error: str | None = Field(default=None, description="错误信息（失败时）")

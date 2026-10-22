@@ -35,7 +35,7 @@ async def test_event_sequence_for_tool_query(client: KingdeeClient) -> None:
             PlanResult(
                 tool_calls=[
                     ToolCallDecision(
-                        tool_name="kingdee_query_sales_order",
+                        tool_name="erp_query_sales_order",
                         arguments={"bill_no": "SO000001"},
                     )
                 ]
@@ -66,8 +66,8 @@ async def test_event_sequence_for_tool_query(client: KingdeeClient) -> None:
 
     tool_events = [event for event in events if event.event == "tool"]
     assert [event.tool_name for event in tool_events] == [
-        "kingdee_query_sales_order",
-        "kingdee_query_sales_order",
+        "erp_query_sales_order",
+        "erp_query_sales_order",
     ]
     assert [event.status for event in tool_events] == ["start", "success"]
     for event in tool_events:

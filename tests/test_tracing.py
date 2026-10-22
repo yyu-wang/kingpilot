@@ -30,9 +30,7 @@ def _trace() -> AgentTrace:
         session_id="s1",
         llm_planning={
             "reasoning": "查询订单",
-            "tool_calls": [
-                {"tool_name": "kingdee_query_sales_order", "arguments": {"bill_no": "SO1"}}
-            ],
+            "tool_calls": [{"tool_name": "erp_query_sales_order", "arguments": {"bill_no": "SO1"}}],
         },
         guard_checks=[
             {"guard": "guard_schema", "passed": True, "reason": ""},
@@ -50,7 +48,7 @@ def _trace() -> AgentTrace:
         },
         tool_executions=[
             ToolExecution(
-                tool_name="kingdee_query_sales_order",
+                tool_name="erp_query_sales_order",
                 parameters={"bill_no": "SO1"},
                 result={"field_keys": ["FBillNo"], "rows": [{"FBillNo": "SO1"}]},
                 latency_ms=120,
@@ -87,7 +85,7 @@ def test_save_load_round_trip(tmp_path: Path) -> None:
     assert loaded.user_input == "查订单 SO1"
     assert loaded.llm_planning["reasoning"] == "查询订单"
     assert len(loaded.guard_checks) == 2
-    assert loaded.tool_executions[0].tool_name == "kingdee_query_sales_order"
+    assert loaded.tool_executions[0].tool_name == "erp_query_sales_order"
     assert loaded.reflections[0]["next_input"] == "再查一次"
     assert loaded.total_latency_ms == 850
 
@@ -205,7 +203,7 @@ def test_report_contains_decision_tree() -> None:
     assert "guard_sql: ❌（字段越权）" in text
     assert "Risk: 42.0 → confirm" in text
     assert "FSaleOrgId.FNumber = 'ORG1'" in text
-    assert "kingdee_query_sales_order (120ms) → 1 条" in text
+    assert "erp_query_sales_order (120ms) → 1 条" in text
     assert "continue=True" in text
     assert "Final: 查到 1 条订单" in text
     assert "850ms" in text
@@ -232,7 +230,7 @@ def test_report_truncates_long_result() -> None:
     trace = _trace()
     trace.tool_executions = [
         ToolExecution(
-            tool_name="kingdee_query_sales_order",
+            tool_name="erp_query_sales_order",
             parameters={},
             result={"rows": [{"FBillNo": "X" * 500}]},
         )

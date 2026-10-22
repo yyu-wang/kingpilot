@@ -8,9 +8,10 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
+from erp import BillQuerySpec, FilterExpression, eq
 from kingdee.endpoints.base import EndpointDescriptor
 from kingdee.endpoints.sal_order import SAL_ORDER
-from models.kingdee import BillQueryParams, DocumentStatus
+from models.kingdee import DocumentStatus
 
 _MIN_FIELD_COUNT = 15
 
@@ -98,30 +99,31 @@ def test_document_status_filterable_and_matches_enum() -> None:
 
 
 def test_to_query_params_uses_defaults() -> None:
-    params = SAL_ORDER.to_query_params()
-    assert isinstance(params, BillQueryParams)
-    assert params.form_id == "SAL_Order"
-    assert params.field_keys == ",".join(SAL_ORDER.default_field_keys)
-    assert params.order_string == "FBillNo"
-    assert params.filter_string == ""
-    assert params.start_row == 0
-    assert params.limit == 100
+    """默认组装产中性 BillQuerySpec：表头字段、默认排序、空过滤（T05 起与厂商无关）。"""
+    spec = SAL_ORDER.to_query_params()
+    assert isinstance(spec, BillQuerySpec)
+    assert spec.form_id == "SAL_Order"
+    assert spec.field_keys == SAL_ORDER.default_field_keys
+    assert spec.order_by == "FBillNo"
+    assert spec.filter == FilterExpression()
+    assert spec.start_row == 0
+    assert spec.limit == 100
 
 
 def test_to_query_params_overrides() -> None:
     """显式传参覆盖默认值（M1-T06b 脚本与 M2 工具层按此调用）。"""
-    params = SAL_ORDER.to_query_params(
-        field_keys="FBillNo,FDocumentStatus",
-        filter_string="FDocumentStatus = 'C'",
-        order_string="FDate DESC",
+    spec = SAL_ORDER.to_query_params(
+        field_keys=("FBillNo", "FDocumentStatus"),
+        filter=FilterExpression(conditions=(eq("FDocumentStatus", "C"),)),
+        order_by="FDate DESC",
         start_row=50,
-        limit=200,
+        limit=100,
     )
-    assert params.field_keys == "FBillNo,FDocumentStatus"
-    assert params.filter_string == "FDocumentStatus = 'C'"
-    assert params.order_string == "FDate DESC"
-    assert params.start_row == 50
-    assert params.limit == 200
+    assert spec.field_keys == ("FBillNo", "FDocumentStatus")
+    assert spec.filter == FilterExpression(conditions=(eq("FDocumentStatus", "C"),))
+    assert spec.order_by == "FDate DESC"
+    assert spec.start_row == 50
+    assert spec.limit == 100
 
 
 def test_descriptor_is_frozen() -> None:

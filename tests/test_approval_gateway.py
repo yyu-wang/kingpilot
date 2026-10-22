@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from agent.tools import ToolDefinition, ToolRegistry
+from erp import FilterExpression
 from governance.approval import ApprovalService, FileApprovalStore
 from governance.approval_gateway import ApprovalGatewayImpl
 from infrastructure.exceptions import ApprovalError
@@ -20,8 +21,8 @@ from safety.risk_engine import RiskDecision
 _REQUESTER = UserContext(user_id="alice", role="salesperson")
 
 
-def _no_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _no_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
 def _write_registry() -> ToolRegistry:
@@ -29,7 +30,7 @@ def _write_registry() -> ToolRegistry:
     registry.register(
         ToolDefinition(
             spec=ToolSpec(
-                name="kingdee_delete_sales_order",
+                name="erp_delete_sales_order",
                 description="删除销售订单（测试写工具）",
                 parameters=SalesOrderParams.model_json_schema(),
             ),
@@ -66,9 +67,7 @@ def _request(calls: tuple[ToolCallDecision, ...]) -> ApprovalRequest:
 async def test_gateway_creates_single_action(tmp_path: Path) -> None:
     service = _service(tmp_path)
     gateway = ApprovalGatewayImpl(service, _write_registry())
-    call = ToolCallDecision(
-        tool_name="kingdee_delete_sales_order", arguments={"bill_no": "SO000001"}
-    )
+    call = ToolCallDecision(tool_name="erp_delete_sales_order", arguments={"bill_no": "SO000001"})
 
     approval_id = await gateway.request(_request((call,)))
 
@@ -83,9 +82,7 @@ async def test_gateway_creates_single_action(tmp_path: Path) -> None:
 async def test_gateway_rejects_multiple_calls(tmp_path: Path) -> None:
     service = _service(tmp_path)
     gateway = ApprovalGatewayImpl(service, _write_registry())
-    call = ToolCallDecision(
-        tool_name="kingdee_delete_sales_order", arguments={"bill_no": "SO000001"}
-    )
+    call = ToolCallDecision(tool_name="erp_delete_sales_order", arguments={"bill_no": "SO000001"})
 
     with pytest.raises(ApprovalError) as exc:
         await gateway.request(_request((call, call)))
@@ -98,9 +95,7 @@ async def test_gateway_rejects_non_write_tool(tmp_path: Path) -> None:
 
     service = _service(tmp_path)
     gateway = ApprovalGatewayImpl(service, build_default_registry())
-    call = ToolCallDecision(
-        tool_name="kingdee_query_sales_order", arguments={"bill_no": "SO000001"}
-    )
+    call = ToolCallDecision(tool_name="erp_query_sales_order", arguments={"bill_no": "SO000001"})
 
     with pytest.raises(ApprovalError) as exc:
         await gateway.request(_request((call,)))
@@ -110,9 +105,7 @@ async def test_gateway_rejects_non_write_tool(tmp_path: Path) -> None:
 async def test_gateway_idempotent_by_trace_and_arguments(tmp_path: Path) -> None:
     service = _service(tmp_path)
     gateway = ApprovalGatewayImpl(service, _write_registry())
-    call = ToolCallDecision(
-        tool_name="kingdee_delete_sales_order", arguments={"bill_no": "SO000001"}
-    )
+    call = ToolCallDecision(tool_name="erp_delete_sales_order", arguments={"bill_no": "SO000001"})
 
     first = await gateway.request(_request((call,)))
     second = await gateway.request(_request((call,)))

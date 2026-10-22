@@ -10,6 +10,7 @@ import pytest
 from pydantic import Field
 
 from agent.tools import ToolDefinition, ToolRegistry, build_default_registry
+from erp import FilterExpression
 from kingdee.endpoints.base import EndpointParams
 from kingdee.endpoints.sal_order import SAL_ORDER
 from models.base import KingPilotBaseModel
@@ -25,13 +26,13 @@ class _BillRequiredParams(EndpointParams):
     bill_no: str = Field(description="单据编号（必填）")
 
 
-def _empty_filter(params: KingPilotBaseModel) -> str:
-    return ""
+def _empty_filter(params: KingPilotBaseModel) -> FilterExpression:
+    return FilterExpression()
 
 
 _REQUIRED_TOOL = ToolDefinition(
     spec=ToolSpec(
-        name="kingdee_query_required_bill",
+        name="erp_query_required_bill",
         description="测试用：按单据编号查询",
         parameters=_BillRequiredParams.model_json_schema(),
     ),
@@ -61,17 +62,17 @@ def _context(tool_name: str, arguments: dict[str, Any]) -> GuardContext:
 
 async def test_valid_arguments_pass() -> None:
     result = await SchemaGuard(_registry()).check(
-        _context("kingdee_query_sales_order", {"bill_no": "SO000008", "limit": 50})
+        _context("erp_query_sales_order", {"bill_no": "SO000008", "limit": 50})
     )
 
     assert result.passed is True
     assert result.reason == ""
-    assert result.detail == {"tool": "kingdee_query_sales_order", "param_count": 2}
+    assert result.detail == {"tool": "erp_query_sales_order", "param_count": 2}
 
 
 async def test_empty_arguments_pass_when_all_optional() -> None:
     """空条件不是 Guard 1 的职责（T05 才拒绝无条件查询）。"""
-    result = await SchemaGuard(_registry()).check(_context("kingdee_query_sales_order", {}))
+    result = await SchemaGuard(_registry()).check(_context("erp_query_sales_order", {}))
 
     assert result.passed is True
     assert result.detail["param_count"] == 0
@@ -86,7 +87,7 @@ async def test_unknown_tool_blocked() -> None:
     assert result.passed is False
     assert "未注册" in result.reason
     known_tools = result.detail["known_tools"]
-    assert "kingdee_query_sales_order" in known_tools
+    assert "erp_query_sales_order" in known_tools
     assert "kingdee_drop_table" not in known_tools
 
 
@@ -95,7 +96,7 @@ async def test_unknown_tool_blocked() -> None:
 
 async def test_missing_required_param_blocked() -> None:
     result = await SchemaGuard(_registry()).check(
-        _context("kingdee_query_required_bill", {"limit": 10})
+        _context("erp_query_required_bill", {"limit": 10})
     )
 
     assert result.passed is False
@@ -108,7 +109,7 @@ async def test_missing_required_param_blocked() -> None:
 
 async def test_wrong_type_blocked() -> None:
     result = await SchemaGuard(_registry()).check(
-        _context("kingdee_query_sales_order", {"limit": "abc"})
+        _context("erp_query_sales_order", {"limit": "abc"})
     )
 
     assert result.passed is False
@@ -121,7 +122,7 @@ async def test_wrong_type_blocked() -> None:
 )
 async def test_out_of_range_blocked(limit: int, error_type: str) -> None:
     result = await SchemaGuard(_registry()).check(
-        _context("kingdee_query_sales_order", {"limit": limit})
+        _context("erp_query_sales_order", {"limit": limit})
     )
 
     assert result.passed is False
@@ -131,7 +132,7 @@ async def test_out_of_range_blocked(limit: int, error_type: str) -> None:
 async def test_unknown_argument_blocked() -> None:
     """LLM 自创参数（如拼 SQL）在 Schema 层直接拒绝（extra=forbid）。"""
     result = await SchemaGuard(_registry()).check(
-        _context("kingdee_query_sales_order", {"sql": "DROP TABLE T_SAL_ORDER"})
+        _context("erp_query_sales_order", {"sql": "DROP TABLE T_SAL_ORDER"})
     )
 
     assert result.passed is False
@@ -141,7 +142,7 @@ async def test_unknown_argument_blocked() -> None:
 
 async def test_invalid_enum_value_blocked() -> None:
     result = await SchemaGuard(_registry()).check(
-        _context("kingdee_query_sales_order", {"document_status": "X"})
+        _context("erp_query_sales_order", {"document_status": "X"})
     )
 
     assert result.passed is False

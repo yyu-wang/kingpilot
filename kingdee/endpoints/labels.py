@@ -50,7 +50,7 @@ _WRITE_BINDINGS = (
     *PURCHASE_INBOUND_WRITE_TOOLS,
 )
 
-#: 工具名 → 中文展示名（如 kingdee_create_sales_order → 创建销售订单）
+#: 工具名 → 中文展示名（如 erp_create_sales_order → 创建销售订单）
 TOOL_LABELS: dict[str, str] = {
     binding.tool_name: (
         f"{ACTION_LABELS.get(binding.action, binding.action)}{binding.endpoint.label}"

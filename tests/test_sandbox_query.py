@@ -458,3 +458,24 @@ def test_purchase_inbound_rejects_unknown_field(authed: TestClient) -> None:
     status = _error_status(authed, FormId="STK_InStock", FieldKeys="FBillAllAmount")
 
     assert "FBillAllAmount" in status.error_message
+
+
+# ── BD_Stock 仓库基础资料（采购入库业务预检数据源）──
+
+
+def test_stock_master_lists_seed_warehouses(authed: TestClient) -> None:
+    rows = _query(authed, form_id="BD_Stock", field_keys="FNumber,FName", limit=0)
+
+    assert {row[1] for row in rows} == {"成品仓", "原料仓", "半成品仓"}
+
+
+def test_stock_master_filters_by_name(authed: TestClient) -> None:
+    rows = _query(
+        authed,
+        form_id="BD_Stock",
+        field_keys="FNumber,FName",
+        filter_string="FName = '不存在仓库'",
+        limit=0,
+    )
+
+    assert rows == []

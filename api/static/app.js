@@ -111,7 +111,8 @@ async function apiFetch(path, options = {}) {
   });
 
   if (response.status === 401) {
-    logout();
+    // 仅在已登录会话失效时登出；登录页的 401 由 handleLogin 展示错误
+    if (state.me) logout();
     throw new Error('API Key 无效或已过期');
   }
   if (!response.ok) {

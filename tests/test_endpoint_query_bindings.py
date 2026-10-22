@@ -1,13 +1,17 @@
-"""M2-T03：端点参数模型与 FilterString 组装单测。
+"""M2-T03：端点参数模型与 FilterExpression 组装单测（T05 重写）。
 
 锚定两条不变式：
 1. 组装出的条件字段全部落在该端点 ``filterable_fields`` 内（可查 ≠ 可过滤）；
-2. 组装格式与金蝶 FilterString 语法逐字符一致（引号/数值格式/AND 连接）。
+2. 条件顺序 = 参数声明序（可读性锚定），操作符/值与参数语义一一对应。
+
+T05 变更：断言对象从金蝶 FilterString 字符串改为厂商中立 ``FilterExpression``
+（渲染为金蝶方言是 ``kingdee/filter_string.py`` 的职责，由渲染器自身单测覆盖）。
 """
 
 import pytest
 from pydantic import ValidationError
 
+from erp import FilterExpression, eq, ge, like
 from kingdee.endpoints import (
     CUSTOMER,
     CUSTOMER_TOOL,
@@ -54,38 +58,43 @@ def test_endpoint_form_id(endpoint: EndpointDescriptor, form_id: str) -> None:
 
 
 def test_customer_filter_like() -> None:
-    """名称模糊查询组装为 LIKE '%值%'。"""
-    assert build_customer_filter(CustomerParams(name="测试")) == "FName LIKE '%测试%'"
+    """名称模糊查询组装为 LIKE 条件。"""
+    assert build_customer_filter(CustomerParams(name="测试")) == FilterExpression(
+        conditions=(like("FName", "测试"),)
+    )
 
 
 def test_customer_filter_empty_params() -> None:
-    """全默认参数 = 无过滤条件（空 FilterString，查全部）。"""
-    assert build_customer_filter(CustomerParams()) == ""
+    """全默认参数 = 无过滤条件（空表达式，查全部）。"""
+    assert build_customer_filter(CustomerParams()) == FilterExpression()
 
 
 def test_sales_filter_combined_in_field_order() -> None:
-    """多条件 AND 连接，顺序 = 参数声明序（可读性锚定）。"""
+    """多条件 AND 语义，顺序 = 参数声明序（可读性锚定）。"""
     result = build_sales_order_filter(
         SalesOrderParams(customer_number="CUS001", document_status="C", min_amount=150000.0)
     )
-    assert (
-        result
-        == "FCustomerID.FNumber = 'CUS001' AND FDocumentStatus = 'C' AND FBillAllAmount >= 150000"
+    assert result == FilterExpression(
+        conditions=(
+            eq("FCustomerID.FNumber", "CUS001"),
+            eq("FDocumentStatus", "C"),
+            ge("FBillAllAmount", 150000.0),
+        )
     )
 
 
-def test_sales_filter_decimal_amount_keeps_point() -> None:
-    """非整金额保留小数（fmt_number 只去整数的 .0 尾巴）。"""
+def test_sales_filter_decimal_amount_kept_as_float() -> None:
+    """非整金额原样保留为 float（数值格式化是渲染期职责）。"""
     result = build_sales_order_filter(SalesOrderParams(min_amount=99.5))
-    assert result == "FBillAllAmount >= 99.5"
+    assert result == FilterExpression(conditions=(ge("FBillAllAmount", 99.5),))
 
 
 def test_sales_filter_bill_no_and_date() -> None:
     """M2-T05 D6 新增字段：单号 / 单日日期精确匹配（评测集 SAL-05/06 的支撑）。"""
     result = build_sales_order_filter(SalesOrderParams(bill_no="SO000008"))
-    assert result == "FBillNo = 'SO000008'"
+    assert result == FilterExpression(conditions=(eq("FBillNo", "SO000008"),))
     assert build_sales_order_filter(SalesOrderParams(order_date="2026-03-05")) == (
-        "FDate = '2026-03-05'"
+        FilterExpression(conditions=(eq("FDate", "2026-03-05"),))
     )
 
 
@@ -97,15 +106,14 @@ def test_sales_field_keys_expand_entries_only_when_requested() -> None:
         SalesOrderParams(bill_no="SO000001", include_entries=True)
     )
     assert field_keys is not None
-    keys = list(field_keys.split(","))
-    assert set(SAL_ORDER.default_field_keys) <= set(keys)
+    assert set(SAL_ORDER.default_field_keys) <= set(field_keys)
     for key in ("FMaterialId.FNumber", "FMaterialId.FName", "FQty", "FTaxPrice"):
-        assert key in keys
-    assert set(keys) <= SAL_ORDER.selectable_fields
+        assert key in field_keys
+    assert set(field_keys) <= SAL_ORDER.selectable_fields
 
 
 def test_sales_filter_combined_five_conditions() -> None:
-    """全条件 AND 连接顺序 = 参数声明序（新增字段不破坏既有顺序锚定）。"""
+    """全条件 AND 语义顺序 = 参数声明序（新增字段不破坏既有顺序锚定）。"""
     result = build_sales_order_filter(
         SalesOrderParams(
             customer_number="CUS001",
@@ -115,9 +123,14 @@ def test_sales_filter_combined_five_conditions() -> None:
             order_date="2026-03-05",
         )
     )
-    assert result == (
-        "FCustomerID.FNumber = 'CUS001' AND FDocumentStatus = 'C'"
-        " AND FBillAllAmount >= 150000 AND FBillNo = 'SO000008' AND FDate = '2026-03-05'"
+    assert result == FilterExpression(
+        conditions=(
+            eq("FCustomerID.FNumber", "CUS001"),
+            eq("FDocumentStatus", "C"),
+            ge("FBillAllAmount", 150000.0),
+            eq("FBillNo", "SO000008"),
+            eq("FDate", "2026-03-05"),
+        )
     )
 
 
@@ -132,7 +145,12 @@ def test_purchase_filter_combined() -> None:
     result = build_purchase_order_filter(
         PurchaseOrderParams(supplier_number="SUP001", document_status="B")
     )
-    assert result == "FSupplierID.FNumber = 'SUP001' AND FDocumentStatus = 'B'"
+    assert result == FilterExpression(
+        conditions=(
+            eq("FSupplierID.FNumber", "SUP001"),
+            eq("FDocumentStatus", "B"),
+        )
+    )
 
 
 def test_purchase_filter_supports_amount_bill_no_and_date() -> None:
@@ -144,7 +162,13 @@ def test_purchase_filter_supports_amount_bill_no_and_date() -> None:
             order_date="2026-01-08",
         )
     )
-    assert result == "FAmount >= 50000 AND FBillNo = 'PO000002' AND FDate = '2026-01-08'"
+    assert result == FilterExpression(
+        conditions=(
+            ge("FAmount", 50_000.0),
+            eq("FBillNo", "PO000002"),
+            eq("FDate", "2026-01-08"),
+        )
+    )
 
 
 def test_purchase_filter_supports_material_and_quantity() -> None:
@@ -152,7 +176,12 @@ def test_purchase_filter_supports_material_and_quantity() -> None:
     result = build_purchase_order_filter(
         PurchaseOrderParams(material_number="MAT001", min_quantity=10)
     )
-    assert result == "FMaterialId.FNumber = 'MAT001' AND FQty >= 10"
+    assert result == FilterExpression(
+        conditions=(
+            eq("FMaterialId.FNumber", "MAT001"),
+            ge("FQty", 10.0),
+        )
+    )
 
 
 def test_purchase_shares_status_validator() -> None:
@@ -175,11 +204,17 @@ def test_purchase_inbound_filter_full() -> None:
             min_quantity=10,
         )
     )
-    assert result == (
-        "FBillNo = 'CGRK000001' AND FSupplierID.FNumber = 'SUP001' "
-        "AND FMaterialId.FNumber = 'MAT001' AND FStockId.FName = '成品仓' "
-        "AND FDocumentStatus = 'C' AND FDate = '2026-01-06' "
-        "AND FSrcBillNo = 'PO000001' AND FRealQty >= 10"
+    assert result == FilterExpression(
+        conditions=(
+            eq("FBillNo", "CGRK000001"),
+            eq("FSupplierID.FNumber", "SUP001"),
+            eq("FMaterialId.FNumber", "MAT001"),
+            eq("FStockId.FName", "成品仓"),
+            eq("FDocumentStatus", "C"),
+            eq("FDate", "2026-01-06"),
+            eq("FSrcBillNo", "PO000001"),
+            ge("FRealQty", 10.0),
+        )
     )
 
 
@@ -191,12 +226,12 @@ def test_purchase_inbound_shares_status_validator() -> None:
 def test_inventory_filter_material_number() -> None:
     """库存按物料编码精确匹配。"""
     assert build_inventory_filter(InventoryParams(material_number="MAT001")) == (
-        "FMaterialId.FNumber = 'MAT001'"
+        FilterExpression(conditions=(eq("FMaterialId.FNumber", "MAT001"),))
     )
 
 
 def test_customer_filter_rejects_embedded_quote() -> None:
-    """LIKE 值内嵌单引号被组装层拒绝（纵深防御；M4 Guard 2 是主防线）。"""
+    """LIKE 值内嵌单引号被构造期拒绝（公共注入面 invariant，见 erp/conditions.py）。"""
     with pytest.raises(ValueError, match="单引号"):
         build_customer_filter(CustomerParams(name="o'reilly"))
 
