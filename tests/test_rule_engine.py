@@ -140,6 +140,24 @@ def test_knowledge_plan_targets_kb_search() -> None:
     assert call.arguments == {"query": "快递一直不更新怎么办？"}
 
 
+def test_policy_question_with_modal_is_knowledge_intent() -> None:
+    """「可以…吗」句式属于规则咨询：LLM 空规划时要补 kb_search，不能凭常识作答。"""
+    engine = RuleEngine()
+
+    plan = engine.match_knowledge_plan("优惠券可以叠加使用吗？")
+
+    assert plan is not None
+    assert plan.plan.tool_calls[0].tool_name == "kb_search"
+
+
+def test_chitchat_how_about_is_not_knowledge_intent() -> None:
+    """「怎么样」是闲聊句式，不能触发知识检索（否则天气类问题会被答成无文档）。"""
+    engine = RuleEngine()
+
+    assert engine.match_knowledge_plan("今天天气怎么样？") is None
+    assert _match("今天天气怎么样？") is None
+
+
 def test_knowledge_plan_requires_knowledge_intent_and_visible_tool() -> None:
     engine = RuleEngine()
 

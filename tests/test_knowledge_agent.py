@@ -120,6 +120,17 @@ async def test_no_hit_overrides_llm_hallucination(tmp_path: Path) -> None:
     assert response.trace.citations == []
 
 
+async def test_rewritten_query_is_anchored_to_user_question(tmp_path: Path) -> None:
+    """KB-04：模型把问题改写成短关键词时，检索参数必须回退到用户原问题。"""
+    core = _core(_registry(tmp_path), "根据《销售订单操作手册》第 1 段。", "采购入库")
+
+    response = await core.run("采购订单入库流程是什么？")
+
+    assert response.trace is not None
+    assert response.trace.tool_executions[0].parameters["query"] == "采购订单入库流程是什么？"
+    assert response.trace.llm_planning["kb_query_anchored"] is True
+
+
 async def test_memory_stores_enforced_answer(tmp_path: Path) -> None:
     memory = MemoryStore(session_id="kb-session")
     core = _core(

@@ -80,7 +80,11 @@ _WRITE_KEYWORDS = (
 _READ_STATUS_WORDS = ("已审核", "未审核", "待审核", "审核中", "重新审核")
 
 # 知识意图关键词（M9-T09）：LLM 宕机时不要把「怎么做/流程/规范」误降级成 ERP 查询
-_KNOWLEDGE_KEYWORDS = ("怎么", "如何", "流程", "规范", "手册", "制度", "步骤", "说明")
+# 「可以/能否/是否」覆盖「优惠券可以叠加使用吗」这类规则咨询句，避免模型不检索就作答。
+# 「怎么」排除「怎么样」：天气/闲聊类问题不能被当成知识咨询去检索。
+_KNOWLEDGE_KEYWORD_RE = re.compile(
+    r"怎么(?!样)|如何|流程|规范|手册|制度|步骤|说明|可以|能不能|能否|是否"
+)
 _BUSINESS_CODE_RE = re.compile(r"\b(?:SO|PO|CGRK|CUS|SUP|MAT)\d+\b", re.IGNORECASE)
 
 # 订单明细意图：LLM 宕机/空规划时也要把明细行查出来，而不是只给表头
@@ -383,4 +387,4 @@ def _is_knowledge_intent(text: str) -> bool:
     """知识意图：有「怎么做/流程/规范…」且没有显式业务编码。"""
     if _BUSINESS_CODE_RE.search(text):
         return False
-    return any(keyword in text for keyword in _KNOWLEDGE_KEYWORDS)
+    return _KNOWLEDGE_KEYWORD_RE.search(text) is not None

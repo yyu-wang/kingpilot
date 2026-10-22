@@ -53,6 +53,7 @@ from models.llm import (
     MemorySnapshot,
     PlanResult,
     ReflectionResult,
+    ToolCallDecision,
     ToolSpec,
 )
 from models.rag import KnowledgeSearchResult
@@ -424,6 +425,7 @@ class AgentCore:
         }
         plan = self._prefer_explicit_write_plan(plan, trace, user_context)
         plan = self._complete_empty_plan(plan, trace, user_context)
+        plan = self._anchor_knowledge_query(plan, trace)
         if cache_key and is_cacheable_plan(plan, self._tool_types()):
             self._cache.set(cache_key, plan)
         return plan
@@ -520,6 +522,34 @@ class AgentCore:
             matched.intent,
         )
         return matched.plan
+
+    def _anchor_knowledge_query(self, plan: PlanResult, trace: AgentTrace) -> PlanResult:
+        """``kb_search.query`` 锚定用户原问题，覆盖模型改写（M9-T09）。
+
+        Why：模型会把「采购订单入库流程是什么？」改写成「采购入库」这类短关键词，
+        短查询抬高 BM25 归一化分数，把不相关章节顶上来当依据引用。
+        检索按原问题匹配，故这里确定性回退；其余参数原样保留。
+        """
+        if not plan.tool_calls:
+            return plan
+        question = trace.user_input.strip()[:200]
+        if not question:
+            return plan
+        calls: list[ToolCallDecision] = []
+        anchored = False
+        for call in plan.tool_calls:
+            if call.tool_name != KB_SEARCH_TOOL:
+                calls.append(call)
+                continue
+            arguments = dict(call.arguments)
+            if arguments.get("query") != question:
+                arguments["query"] = question
+                anchored = True
+            calls.append(call.model_copy(update={"arguments": arguments}))
+        if not anchored:
+            return plan
+        trace.llm_planning["kb_query_anchored"] = True
+        return plan.model_copy(update={"tool_calls": calls})
 
     def _cache_key(self, user_input: str, user_context: UserContext) -> str:
         """缓存键：问题 + 可见工具 + 角色/数据域。"""

@@ -45,6 +45,10 @@ RAG_MAX_TOP_K = 20
 RAG_RETRIEVAL_TOP_K = 12  # BM25 候选池
 RAG_ANSWER_TOP_K = 5  # 注入上下文的片段数
 RAG_MAX_CHUNKS_PER_DOC = 2  # 单文档上限，避免一份手册刷屏
+# 相关性下限：BM25 分数 ÷ 查询词数。BM25 总分随问题长度增长，绝对分数不可直接比较；
+# 归一化后真命中明显高于假阳性（实测真命中 ≥0.66，无关片段 ≤0.54），
+# 低于该值的片段视为无关，整批过滤后走 no_hit，避免把不相关手册当依据引用。
+RAG_MIN_AVG_TOKEN_SCORE = 0.55
 KNOWLEDGE_NO_HIT_MESSAGE = "知识库没有找到相关文档。"
 # 纯聊天/未调用 kb_search 时，模型误用无命中话术的兜底文案
 KNOWLEDGE_NOT_SEARCHED_MESSAGE = (

@@ -229,7 +229,17 @@ def test_synonym_questions_hit_expected_section(
     assert result.hits[0].heading == heading
 
 
-@pytest.mark.parametrize("question", ["差旅报销标准是什么？", "年假有几天？"])
+@pytest.mark.parametrize(
+    "question",
+    [
+        "差旅报销标准是什么？",
+        "年假有几天？",
+        # 语料里只出现零散「库存/订单」字词、但没有对应章节：必须按无命中处理，
+        # 不能把《可售库存》《取消订单》当作依据引用
+        "库存盘点的操作步骤是什么？",
+        "采购订单入库流程是什么？",
+    ],
+)
 def test_out_of_corpus_question_is_no_hit(tmp_path: Path, question: str) -> None:
     _, index_dir = _build(tmp_path)
 

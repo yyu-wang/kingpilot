@@ -193,6 +193,9 @@ async function handleLogin(event) {
   if (!candidate) return;
 
   state.apiKey = candidate;
+  // 登录尝试期间清掉旧账号态：否则并发的 401 会触发 logout()，
+  // 把 catch 刚写入的失败提示又清空（UI-03）。
+  state.me = null;
   loginError.textContent = '';
   try {
     await Promise.all([apiFetch('/v1/sessions'), refreshAccount()]);

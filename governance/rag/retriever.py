@@ -20,6 +20,7 @@ from config.rag_rules import (
     RAG_INDEX_FILENAME,
     RAG_MAX_CHUNKS_PER_DOC,
     RAG_MAX_TOP_K,
+    RAG_MIN_AVG_TOKEN_SCORE,
     RAG_RETRIEVAL_TOP_K,
 )
 from governance.rag.index import RagIndex, tokenize_query
@@ -49,7 +50,7 @@ class KnowledgeRetriever:
         """检索并重排；无命中返回统一的无命中结果。"""
         limit = max(1, min(top_k or self._answer_k, RAG_MAX_TOP_K))
         candidates = self._index().search(query, top_k=self._candidate_k)
-        hits = self._rerank(query, candidates, limit)
+        hits = self._filter_irrelevant(query, self._rerank(query, candidates, limit))
         return KnowledgeSearchResult(
             query=query,
             hits=hits,
@@ -57,6 +58,17 @@ class KnowledgeRetriever:
             no_hit=not hits,
             message="" if hits else KNOWLEDGE_NO_HIT_MESSAGE,
         )
+
+    @staticmethod
+    def _filter_irrelevant(query: str, hits: list[RagSearchHit]) -> list[RagSearchHit]:
+        """丢弃相关性低于下限的片段（BM25 分数按查询词数归一化）。
+
+        Why：BM25 总会返回 topN，即使整库里没有真正回答问题的文档；
+        保留低分片段会让模型把不相关手册当作依据并伪造引用。
+        """
+        term_count = max(1, len(tokenize_query(query)))
+        threshold = RAG_MIN_AVG_TOKEN_SCORE * term_count
+        return [hit for hit in hits if hit.score >= threshold]
 
     # ────────────────────────── 索引热加载 ──────────────────────────
 
